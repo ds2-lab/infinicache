@@ -12,7 +12,7 @@ type MyEvent struct {
 }
 
 func HandleRequest(ctx context.Context, name MyEvent) (string, error) {
-        tcpAddr, err := net.ResolveTCPAddr("tcp", "34.202.243.214:8080")  //TCP连接地址
+        tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080")  //TCP连接地址
         if err != nil{
           fmt.Println(err)
           return "rr", err
