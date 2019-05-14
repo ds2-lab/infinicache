@@ -13,7 +13,8 @@ const BUFFERSIZE = 12800
 
 func lambda2() {
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
+	//tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
+	tcpAddr, err := net.ResolveTCPAddr("tcp", "10.159.130.38:8080") // ec2 address
 	//tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:3333")
 	if err != nil {
 		fmt.Println(err)
