@@ -3,96 +3,148 @@ package main
 import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"io"
+	"github.com/kelindar/binary"
+	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
 	"time"
 )
 
-const BUFFERSIZE = 12800
+var (
+	cache      map[string][]byte
+	srv        *server
+	reqLambda1 req
+)
 
-//var (
-//	tcpAddr *net.TCPAddr
-//	tcpConn net.Conn
-//)
-//
-//func init() {
-//	tcpAddr, _ = net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
-//	tcpConn, _ = net.DialTCP("tcp", nil, tcpAddr)                 //dial tcp
-//}
-func HandleRequest() {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// dial tcp establish connection socket2
-	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr) //dial tcp
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	//defer tcpConn.Close() //close conn
-	fmt.Println("Start receiving data...")
-	for {
-
-		// load file first
-		Object, err := os.Open("1mb.jpg")
-		checkerror(err)
-		fileInfo, err := Object.Stat()
-		//checkerror(err)
-		fmt.Println("already read file", fileInfo)
-
-		// receive lambda1's request
-		recvData := make([]byte, 2048)
-		n, err := tcpConn.Read(recvData) // read lambda1's request
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		recvDataTimeStamp := time.Now()
-		recvStr := string(recvData[:n])
-		fmt.Println("The request from lambda1 is:", recvStr)
-		fmt.Println("the recv timestamp is", recvDataTimeStamp)
-		fmt.Println("start sending file")
-
-		// send response to server
-		//Object := "this is lambda2_simulator"
-		//n, err = tcpCoon.Write([]byte(Object))
-		//// send data
-		//if err != nil {
-		//	fmt.Println(err)
-		//	return
-		//}
-		//fmt.Println("Send", n, "byte data successed", "message is\n", Object)
-
-		// send file
-		//for {
-		fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
-		fileName := fillString(fileInfo.Name(), 64)
-		tcpConn.Write([]byte(fileSize))
-		tcpConn.Write([]byte(fileName))
-
-		sendObject(tcpConn, Object)
-
-		//tcpConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	}
-
+type ret struct {
+	n   int
+	err error
 }
 
-func fillString(retunString string, toLength int) string {
-	for {
-		lengtString := len(retunString)
-		if lengtString < toLength {
-			retunString = retunString + ":"
-			continue
-		}
-		break
+type server struct {
+	conn    *net.TCPConn
+	closed  chan struct{}
+	timer   *time.Timer
+	ret     chan *ret
+	reading bool
+	buffer  []byte
+}
+
+type req struct {
+	Name      string
+	TimeStamp time.Time
+	Uuid      [16]byte
+}
+
+type response struct {
+	Length int
+	Uuid   [16]byte
+}
+
+func newResponse(length int, uuid [16]byte) []byte {
+	myRes := &response{
+		Length: length,
+		Uuid:   uuid,
 	}
-	return retunString
+	encoded, err := binary.Marshal(myRes)
+	if err != nil {
+		fmt.Println("encode err", err)
+	}
+	return encoded
+}
+
+func newServer() *server {
+	return &server{
+		ret:    make(chan *ret),
+		buffer: make([]byte, 2048),
+	}
+}
+
+func (srv *server) start() {
+	srv.closed = make(chan struct{})
+	srv.timer = time.NewTimer(10 * time.Second)
+	go func() {
+		<-srv.timer.C
+		fmt.Println("timer is triggered. Timed out")
+		srv.stop()
+	}()
+}
+
+func (srv *server) stop() {
+	select {
+	case <-srv.closed:
+	// already closed
+	default:
+		fmt.Println("closing srv")
+		close(srv.closed)
+	}
+}
+
+// release resource
+func (srv *server) close() {
+	fmt.Println("closing")
+	srv.timer.Stop()
+	//close(srv.ret)
+}
+
+func (srv *server) recv() {
+	if srv.reading {
+		return
+	}
+
+	srv.reading = true
+	n, err := srv.conn.Read(srv.buffer)
+	if err != nil {
+		fmt.Println("recv err is ", err)
+	}
+	fmt.Println("buff is ", srv.buffer)
+
+	srv.ret <- &ret{n, err}
+	srv.reading = false
+}
+
+func HandleRequest() {
+	srv.start()
+	// release resource
+	defer srv.close()
+
+	if srv.conn == nil {
+		srv.conn = connect()
+	}
+
+	fmt.Println("Start receiving data...")
+	readObject("1mb.jpg")
+	fmt.Println("already read file")
+
+	for {
+		fmt.Println("selecting")
+		go srv.recv()
+		select {
+		case <-srv.closed:
+			fmt.Println("srv closed")
+			return
+		// receive lambda1's request
+		case readRet := <-srv.ret:
+			if readRet.err != nil {
+				fmt.Println("err is ", readRet.err)
+			}
+			recv := srv.buffer[:readRet.n]
+			_ = binary.Unmarshal(recv, &reqLambda1)
+
+			// send file
+			fmt.Println("start sending file")
+			obj := getKey("1mb.jpg")
+			fmt.Println("The request from lambda1 is:", reqLambda1.Name)
+			objInfo := newResponse(len(obj), reqLambda1.Uuid)
+			// send response to server
+			srv.conn.Write(objInfo)
+			time.Sleep(2 * time.Second)
+			srv.conn.Write(obj)
+			fmt.Println("write done")
+		}
+
+	}
+
 }
 
 func checkerror(err error) {
@@ -101,22 +153,41 @@ func checkerror(err error) {
 		os.Exit(1)
 	}
 }
-func sendObject(conn net.Conn, obj *os.File) {
-	sendBuffer := make([]byte, BUFFERSIZE)
-	//fmt.Println("Start sending file")
-	for {
-		_, err := obj.Read(sendBuffer)
-		//fmt.Println("buffer ", string(sendBuffer))
-		if err == io.EOF {
-			fmt.Println("no dat left")
-			break
-		}
-		conn.Write(sendBuffer)
+
+func readObject(obj string) {
+	data, err := ioutil.ReadFile(obj)
+	if err != nil {
+		checkerror(err)
+	} else {
+		cache[obj] = data
 	}
-	fmt.Println("sended")
+}
+
+func getKey(obj string) []byte {
+	_, exist := cache[obj]
+	if !exist {
+		readObject(obj)
+	}
+	return cache[obj]
+}
+
+func connect() *net.TCPConn {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr) //dial tcp
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return tcpConn
 }
 
 func main() {
-
+	cache = make(map[string][]byte)
+	srv = newServer()
 	lambda.Start(HandleRequest)
 }
