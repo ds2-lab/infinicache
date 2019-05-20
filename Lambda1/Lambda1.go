@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kelindar/binary"
+	"io"
 	"net"
 	"time"
 )
@@ -19,9 +19,18 @@ type body struct {
 	obj []byte
 }
 
-func encodeHeader(name string) []byte {
+type Frame struct {
+	lenHeader uint32
+	lenBody   uint32
+	header    []byte
+	body      []byte
+}
+
+var frameHandler = make(chan *Frame, 100)
+
+func encodeHeader(funcName string) []byte {
 	myHeader := &header{
-		Name:      name,
+		Name:      funcName,
 		TimeStamp: time.Now(),
 		Uuid:      uuid.New(),
 	}
@@ -45,6 +54,7 @@ func encodeBody() []byte {
 
 func connect() *net.TCPConn {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "52.201.234.235:8080") // ec2 address
+	//tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:3333") // ec2 address
 	if err != nil {
 		fmt.Println(err)
 		return nil
@@ -59,10 +69,10 @@ func connect() *net.TCPConn {
 }
 
 func tcpSend(conn *net.TCPConn, headerLen []byte, bodyLen []byte, header []byte, body []byte) {
-	fmt.Println(headerLen)
-	fmt.Println(bodyLen)
-	fmt.Println(header)
-	fmt.Println(body)
+	//fmt.Println(headerLen)
+	//fmt.Println(bodyLen)
+	//fmt.Println(header)
+	//fmt.Println(body)
 
 	sendCount := 0
 	switch sendCount {
@@ -104,60 +114,96 @@ func main() {
 	myBody := encodeBody()
 
 	myHeaderLen := make([]byte, 4)
-	myBodyLen := make([]byte, 4)
-
 	binary.BigEndian.PutUint32(myHeaderLen, uint32(len(myHeader))) // get header length
-	binary.BigEndian.PutUint32(myBodyLen, uint32(len(myBody)))     // get body length
+
+	myBodyLen := make([]byte, 4)
+	binary.BigEndian.PutUint32(myBodyLen, uint32(len(myBody))) // get body length
 
 	tcpSend(tcpCoon, myHeaderLen, myBodyLen, myHeader, myBody)
 
 	// receive from server
-	var b bytes.Buffer
-	var info header
-	//buff := make([]byte, 2048)
-	//bs := make([]byte, 4)
-	//n, err = tcpCoon.Read(bs)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	//s := binary.LittleEndian.Uint32(bs[:n])
-	//fmt.Printf("s is %d\n", int(s))
-	//length := 0
-	infoBuff := make([]byte, 4)
-	bodyLenBuff := make([]byte, 4)
-	bodyBuff := make([]byte, 2048)
-
-	n, err := tcpCoon.Read(infoBuff) // conn read header
-	if err != nil {
-		fmt.Println(err)
-		return
+	go receive(tcpCoon)
+	fmt.Println(<-frameHandler)
+}
+func receive(conn *net.TCPConn) {
+	time.Sleep(1 * time.Second)
+	//defer conn.Close()
+	frame := &Frame{
+		lenHeader: 0,
+		lenBody:   0,
+		header:    []byte{},
+		body:      []byte{},
 	}
-	_ = binary.Unmarshal(infoBuff[:n], &info)
+	intBuff := make([]byte, 4)
+	fieldFrame := 0
 
-	n, err = tcpCoon.Read(bodyLenBuff) // conn read BodyLen
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	count := 0
-	length := n
-
+	buff := make([]byte, 2048)
 	for {
-		n, err := tcpCoon.Read(bodyBuff)
-		//fmt.Println(n)
-		count += n
-		fmt.Println("length", count)
-		if n > 0 {
-			b.Write(bodyBuff[:n])
-		}
-		if count >= length {
+		buffFrom := 0
+		n, err := conn.Read(buff)
+		if err == io.EOF {
+			fmt.Println(conn.RemoteAddr(), "has disconnect")
 			break
 		} else if err != nil {
-			fmt.Println("err is ", err)
+			fmt.Println(conn.RemoteAddr(), "connection error")
 			break
 		}
-	}
-	fmt.Println("total size:", length)
 
+		switch fieldFrame {
+		case 0:
+			// get header length
+			if n-buffFrom >= cap(intBuff) {
+				frame.lenHeader = binary.BigEndian.Uint32(buff[buffFrom : buffFrom+4])
+				buffFrom = buffFrom + 4
+				fieldFrame = 1
+				goto nextCase0
+			} else {
+				copy(intBuff, buff[buffFrom:n])
+			}
+		nextCase0:
+			fallthrough
+		case 1:
+			// get body length
+			if n-buffFrom >= cap(intBuff) {
+				frame.lenBody = binary.BigEndian.Uint32(buff[buffFrom : buffFrom+4])
+				buffFrom = buffFrom + 4
+				fieldFrame = 2
+				goto nextCase1
+			} else {
+				copy(intBuff, buff[buffFrom:n])
+			}
+		nextCase1:
+			fallthrough
+		case 2:
+			// get header
+			if n-buffFrom >= int(frame.lenHeader)-len(frame.header) {
+				frame.header = merge(frame.header, buff[buffFrom:buffFrom+int(frame.lenHeader)])
+				buffFrom = buffFrom + len(frame.header)
+				fieldFrame = 3
+				buffFrom = buffFrom + int(frame.lenHeader) - len(frame.header)
+				goto nextCase2
+			} else {
+				frame.header = merge(frame.header, buff[buffFrom:])
+			}
+		nextCase2:
+			fallthrough
+		case 3:
+			// get body
+			if n-buffFrom >= int(frame.lenBody)-len(frame.body) {
+				frame.body = merge(frame.body, buff[buffFrom:buffFrom+int(frame.lenBody)])
+				buffFrom = buffFrom + int(frame.lenBody) - len(frame.body)
+				//frameHandler <- frame
+				fieldFrame = 0
+			} else {
+				frame.body = merge(frame.body, buff[buffFrom:])
+			}
+		}
+		frameHandler <- frame
+	}
+}
+func merge(a []byte, b []byte) []byte {
+	c := make([]byte, len(a)+len(b))
+	copy(c, a)
+	copy(c[len(a):], b)
+	return c
 }

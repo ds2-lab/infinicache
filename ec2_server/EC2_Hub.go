@@ -18,9 +18,9 @@ type lambdaInstance struct {
 }
 
 type header struct {
-	name      string
-	timeStamp time.Time
-	uuid      [16]byte
+	Name      string
+	TimeStamp time.Time
+	Uuid      [16]byte
 }
 
 type Frame struct {
@@ -31,24 +31,29 @@ type Frame struct {
 }
 
 var myLambda lambdaInstance
-var lambda1 lambdaInstance
 var lambda2 *lambdaInstance
-var frameHandler chan *Frame
+var frameHandler = make(chan *Frame, 100)
 
 func newLambdaInstance(name string) *lambdaInstance {
-	return &lambdaInstance{name: name}
+	return &lambdaInstance{
+		name:  name,
+		conn:  nil,
+		alive: false,
+	}
 }
 
-// server decode request from lambda1
-func decode() header {
-	reqBuff := make([]byte, 2048)
-	n, err := lambda1.conn.Read(reqBuff)
-	var v header
-	err = binary.Unmarshal(reqBuff[:n], &v)
+func decodeHeader(encodeBuff []byte) header {
+	var s header
+	err := binary.Unmarshal(encodeBuff, &s)
 	if err != nil {
-		fmt.Println("decode err is ", err)
+		fmt.Println(err)
 	}
-	return v
+	return s
+}
+
+func parseHeader(receive *Frame) header {
+	myHeader := decodeHeader(receive.header)
+	return myHeader
 }
 
 func main() {
@@ -97,6 +102,7 @@ func main() {
 	//	go receive1(&lambda1, lambda2)
 	//	go receive2(lambda2, &lambda1)
 	//}
+
 	for {
 		myLambda.conn, err = tcpListener.AcceptTCP()
 		if err != nil {
@@ -105,14 +111,84 @@ func main() {
 		}
 		fmt.Println("lambda connect: ", myLambda.conn.RemoteAddr())
 
-		receiveLambda(myLambda)
+		go receive(myLambda)
+
+		receiveFrame := <-frameHandler
+		receiveHeader := parseHeader(receiveFrame)
+		fmt.Println("receiveHeader is ", receiveHeader)
+		targetLambda := receiveHeader.Name
+
+		if lambda2 == nil {
+			lambda2 = newLambdaInstance(targetLambda)
+		}
+		if !lambda2.alive {
+			fmt.Println("Lambda 2 is not alive, need to activate")
+			go lambdaTrigger(lambda2)
+			fmt.Println("Lambda 2 is active now")
+		}
+		if lambda2.conn == nil {
+			lambda2.conn, err = tcpListener.AcceptTCP() //Accept lambda2_simulator
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println("Lamdba2 Connect :", lambda2.conn.RemoteAddr())
+		}
+
+		tcpSend(lambda2.conn, receiveFrame)
+
+		go receive(*lambda2)
+		receiveFrame = <-frameHandler
+		fmt.Println("body length is ", receiveFrame.lenBody)
+
+		tcpSend(myLambda.conn, receiveFrame)
 
 	}
+
 }
 
-func receiveLambda(l lambdaInstance) {
+func tcpSend(conn *net.TCPConn, frame *Frame) {
+
+	myHeaderLen := make([]byte, 4)
+	binary.BigEndian.PutUint32(myHeaderLen, uint32(frame.lenHeader)) // get header length
+
+	myBodyLen := make([]byte, 4)
+	binary.BigEndian.PutUint32(myBodyLen, uint32(frame.lenBody)) // get body length
+
+	sendCount := 0
+	switch sendCount {
+	case 0:
+		_, err := conn.Write(myHeaderLen)
+		if err != nil {
+			fmt.Println(err)
+		}
+		sendCount = 1
+		fallthrough
+	case 1:
+		_, err := conn.Write(myBodyLen)
+		if err != nil {
+			fmt.Println(err)
+		}
+		sendCount = 2
+		fallthrough
+	case 2:
+		_, err := conn.Write(frame.header)
+		if err != nil {
+			fmt.Println(err)
+		}
+		sendCount = 3
+		fallthrough
+	case 4:
+		_, err := conn.Write(frame.body)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+}
+func receive(l lambdaInstance) {
 	time.Sleep(1 * time.Second)
-	defer l.conn.Close()
+	//defer l.conn.Close()
 	frame := &Frame{
 		lenHeader: 0,
 		lenBody:   0,
@@ -133,7 +209,6 @@ func receiveLambda(l lambdaInstance) {
 			fmt.Println(l.conn.RemoteAddr(), "connection error")
 			break
 		}
-		fmt.Println("receive lambda's message is: ", buff[:n])
 
 		switch fieldFrame {
 		case 0:
@@ -147,7 +222,6 @@ func receiveLambda(l lambdaInstance) {
 				copy(intBuff, buff[buffFrom:n])
 			}
 		nextCase0:
-			fmt.Println("case0")
 			fallthrough
 		case 1:
 			// get body length
@@ -160,12 +234,12 @@ func receiveLambda(l lambdaInstance) {
 				copy(intBuff, buff[buffFrom:n])
 			}
 		nextCase1:
-			fmt.Println("case1")
 			fallthrough
 		case 2:
 			// get header
 			if n-buffFrom >= int(frame.lenHeader)-len(frame.header) {
 				frame.header = merge(frame.header, buff[buffFrom:buffFrom+int(frame.lenHeader)])
+				buffFrom = buffFrom + len(frame.header)
 				fieldFrame = 3
 				buffFrom = buffFrom + int(frame.lenHeader) - len(frame.header)
 				goto nextCase2
@@ -173,8 +247,6 @@ func receiveLambda(l lambdaInstance) {
 				frame.header = merge(frame.header, buff[buffFrom:])
 			}
 		nextCase2:
-			fmt.Println("case2")
-
 			fallthrough
 		case 3:
 			// get body
@@ -182,72 +254,12 @@ func receiveLambda(l lambdaInstance) {
 				frame.body = merge(frame.body, buff[buffFrom:buffFrom+int(frame.lenBody)])
 				buffFrom = buffFrom + int(frame.lenBody) - len(frame.body)
 				//frameHandler <- frame
-				//frame = &Frame{}
 				fieldFrame = 0
 			} else {
 				frame.body = merge(frame.body, buff[buffFrom:])
 			}
+			frameHandler <- frame
 		}
-		fmt.Println("frame is", frame)
-	}
-}
-func receive1(l1 *lambdaInstance, l2 *lambdaInstance) {
-
-	defer l1.conn.Close()
-	reqBuff := make([]byte, 2048)
-	//data, err := binary.Marshal(&request)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-
-	// server read lambda1's request
-	for {
-		n, err := l1.conn.Read(reqBuff)
-		if err == io.EOF {
-			fmt.Println(l1.conn.RemoteAddr(), "has disconnect")
-			break
-		} else if err != nil {
-			fmt.Println(l1.conn.RemoteAddr(), "connection error")
-			return
-		}
-		fmt.Println("tcpConn1", l1.conn.RemoteAddr().String())
-
-		// send lambda1's request to lambda2
-		fmt.Println("data from lambda1 is ", reqBuff[:n])
-		send(l2.conn, reqBuff[:n])
-		fmt.Println("send to conn2")
-	}
-	fmt.Println("exit receive1")
-}
-
-func receive2(l2 *lambdaInstance, l1 *lambdaInstance) {
-
-	fmt.Println("in the receive2")
-	responseBuff := make([]byte, 2048)
-
-	for {
-		n, err := l2.conn.Read(responseBuff)
-		//fmt.Println(content)
-		if err == io.EOF {
-			fmt.Println("lambda2 complete")
-			l2.conn.Close()
-			l2.conn = nil
-			break
-		}
-		// send
-		_, err = l1.conn.Write(responseBuff[:n])
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}
-	fmt.Println("right now in the receive2")
-}
-
-func send(conn net.Conn, object []byte) {
-	_, err := conn.Write(object)
-	if err != nil {
-		fmt.Println(err)
 	}
 }
 
@@ -261,6 +273,7 @@ func lambdaTrigger(instance *lambdaInstance) {
 
 	instance.alive = true
 	_, err := client.Invoke(&lambda.InvokeInput{FunctionName: aws.String(instance.name)})
+	fmt.Println(instance.name)
 	if err != nil {
 		fmt.Println("Error calling LambdaFunction")
 	}
