@@ -1,4 +1,4 @@
-package src
+package main
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 
 func main() {
 	go sendtoLambda()
+
 	receiveFromClient()
 
 }
@@ -25,7 +26,7 @@ func sendtoLambda() {
 	})
 
 	// Open a new listener
-	lis, err := net.Listen("tcp", ":3000")
+	lis, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +90,7 @@ func receiveFromClient() {
 	}))
 
 	// Open a new listener
-	lis, err := net.Listen("tcp", ":3333")
+	lis, err := net.Listen("tcp", ":6378")
 	if err != nil {
 		panic(err)
 	}

@@ -1,14 +1,15 @@
-package src
+package main
 
 import (
 	"fmt"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/bsm/redeo/resp"
 	"github.com/wangaoone/redeo"
 	"net"
 )
 
-func main() {
-	cn, err := net.Dial("tcp", "localhost:3000")
+func HandleRequest() {
+	cn, err := net.Dial("tcp", "52.201.234.235:6379")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -25,4 +26,8 @@ func main() {
 	fmt.Println("conn is", cn.RemoteAddr())
 
 	srv.Serve_client(cn)
+}
+
+func main() {
+	lambda.Start(HandleRequest)
 }
