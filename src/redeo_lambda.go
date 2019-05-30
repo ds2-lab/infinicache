@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/bsm/redeo/resp"
 	"github.com/wangaoone/redeo"
 	"net"
 )
 
-func HandleRequest() {
-	cn, err := net.Dial("tcp", "52.201.234.235:6379")
+func main() {
+	cn, err := net.Dial("tcp", "localhost:3000")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -18,6 +17,7 @@ func HandleRequest() {
 
 	// Define handlers
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, _ *resp.Command) {
+		fmt.Println("in the handle function")
 		w.AppendInlineString("PONG")
 	})
 	srv.HandleFunc("info", func(w resp.ResponseWriter, _ *resp.Command) {
@@ -26,8 +26,4 @@ func HandleRequest() {
 	fmt.Println("conn is", cn.RemoteAddr())
 
 	srv.Serve_client(cn)
-}
-
-func main() {
-	lambda.Start(HandleRequest)
 }

@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	//cn, _ := net.Dial("tcp", "localhost:3333")
-	cn, _ := net.Dial("tcp", "52.201.234.235:6378")
+	cn, _ := net.Dial("tcp", "localhost:3333")
+	//cn, _ := net.Dial("tcp", "52.201.234.235:6378")
 	defer cn.Close()
 
 	// Wrap connection
@@ -17,7 +17,7 @@ func main() {
 	r := resp.NewResponseReader(cn)
 
 	// Write pipeline
-	w.WriteCmdString("PING")
+	w.WriteCmdString("echo", "hellp")
 
 	// Flush pipeline
 	if err := w.Flush(); err != nil {
@@ -25,28 +25,15 @@ func main() {
 	}
 
 	// Consume responses
-	for i := 0; i < 5; i++ {
-		t, err := r.PeekType()
-		if err != nil {
-			return
-		}
-
-		switch t {
-		case resp.TypeInline:
-			s, _ := r.ReadInlineString()
-			fmt.Println(s)
-		case resp.TypeBulk:
-			s, _ := r.ReadBulkString()
-			fmt.Println(s)
-		case resp.TypeInt:
-			n, _ := r.ReadInt()
-			fmt.Println(n)
-		case resp.TypeNil:
-			_ = r.ReadNil()
-			fmt.Println(nil)
-		default:
-			panic("unexpected response type")
-		}
+	t, err := r.PeekType()
+	if err != nil {
+		fmt.Println(err)
 	}
+	fmt.Println(t)
+	c, err := r.ReadBulkString()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(c)
 
 }
