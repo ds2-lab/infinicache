@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"net"
-
 	"github.com/bsm/redeo/resp"
+	"net"
 )
 
 func main() {
-	cn, _ := net.Dial("tcp", "localhost:3333")
-	//cn, _ := net.Dial("tcp", "52.201.234.235:6378")
+	//cn, _ := net.Dial("tcp", "localhost:3333")
+	cn, _ := net.Dial("tcp", "52.201.234.235:6378")
 	defer cn.Close()
 
 	// Wrap connection
@@ -17,7 +16,8 @@ func main() {
 	r := resp.NewResponseReader(cn)
 
 	// Write pipeline
-	w.WriteCmdString("echo", "hellp")
+	//w.WriteCmdString("get", "30mb.jpg")
+	w.WriteCmdString("set", "key", "this is the set")
 
 	// Flush pipeline
 	if err := w.Flush(); err != nil {
@@ -30,10 +30,11 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(t)
-	c, err := r.ReadBulkString()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(c)
+	//buf := make([]byte, 0)
+	//c, err := r.ReadBulk(buf)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//fmt.Println(len(c))
 
 }

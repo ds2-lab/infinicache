@@ -2,126 +2,195 @@ package main
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/bsm/redeo/resp"
 	"github.com/wangaoone/redeo"
 	"net"
 )
 
 var (
-	chan1 = make(chan resp.CommandArgument, 1)
-	chan2 = make(chan string, 1)
-	count = 0
-	cn    net.Conn
+	getChan1     = make(chan resp.CommandArgument, 1)
+	getChan2     = make(chan []byte, 1)
+	setChan1     = make(chan setObject, 1)
+	setChan2     = make(chan int64, 1)
+	clientLis, _ = net.Listen("tcp", ":6378")
+	lambdaLis, _ = net.Listen("tcp", ":6379")
+	lambdaStore  *lambdaInstance
 )
 
-func main() {
+type setObject struct {
+	key   resp.CommandArgument
+	value resp.CommandArgument
+}
 
+type lambdaInstance struct {
+	name  string
+	alive bool
+	cn    net.Conn
+}
+
+func newLambdaInstance(name string) *lambdaInstance {
+	return &lambdaInstance{
+		name:  name,
+		alive: false,
+	}
+}
+
+func main() {
+	fmt.Println("start listening client face port 6378")
 	fmt.Println("receive from client...")
 	srv := redeo.NewServer(nil)
 
 	// Define handlers
-	srv.Handle("echo", redeo.WrapperFunc(func(c *resp.Command) interface{} {
+	srv.Handle("get", redeo.WrapperFunc(func(c *resp.Command) interface{} {
 		if c.ArgN() != 1 {
 			return redeo.ErrWrongNumberOfArgs(c.Name)
 		}
-		chan1 <- c.Arg(0)
-		fmt.Println("out chan2")
-		go sendtoLambda()
-		return <-chan2
+		getChan1 <- c.Arg(0)
+		fmt.Println("sending to lambda...")
+		// trigger trigger lambda store
+		go getLambda()
+		// get return from channel
+		return <-getChan2
 	}))
 
-	// Open a new listener
-	lis, err := net.Listen("tcp", ":3333")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("start listening client face port 3333")
+	srv.Handle("set", redeo.WrapperFunc(func(c *resp.Command) interface{} {
+		if c.ArgN() != 2 {
+			return redeo.ErrWrongNumberOfArgs(c.Name)
+		}
 
-	defer lis.Close()
+		setChan1 <- setObject{c.Arg(0), c.Arg(1)}
+		fmt.Println("sending to lambda...")
+		// trigger trigger lambda store
+		go setLambda()
+		// get return from channel
+		return <-setChan2
+	}))
+
+	//defer lis.Close()
 
 	// Start serving (blocking)
-	err = srv.Serve(lis)
+	err := srv.Serve(clientLis)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
 
-func sendtoLambda() {
-	fmt.Println("ready send to lambda storage", <-chan1)
-	fmt.Println("count is ", count)
-	if count == 0 {
-		srv := redeo.NewServer(nil)
-
-		// Define handlers
-		srv.HandleFunc("PING", func(w resp.ResponseWriter, _ *resp.Command) {
-			w.AppendInlineString("PONG")
-		})
-
-		// Open a new listener
-		lis, err := net.Listen("tcp", ":3000")
-		if err != nil {
-			panic(err)
-		}
-		defer lis.Close()
-
-		fmt.Println("start listening lambda face port 3000")
-
-		// client part
-		cn = srv.Accept(lis)
-		fmt.Println(cn.RemoteAddr())
-		count = count + 1
+func setLambda() {
+	fmt.Println("===== set to lambda function start =====")
+	setObj := <-setChan1
+	fmt.Println("ready send to lambda storage", " the obj key is", setObj.key.String(), "value is ", setObj.value.String())
+	fmt.Println("start listening lambda face port 6379")
+	if lambdaStore == nil {
+		fmt.Println("create new lambda instance")
+		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
-	fmt.Println("add is ", cn.LocalAddr())
-	// writer and reader
-	w := resp.NewRequestWriter(cn)
-	r := resp.NewResponseReader(cn)
+	if lambdaStore.alive == false {
+		fmt.Println("Lambda 2 is not alive, need to activate")
+		// trigger lambda
+		go lambdaTrigger(lambdaStore)
+	}
 
-	w.WriteCmdString("ping")
+	if lambdaStore.cn == nil {
+		fmt.Println("start a new conn")
+		// start a new server to receive conn from lambda store
+		srv := redeo.NewServer(nil)
+		lambdaStore.cn = srv.Accept(lambdaLis)
+	}
+	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+
+	// client part
+	// writer and reader
+	w := resp.NewRequestWriter(lambdaStore.cn)
+	r := resp.NewResponseReader(lambdaStore.cn)
+
+	w.WriteCmdString("SET", setObj.key.String(), setObj.key.String())
+	fmt.Println("write comd", w)
 
 	// Flush pipeline
-	if err := w.Flush(); err != nil {
-		fmt.Println(err)
+	err := w.Flush()
+	if err != nil {
+		fmt.Println("flush err is ", err)
 	}
+
+	// Read response
 	// Consume responses
-	s, _ := r.ReadInlineString()
-	fmt.Println(s)
-	chan2 <- s
-	fmt.Println("send to lambda and get resposne over")
+	s, err := r.ReadInt()
+	if err != nil {
+		fmt.Println("ReadBulk err is", err)
+	}
+	fmt.Println("received")
+	setChan2 <- s
+	fmt.Println("===== set to lambda function over =====")
 }
 
-//func receiveFromClient() {
-//	fmt.Println("receive from client...")
-//	srv := redeo.NewServer(nil)
-//
-//	// Define handlers
-//	srv.HandleFunc("ping", func(w resp.ResponseWriter, _ *resp.Command) {
-//		w.AppendInlineString("POOOOOONG")
-//	})
-//
-//	srv.Handle("echo", redeo.WrapperFunc(func(c *resp.Command) interface{} {
-//		if c.ArgN() != 1 {
-//			return redeo.ErrWrongNumberOfArgs(c.Name)
-//		}
-//		chan1 <- c.Arg(0)
-//		fmt.Println("out chan2")
-//		return <-chan2
-//	}))
-//
-//	// Open a new listener
-//	lis, err := net.Listen("tcp", ":3333")
-//	if err != nil {
-//		panic(err)
-//	}
-//	fmt.Println("start listening client face port 3333")
-//
-//	defer lis.Close()
-//
-//	go sendtoLambda()
-//
-//	// Start serving (blocking)
-//	err = srv.Serve(lis)
-//	if err != nil {
-//		fmt.Println(err)
-//	}
-//}
+func getLambda() {
+	fmt.Println("===== put to lambda function start =====")
+	key := <-getChan1
+	fmt.Println("ready send to lambda storage, the obj name is", string(key), "cmd", key)
+	fmt.Println("start listening lambda face port 6379")
+	if lambdaStore == nil {
+		fmt.Println("create new lambda instance")
+		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
+	}
+	if lambdaStore.alive == false {
+		fmt.Println("Lambda 2 is not alive, need to activate")
+		// trigger lambda
+		go lambdaTrigger(lambdaStore)
+	}
+
+	if lambdaStore.cn == nil {
+		fmt.Println("start a new conn")
+		// start a new server to receive conn from lambda store
+		srv := redeo.NewServer(nil)
+		lambdaStore.cn = srv.Accept(lambdaLis)
+	}
+	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+
+	// client part
+	// writer and reader
+	w := resp.NewRequestWriter(lambdaStore.cn)
+	r := resp.NewResponseReader(lambdaStore.cn)
+
+	w.WriteCmdString("get", string(key))
+	fmt.Println("write comd", w)
+
+	// Flush pipeline
+	err := w.Flush()
+	if err != nil {
+		fmt.Println("flush err is ", err)
+	}
+
+	// Read response
+	buf := make([]byte, 0)
+	// Consume responses
+	s, err := r.ReadBulk(buf)
+	if err != nil {
+		fmt.Println("ReadBulk err is", err)
+	}
+	fmt.Println("received")
+	getChan2 <- s
+	fmt.Println("===== put to lambda function over =====")
+}
+
+func lambdaTrigger(l *lambdaInstance) {
+	//fmt.Println("triggering lambda")
+	l.alive = true
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+
+	_, err := client.Invoke(&lambda.InvokeInput{FunctionName: aws.String(l.name)})
+	if err != nil {
+		fmt.Println("Error calling LambdaFunction")
+	}
+
+	fmt.Println("lamdba deactive")
+	l.alive = false
+}
