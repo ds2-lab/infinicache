@@ -60,7 +60,7 @@ func main() {
 		if c.ArgN() != 2 {
 			return redeo.ErrWrongNumberOfArgs(c.Name)
 		}
-
+		fmt.Println("command from client", c.Arg(0))
 		setChan1 <- setObject{c.Arg(0), c.Arg(1)}
 		fmt.Println("sending to lambda...")
 		// trigger trigger lambda store
@@ -82,7 +82,7 @@ func main() {
 func setLambda() {
 	fmt.Println("===== set to lambda function start =====")
 	setObj := <-setChan1
-	fmt.Println("ready send to lambda storage", " the obj key is", setObj.key.String(), "value is ", setObj.value.String())
+	//fmt.Println("ready send to lambda storage", " the obj key is", setObj.key.String(), "value is ", setObj.value.String())
 	fmt.Println("start listening lambda face port 6379")
 	if lambdaStore == nil {
 		fmt.Println("create new lambda instance")
@@ -107,8 +107,8 @@ func setLambda() {
 	w := resp.NewRequestWriter(lambdaStore.cn)
 	r := resp.NewResponseReader(lambdaStore.cn)
 
-	w.WriteCmdString("SET", setObj.key.String(), setObj.key.String())
-	fmt.Println("write comd", w)
+	w.WriteCmdString("SET", setObj.key.String(), setObj.value.String())
+	//fmt.Println("write comd", w)
 
 	// Flush pipeline
 	err := w.Flush()
@@ -130,7 +130,7 @@ func setLambda() {
 func getLambda() {
 	fmt.Println("===== put to lambda function start =====")
 	key := <-getChan1
-	fmt.Println("ready send to lambda storage, the obj name is", string(key), "cmd", key)
+	//fmt.Println("ready send to lambda storage, the obj name is", string(key), "cmd", key)
 	fmt.Println("start listening lambda face port 6379")
 	if lambdaStore == nil {
 		fmt.Println("create new lambda instance")
@@ -156,7 +156,7 @@ func getLambda() {
 	r := resp.NewResponseReader(lambdaStore.cn)
 
 	w.WriteCmdString("get", string(key))
-	fmt.Println("write comd", w)
+	//fmt.Println("write comd", w)
 
 	// Flush pipeline
 	err := w.Flush()

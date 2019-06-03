@@ -21,45 +21,55 @@ var (
 )
 
 func HandleRequest() {
-	fmt.Println(t)
-	fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
+	timeChan := make(chan string, 1)
+	go func() {
+		fmt.Println("time is ", t)
+		fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
 
-	// Define handlers
-	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-		fmt.Println("in the get function")
+		// Define handlers
+		srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
+			fmt.Println("in the get function")
 
-		key := string(c.Arg(0))
-		obj, _ := myCache.Get(key)
-		if obj == nil {
-			obj = remoteGet("ao.webapp", key)
-			myCache.Set(string(c.Arg(0)), obj, cache.DefaultExpiration)
-		} else {
-			fmt.Println("find key")
-		}
-		w.AppendBulk(obj.([]uint8))
-	})
+			key := string(c.Arg(0))
+			obj, _ := myCache.Get(key)
+			if obj == nil {
+				obj = remoteGet("ao.webapp", key)
+				myCache.Set(string(c.Arg(0)), obj, -1)
+			} else {
+				fmt.Println("find key")
+			}
+			w.AppendBulk(obj.([]uint8))
+		})
 
-	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
-		if c.ArgN() != 2 {
-			w.AppendError(redeo.WrongNumberOfArgs(c.Name))
-			return
-		}
+		srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
+			if c.ArgN() != 2 {
+				w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+				return
+			}
 
-		key := c.Arg(0).String()
-		val := c.Arg(1).String()
+			key := c.Arg(0).String()
+			val := c.Arg(1).String()
 
-		//mu.Lock()
-		myCache.Set(key, val, cache.DefaultExpiration)
-		//mu.Unlock()
-		temp, err := myCache.Get(key)
-		if temp == nil {
-			fmt.Println("set failed", err)
-		}
-		fmt.Println("set complete, result is ", temp)
-		w.AppendInt(1)
-	})
+			//mu.Lock()
+			myCache.Set(key, val, -1)
+			//mu.Unlock()
+			temp, err := myCache.Get(key)
+			if temp == nil {
+				fmt.Println("set failed", err)
+			}
+			fmt.Println("set complete, result is ", key, myCache.ItemCount())
+			w.AppendInt(1)
+		})
+		srv.Serve_client(lambdaConn)
+	}()
+	// timeout control
+	select {
+	case <-timeChan:
+	case <-time.After(10 * time.Second):
+		fmt.Println("Lambda timeout, going to return function")
+		return
+	}
 
-	srv.Serve_client(lambdaConn)
 }
 
 func remoteGet(bucket string, key string) []byte {
