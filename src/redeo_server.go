@@ -40,7 +40,7 @@ func newLambdaInstance(name string) *lambdaInstance {
 
 func main() {
 	fmt.Println("start listening client face port 6378")
-	fmt.Println("receive from client...")
+	fmt.Println("start listening lambda face port 6379")
 	srv := redeo.NewServer(nil)
 
 	// Define handlers
@@ -83,7 +83,6 @@ func setLambda() {
 	fmt.Println("===== set to lambda function start =====")
 	setObj := <-setChan1
 	//fmt.Println("ready send to lambda storage", " the obj key is", setObj.key.String(), "value is ", setObj.value.String())
-	fmt.Println("start listening lambda face port 6379")
 	if lambdaStore == nil {
 		fmt.Println("create new lambda instance")
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")

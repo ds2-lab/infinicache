@@ -21,7 +21,6 @@ var (
 )
 
 func HandleRequest() {
-	timeChan := make(chan string, 1)
 	go func() {
 		fmt.Println("time is ", t)
 		fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
@@ -62,9 +61,9 @@ func HandleRequest() {
 		})
 		srv.Serve_client(lambdaConn)
 	}()
+	
 	// timeout control
 	select {
-	case <-timeChan:
 	case <-time.After(10 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		return

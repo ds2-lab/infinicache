@@ -16,8 +16,8 @@ func main() {
 	r := resp.NewResponseReader(cn)
 
 	// Write pipeline
-	//w.WriteCmdString("get", "30mb.jpg")
-	w.WriteCmdString("set", "key", "this is the set")
+	w.WriteCmdString("get", "data.dat")
+	//w.WriteCmdString("set", "key", "this is the set")
 
 	// Flush pipeline
 	if err := w.Flush(); err != nil {
@@ -30,11 +30,11 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(t)
-	//buf := make([]byte, 0)
-	//c, err := r.ReadBulk(buf)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//fmt.Println(len(c))
+	buf := make([]byte, 0)
+	c, err := r.ReadBulk(buf)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(c)
 
 }
