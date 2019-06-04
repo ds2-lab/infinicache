@@ -30,11 +30,11 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(t)
-	buf := make([]byte, 0)
-	c, err := r.ReadBulk(buf)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(c)
+	//buf := make([]byte, 0)
+	//c, err := r.ReadBulk(buf)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//fmt.Println(c)
 
 }

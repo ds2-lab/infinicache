@@ -43,8 +43,8 @@ func newLambdaInstance(name string) *lambdaInstance {
 }
 
 func main() {
-	//fmt.Println("start listening client face port 6378")
-	//fmt.Println("start listening lambda face port 6379")
+	fmt.Println("start listening client face port 6378")
+	fmt.Println("start listening lambda face port 6379")
 	srv := redeo.NewServer(nil)
 
 	// Define handlers
@@ -80,19 +80,19 @@ func main() {
 }
 
 func setLambda() {
-	//fmt.Println("===== set to lambda function start =====")
+	fmt.Println("===== set to lambda function start =====")
 	setObj := <-setChan1
 	// check lambdaStore instance
 	instanceLock.Lock()
 	if lambdaStore == nil {
-		//fmt.Println("create new lambda instance")
+		fmt.Println("create new lambda instance")
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
 	instanceLock.Unlock()
 	// check lambdaStore alive
 	aliveLock.Lock()
 	if lambdaStore.alive == false {
-		//fmt.Println("Lambda 2 is not alive, need to activate")
+		fmt.Println("Lambda 2 is not alive, need to activate")
 		// trigger lambda
 		lambdaStore.alive = true
 		go lambdaTrigger()
@@ -101,13 +101,13 @@ func setLambda() {
 	// check lambda connection
 	cnLock.Lock()
 	if lambdaStore.cn == nil {
-		//fmt.Println("start a new conn")
+		fmt.Println("start a new conn")
 		// start a new server to receive conn from lambda store
 		srv := redeo.NewServer(nil)
 		lambdaStore.cn = srv.Accept(lambdaLis)
 	}
 	cnLock.Unlock()
-	//fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
 
 	// client part
 	// writer and reader
@@ -126,27 +126,27 @@ func setLambda() {
 	// Read response
 	// Consume responses
 	s, err := r.ReadInt()
-	//fmt.Println("s is", s)
+	fmt.Println("s is", s)
 	if err != nil {
 		fmt.Println("ReadInt err is", err)
 	}
-	//fmt.Println("received")
+	fmt.Println("received")
 	setChan2 <- s
-	//fmt.Println("===== set to lambda function over =====")
+	fmt.Println("===== set to lambda function over =====")
 }
 
 func getLambda() {
-	//fmt.Println("===== get to lambda function start =====")
+	fmt.Println("===== get to lambda function start =====")
 	key := <-getChan1
 	instanceLock.Lock()
 	if lambdaStore == nil {
-		//fmt.Println("create new lambda instance")
+		fmt.Println("create new lambda instance")
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
 	instanceLock.Unlock()
 	aliveLock.Lock()
 	if lambdaStore.alive == false {
-		//fmt.Println("Lambda 2 is not alive, need to activate")
+		fmt.Println("Lambda 2 is not alive, need to activate")
 		// trigger lambda
 		lambdaStore.alive = true
 		go lambdaTrigger()
@@ -155,13 +155,13 @@ func getLambda() {
 
 	cnLock.Lock()
 	if lambdaStore.cn == nil {
-		//fmt.Println("start a new conn")
+		fmt.Println("start a new conn")
 		// start a new server to receive conn from lambda store
 		srv := redeo.NewServer(nil)
 		lambdaStore.cn = srv.Accept(lambdaLis)
 	}
 	cnLock.Unlock()
-	//fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
 
 	// client part
 	// writer and reader
@@ -185,9 +185,9 @@ func getLambda() {
 	if err != nil {
 		fmt.Println("ReadBulk err is", err)
 	}
-	//fmt.Println("received")
+	fmt.Println("received")
 	getChan2 <- s
-	//fmt.Println("===== get to lambda function over =====")
+	fmt.Println("===== get to lambda function over =====")
 }
 
 func lambdaTrigger() {
@@ -203,7 +203,7 @@ func lambdaTrigger() {
 		fmt.Println("Error calling LambdaFunction")
 	}
 
-	//fmt.Println("lamdba deactive")
+	fmt.Println("lamdba deactive")
 
 	aliveLock.Lock()
 	lambdaStore.alive = false

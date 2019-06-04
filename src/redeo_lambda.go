@@ -22,11 +22,11 @@ var (
 
 func HandleRequest() {
 	go func() {
-		//fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
+		fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
 
 		// Define handlers
 		srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-			//fmt.Println("in the get function")
+			fmt.Println("in the get function")
 
 			key := c.Arg(0).String()
 			obj, err := myCache.Get(key)
@@ -36,13 +36,13 @@ func HandleRequest() {
 			//} else {
 			//	fmt.Println("find key")
 			//}
-			if err != true {
+			if err == false {
 				fmt.Println("not found")
 			}
-			//if obj != nil {
-			//fmt.Println("item find")
-			//	fmt.Println(len(obj.(string)))
-			//}
+			if obj != nil {
+				fmt.Println("item find")
+				fmt.Println(len(obj.(string)))
+			}
 			//w.AppendBulk(obj.([]uint8))
 			w.AppendBulkString(obj.(string))
 		})
@@ -63,7 +63,7 @@ func HandleRequest() {
 			if temp == nil {
 				fmt.Println("set failed", err)
 			}
-			//fmt.Println("set complete, result is ", key, myCache.ItemCount())
+			fmt.Println("set complete, result is ", key, myCache.ItemCount())
 			w.AppendInt(1)
 		})
 		srv.Serve_client(lambdaConn)
@@ -72,7 +72,7 @@ func HandleRequest() {
 	// timeout control
 	select {
 	case <-time.After(300 * time.Second):
-		//fmt.Println("Lambda timeout, going to return function")
+		fmt.Println("Lambda timeout, going to return function")
 		return
 	}
 
