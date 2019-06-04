@@ -16,8 +16,8 @@ func main() {
 	r := resp.NewResponseReader(cn)
 
 	// Write pipeline
-	w.WriteCmdString("get", "data.dat")
-	//w.WriteCmdString("set", "key", "this is the set")
+	w.WriteCmdString("set", "key", "this is the set")
+	//w.WriteCmdString("get", "data.dat")
 
 	// Flush pipeline
 	if err := w.Flush(); err != nil {

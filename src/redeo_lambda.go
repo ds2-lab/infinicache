@@ -16,28 +16,35 @@ import (
 var (
 	srv           = redeo.NewServer(nil)
 	lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379")
-	t             = time.Now()
-	myCache       = cache.New(5*time.Minute, 10*time.Minute)
+	//lambdaConn, _ = net.Dial("tcp", "54.234.10.155:6379")
+	myCache = cache.New(60*time.Minute, 60*time.Minute)
 )
 
 func HandleRequest() {
 	go func() {
-		fmt.Println("time is ", t)
-		fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
+		//fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
 
 		// Define handlers
 		srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-			fmt.Println("in the get function")
+			//fmt.Println("in the get function")
 
-			key := string(c.Arg(0))
-			obj, _ := myCache.Get(key)
-			if obj == nil {
-				obj = remoteGet("ao.webapp", key)
-				myCache.Set(string(c.Arg(0)), obj, -1)
-			} else {
-				fmt.Println("find key")
+			key := c.Arg(0).String()
+			obj, err := myCache.Get(key)
+			//if obj == nil {
+			//	obj = remoteGet("ao.webapp", key)
+			//	myCache.Set(string(c.Arg(0)), obj, -1)
+			//} else {
+			//	fmt.Println("find key")
+			//}
+			if err != true {
+				fmt.Println("not found")
 			}
-			w.AppendBulk(obj.([]uint8))
+			//if obj != nil {
+			//fmt.Println("item find")
+			//	fmt.Println(len(obj.(string)))
+			//}
+			//w.AppendBulk(obj.([]uint8))
+			w.AppendBulkString(obj.(string))
 		})
 
 		srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -56,16 +63,16 @@ func HandleRequest() {
 			if temp == nil {
 				fmt.Println("set failed", err)
 			}
-			fmt.Println("set complete, result is ", key, myCache.ItemCount())
+			//fmt.Println("set complete, result is ", key, myCache.ItemCount())
 			w.AppendInt(1)
 		})
 		srv.Serve_client(lambdaConn)
 	}()
-	
+
 	// timeout control
 	select {
-	case <-time.After(10 * time.Second):
-		fmt.Println("Lambda timeout, going to return function")
+	case <-time.After(300 * time.Second):
+		//fmt.Println("Lambda timeout, going to return function")
 		return
 	}
 
