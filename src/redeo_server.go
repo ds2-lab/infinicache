@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	getChan1     = make(chan resp.CommandArgument, 1)
-	getChan2     = make(chan string, 1)
+	//getChan1     = make(chan resp.CommandArgument, 1)
+	//getChan2     = make(chan string, 1)
 	clientLis, _ = net.Listen("tcp", ":6378")
 	lambdaLis, _ = net.Listen("tcp", ":6379")
 	lambdaStore  *lambdaInstance
@@ -21,6 +21,7 @@ var (
 	aliveLock    sync.Mutex
 	cnLock       sync.Mutex
 	tempLock     sync.Mutex
+	tempLock2    sync.Mutex
 )
 
 type setObject struct {
@@ -55,11 +56,12 @@ func main() {
 		if c.ArgN() != 1 {
 			return redeo.ErrWrongNumberOfArgs(c.Name)
 		}
-		getChan1 <- c.Arg(0)
+		//getChan1 <- c.Arg(0)
 		// trigger trigger lambda store
-		go getLambda()
+		key := c.Arg(0)
+		obj := getLambda(key)
 		// get return from channel
-		return <-getChan2
+		return obj
 	}))
 
 	srv.Handle("set", redeo.WrapperFunc(func(c *resp.Command) interface{} {
@@ -125,13 +127,14 @@ func setLambda(object setObject) int64 {
 	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
 
 	// client part
+	tempLock2.Lock()
 	lambdaStore.w.WriteCmdString("SET", object.key.String(), object.value.String())
 	// Flush pipeline
 	err := lambdaStore.w.Flush()
 	if err != nil {
 		fmt.Println("flush pipeline err is ", err)
 	}
-
+	tempLock2.Unlock()
 	// Read response
 	// Consume responses
 	fmt.Println("lock read")
@@ -140,7 +143,6 @@ func setLambda(object setObject) int64 {
 	if err != nil {
 		fmt.Println("read err is ", err)
 	}
-
 	fmt.Println("received, r is", s)
 	tempLock.Unlock()
 	fmt.Println("Unlock read")
@@ -149,9 +151,9 @@ func setLambda(object setObject) int64 {
 	return s
 }
 
-func getLambda() {
+func getLambda(key resp.CommandArgument) string {
 	fmt.Println("===== get to lambda function start =====")
-	key := <-getChan1
+	//key := <-getChan1
 	instanceLock.Lock()
 	if lambdaStore == nil {
 		fmt.Println("create new lambda instance")
@@ -166,42 +168,43 @@ func getLambda() {
 		go lambdaTrigger()
 	}
 	aliveLock.Unlock()
-
 	cnLock.Lock()
 	if lambdaStore.cn == nil {
 		fmt.Println("start a new conn")
 		// start a new server to receive conn from lambda store
 		srv := redeo.NewServer(nil)
 		lambdaStore.cn = srv.Accept(lambdaLis)
+		// writer and reader
+		lambdaStore.w = resp.NewRequestWriter(lambdaStore.cn)
+		lambdaStore.r = resp.NewResponseReader(lambdaStore.cn)
 	}
 	cnLock.Unlock()
 	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
 
 	// client part
-	// writer and reader
-	w := resp.NewRequestWriter(lambdaStore.cn)
-	r := resp.NewResponseReader(lambdaStore.cn)
-
-	w.WriteCmdString("get", key.String())
-	//fmt.Println("write comd", w)
-
+	tempLock2.Lock()
+	lambdaStore.w.WriteCmdString("get", key.String())
 	// Flush pipeline
-	err := w.Flush()
+	err := lambdaStore.w.Flush()
 	if err != nil {
 		fmt.Println("flush err is ", err)
 	}
+	tempLock2.Unlock()
 
 	// Read response
 	//buf := make([]byte, 0)
 	// Consume responses
 	//s, err := r.ReadBulk(buf)
-	s, err := r.ReadBulkString()
+	tempLock.Lock()
+	s, err := lambdaStore.r.ReadBulkString()
 	if err != nil {
 		fmt.Println("ReadBulk err is", err)
 	}
-	fmt.Println("received")
-	getChan2 <- s
+	fmt.Println("get it!")
+	//getChan2 <- s
+	tempLock.Unlock()
 	fmt.Println("===== get to lambda function over =====")
+	return s
 }
 
 func lambdaTrigger() {
