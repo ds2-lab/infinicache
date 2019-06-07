@@ -15,8 +15,8 @@ import (
 
 var (
 	srv           = redeo.NewServer(nil)
-	lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379")
-	//lambdaConn, _ = net.Dial("tcp", "54.234.10.155:6379")
+	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379")
+	lambdaConn, _ = net.Dial("tcp", "54.234.158.76:6379")
 	myCache = cache.New(60*time.Minute, 60*time.Minute)
 )
 
