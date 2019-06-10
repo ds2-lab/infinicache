@@ -3,7 +3,7 @@
 #### Go install (Amazon AMI)
 [Install Go on Amazon AMI](https://hackernoon.com/deploying-a-go-application-on-aws-ec2-76390c09c2c5)
 #### package
-```go
+```golang
 go get -u github.com/wangaoone/redeo
 go get -u github.com/aws/aws-sdk-go/...
 go get -u github.com/bsm/redeo/resp
