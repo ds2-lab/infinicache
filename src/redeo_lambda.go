@@ -15,8 +15,8 @@ import (
 
 var (
 	srv = redeo.NewServer(nil)
-	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379")
-	lambdaConn, _ = net.Dial("tcp", "54.234.158.76:6379") // 10gbps
+	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
+	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
 	myCache       = cache.New(60*time.Minute, 60*time.Minute)
 )
 
@@ -71,7 +71,7 @@ func HandleRequest() {
 
 	// timeout control
 	select {
-	case <-time.After(300 * time.Second):
+	case <-time.After(30 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		return
 	}

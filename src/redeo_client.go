@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	//cn, _ := net.Dial("tcp", "localhost:3333")
+	//cn, _ := net.Dial("tcp", "localhost:6378")
 	cn, _ := net.Dial("tcp", "52.201.234.235:6378")
 	defer cn.Close()
 

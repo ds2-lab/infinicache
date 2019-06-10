@@ -12,14 +12,11 @@ import (
 )
 
 var (
-	clientLis, _ = net.Listen("tcp", ":6378")
-	lambdaLis, _ = net.Listen("tcp", ":6379")
-	lambdaStore  *lambdaInstance
-	instanceLock sync.Mutex
-	aliveLock    sync.Mutex
-	cnLock       sync.Mutex
-	tempLock     sync.Mutex
-	tempLock2    sync.Mutex
+	clientLis, _   = net.Listen("tcp", ":6378")
+	lambdaLis, _   = net.Listen("tcp", ":6379")
+	lambdaStore    *lambdaInstance
+	lambdaStoreMap map[lambdaInstance]string
+	instanceLock   sync.Mutex
 )
 
 type setObject struct {
@@ -28,19 +25,22 @@ type setObject struct {
 }
 
 type lambdaInstance struct {
-	name  string
-	alive bool
-	cn    net.Conn
-	w     *resp.RequestWriter
-	r     resp.ResponseReader
-	//c     chan interface{}
+	name      string
+	alive     bool
+	cn        net.Conn
+	w         *resp.RequestWriter
+	r         resp.ResponseReader
+	c         chan interface{}
+	aliveLock sync.Mutex
+	cnLock    sync.Mutex
+	tempLock  sync.Mutex
 }
 
 func newLambdaInstance(name string) *lambdaInstance {
 	return &lambdaInstance{
 		name:  name,
 		alive: false,
-		//c:     make(chan interface{}, 1),
+		c:     make(chan interface{}, 1),
 	}
 }
 
@@ -63,7 +63,8 @@ func main() {
 	}))
 
 	srv.Handle("set", redeo.WrapperFunc(func(c *resp.Command) interface{} {
-		if c.ArgN() != 2 {
+		if c.ArgN() != 3 {
+			fmt.Println("incorrect number of argument")
 			return redeo.ErrWrongNumberOfArgs(c.Name)
 		}
 		//setChan1 <- setObject{c.Arg(0), c.Arg(1)}
@@ -101,7 +102,7 @@ func setLambda(object setObject) int64 {
 	}
 	instanceLock.Unlock()
 	// check lambdaStore alive
-	aliveLock.Lock()
+	lambdaStore.aliveLock.Lock()
 	if lambdaStore.alive == false {
 		fmt.Println("Lambda 2 is not alive, need to activate")
 		// trigger lambda
@@ -109,9 +110,9 @@ func setLambda(object setObject) int64 {
 
 		go lambdaTrigger()
 	}
-	aliveLock.Unlock()
+	lambdaStore.aliveLock.Unlock()
 	// check lambda connection
-	cnLock.Lock()
+	lambdaStore.cnLock.Lock()
 	if lambdaStore.cn == nil {
 		fmt.Println("start a new conn")
 		// start a new server to receive conn from lambda store
@@ -121,29 +122,27 @@ func setLambda(object setObject) int64 {
 		lambdaStore.w = resp.NewRequestWriter(lambdaStore.cn)
 		lambdaStore.r = resp.NewResponseReader(lambdaStore.cn)
 	}
-	cnLock.Unlock()
+	lambdaStore.cnLock.Unlock()
 	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
 
 	// client part
-	tempLock2.Lock()
+	lambdaStore.tempLock.Lock()
+	fmt.Println("lock client")
 	lambdaStore.w.WriteCmdString("SET", object.key.String(), object.value.String())
 	// Flush pipeline
 	err := lambdaStore.w.Flush()
 	if err != nil {
 		fmt.Println("flush pipeline err is ", err)
 	}
-	tempLock2.Unlock()
 	// Read response
 	// Consume responses
-	fmt.Println("lock read")
-	tempLock.Lock()
 	s, err := lambdaStore.r.ReadInt()
 	if err != nil {
 		fmt.Println("read err is ", err)
 	}
 	fmt.Println("received, r is", s)
-	tempLock.Unlock()
-	fmt.Println("Unlock read")
+	lambdaStore.tempLock.Unlock()
+	fmt.Println("Unlock client")
 
 	fmt.Println("===== set to lambda function over =====")
 	return s
@@ -158,15 +157,15 @@ func getLambda(key resp.CommandArgument) string {
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
 	instanceLock.Unlock()
-	aliveLock.Lock()
+	lambdaStore.aliveLock.Lock()
 	if lambdaStore.alive == false {
 		fmt.Println("Lambda 2 is not alive, need to activate")
 		// trigger lambda
 		lambdaStore.alive = true
 		go lambdaTrigger()
 	}
-	aliveLock.Unlock()
-	cnLock.Lock()
+	lambdaStore.aliveLock.Unlock()
+	lambdaStore.cnLock.Lock()
 	if lambdaStore.cn == nil {
 		fmt.Println("start a new conn")
 		// start a new server to receive conn from lambda store
@@ -176,31 +175,28 @@ func getLambda(key resp.CommandArgument) string {
 		lambdaStore.w = resp.NewRequestWriter(lambdaStore.cn)
 		lambdaStore.r = resp.NewResponseReader(lambdaStore.cn)
 	}
-	cnLock.Unlock()
-	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+	lambdaStore.cnLock.Unlock()
+	fmt.Println("Lambda store has connected", lambdaStore.name, lambdaStore.cn.RemoteAddr())
 
 	// client part
-	tempLock2.Lock()
+	lambdaStore.tempLock.Lock()
 	lambdaStore.w.WriteCmdString("get", key.String())
 	// Flush pipeline
 	err := lambdaStore.w.Flush()
 	if err != nil {
-		fmt.Println("flush err is ", err)
+		fmt.Println("Flush err is ", err)
 	}
-	tempLock2.Unlock()
-
 	// Read response
 	//buf := make([]byte, 0)
 	// Consume responses
 	//s, err := r.ReadBulk(buf)
-	tempLock.Lock()
 	s, err := lambdaStore.r.ReadBulkString()
 	if err != nil {
 		fmt.Println("ReadBulk err is", err)
 	}
 	fmt.Println("get it!")
 	//getChan2 <- s
-	tempLock.Unlock()
+	lambdaStore.tempLock.Unlock()
 	fmt.Println("===== get to lambda function over =====")
 	return s
 }
@@ -218,8 +214,8 @@ func lambdaTrigger() {
 		fmt.Println("Error calling LambdaFunction")
 	}
 
-	fmt.Println("lamdba deactive")
-	aliveLock.Lock()
+	fmt.Println("Lambda Deactivate")
+	lambdaStore.aliveLock.Lock()
 	lambdaStore.alive = false
-	aliveLock.Unlock()
+	lambdaStore.aliveLock.Unlock()
 }
