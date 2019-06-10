@@ -12,8 +12,6 @@ import (
 )
 
 var (
-	//getChan1     = make(chan resp.CommandArgument, 1)
-	//getChan2     = make(chan string, 1)
 	clientLis, _ = net.Listen("tcp", ":6378")
 	lambdaLis, _ = net.Listen("tcp", ":6379")
 	lambdaStore  *lambdaInstance
@@ -35,14 +33,14 @@ type lambdaInstance struct {
 	cn    net.Conn
 	w     *resp.RequestWriter
 	r     resp.ResponseReader
-	c     chan interface{}
+	//c     chan interface{}
 }
 
 func newLambdaInstance(name string) *lambdaInstance {
 	return &lambdaInstance{
 		name:  name,
 		alive: false,
-		c:     make(chan interface{}, 1),
+		//c:     make(chan interface{}, 1),
 	}
 }
 
