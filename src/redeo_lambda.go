@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	srv = redeo.NewServer(nil)
-	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
-	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
-	myCache       = cache.New(60*time.Minute, 60*time.Minute)
+	srv           = redeo.NewServer(nil)
+	lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
+	//lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
+	myCache = cache.New(60*time.Minute, 60*time.Minute)
 )
 
 func HandleRequest() {
@@ -66,12 +66,13 @@ func HandleRequest() {
 			fmt.Println("set complete, result is ", key, myCache.ItemCount())
 			w.AppendInt(1)
 		})
+
 		srv.Serve_client(lambdaConn)
 	}()
 
 	// timeout control
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		return
 	}
