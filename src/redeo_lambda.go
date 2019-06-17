@@ -48,13 +48,14 @@ func HandleRequest() {
 		})
 
 		srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
-			if c.ArgN() != 2 {
-				w.AppendError(redeo.WrongNumberOfArgs(c.Name))
-				return
-			}
+			//if c.ArgN() != 3 {
+			//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+			//	return
+			//}
 
 			key := c.Arg(0).String()
 			val := c.Arg(1).String()
+			id := c.Arg(2).String()
 
 			//mu.Lock()
 			myCache.Set(key, val, -1)
@@ -64,7 +65,12 @@ func HandleRequest() {
 				fmt.Println("set failed", err)
 			}
 			fmt.Println("set complete, result is ", key, myCache.ItemCount())
-			w.AppendInt(1)
+			//w.AppendInt(1)
+			w.AppendBulkString(id)
+
+			if err := w.Flush(); err != nil {
+				panic(err)
+			}
 		})
 
 		srv.Serve_client(lambdaConn)

@@ -8,16 +8,19 @@ import (
 	"github.com/bsm/redeo/resp"
 	"github.com/wangaoone/redeo"
 	"net"
+	"strconv"
 	"sync"
 )
 
 var (
-	clientLis, ok1 = net.Listen("tcp", ":6378")
-	lambdaLis, ok2 = net.Listen("tcp", ":6379")
+	clientLis, _   = net.Listen("tcp", ":6378")
+	lambdaLis, _   = net.Listen("tcp", ":6379")
 	lambdaStore    *lambdaInstance
 	lambdaStoreMap map[lambdaInstance]net.Conn
 	instanceLock   sync.Mutex
 	cMap           = make(map[int]chan interface{}, 1) // client channel mapping table
+	isPrint        = true
+	temp           = make(chan int, 1)
 )
 
 type lambdaInstance struct {
@@ -42,17 +45,15 @@ func newLambdaInstance(name string) *lambdaInstance {
 }
 
 func main() {
-	if ok1 != nil {
-		fmt.Println("listen port failed")
-	}
-	fmt.Println("start listening client face port 6378")
-	fmt.Println("start listening lambda face port 6379")
+	myPrint("start listening client face port 6378")
+	myPrint("start listening lambda face port 6379")
 	srv := redeo.NewServer(nil)
 	// initial lambda
 	initial()
 
 	// lambda handler
 	go lambdaHandler(lambdaStore)
+	go myPeek(lambdaStore)
 
 	// Start serving (blocking)
 	err := srv.MyServe(clientLis, cMap, lambdaStore.setC)
@@ -64,14 +65,14 @@ func main() {
 func initial() {
 	instanceLock.Lock()
 	if lambdaStore == nil {
-		fmt.Println("create new lambda instance")
+		myPrint("create new lambda instance")
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
 	instanceLock.Unlock()
 	// check lambdaStore alive
 	lambdaStore.aliveLock.Lock()
 	if lambdaStore.alive == false {
-		fmt.Println("Lambda 2 is not alive, need to activate")
+		myPrint("Lambda 2 is not alive, need to activate")
 		// trigger lambda
 		lambdaStore.alive = true
 		go lambdaTrigger()
@@ -80,7 +81,7 @@ func initial() {
 	// check lambda connection
 	lambdaStore.cnLock.Lock()
 	if lambdaStore.cn == nil {
-		fmt.Println("start a new conn")
+		myPrint("start a new conn")
 		// start a new server to receive conn from lambda store
 		lambdaSrv := redeo.NewServer(nil)
 		lambdaStore.cn = lambdaSrv.Accept(lambdaLis)
@@ -89,45 +90,82 @@ func initial() {
 		lambdaStore.r = resp.NewResponseReader(lambdaStore.cn)
 	}
 	lambdaStore.cnLock.Unlock()
-	fmt.Println("lambda store has connected", lambdaStore.cn.RemoteAddr())
+	myPrint("lambda store has connected", lambdaStore.cn.RemoteAddr())
 }
 
+func myPeek(l *lambdaInstance) {
+	for {
+		t, err := l.r.PeekType()
+		if err != nil {
+			return
+		}
+
+		switch t {
+		case resp.TypeBulk:
+			n, _ := l.r.ReadBulkString()
+			id, _ := strconv.Atoi(n)
+			temp <- id
+		default:
+			panic("unexpected response type")
+		}
+	}
+}
 func lambdaHandler(l *lambdaInstance) {
 	//temp := make(chan interface{}, 1)
 	for {
 		select {
 		case a := <-l.setC:
-			fmt.Println("in lambda handler", a)
-			fmt.Println(a.Cmd)             // cmd
-			fmt.Println(a.Argument.Arg(0)) // argument
 			if lambdaStore.alive == false {
-				fmt.Println("Lambda 2 is not alive, need to activate")
+				myPrint("Lambda 2 is not alive, need to activate")
 				// trigger lambda
 				lambdaStore.alive = true
 				go lambdaTrigger()
 			}
+			myPrint("req from client is ", a.Cmd, a.Argument)
 			// client part
-			lambdaStore.w.WriteCmdString("SET", "hello", "world")
+			// get channel
+			cid := strconv.Itoa(a.Cid)
+			argsCount := len(a.Argument.Args)
+
+			switch argsCount {
+			case 1:
+				lambdaStore.w.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), cid)
+				break
+			case 2:
+				fmt.Println("obj length is ", len(a.Argument.Arg(1)))
+				lambdaStore.w.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), a.Argument.Arg(1).String(), cid)
+				break
+			default:
+				myPrint("wrong cmd")
+				break
+			}
 			// Flush pipeline
 			err := lambdaStore.w.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
 			}
-			// Read response
-			// Consume responses
-			s, err := lambdaStore.r.ReadInt()
-			if err != nil {
-				fmt.Println("read err is ", err)
-			}
-			fmt.Println("received, r is", s)
-			cMap[0] <- s
-
-			//go read(temp)
-			//case b := <-temp:
-			//	fmt.Println("res is ", b)
-			//	cMap[0] <- b
-
+		case channelId := <-temp:
+			myPrint("channel id is ", channelId)
+			cMap[channelId] <- 1
 		}
+		// Read response
+		// Consume responses
+		//	for {
+		//		s, err := lambdaStore.r.ReadBulkString()
+		//		if err != nil {
+		//			fmt.Println("read err is ", err)
+		//		}
+		//		myPrint("received, r is", s)
+		//	}
+		//	//channelId, _ := strconv.Atoi(s)
+		//	//cMap[channelId] <- 1
+		//
+		//	//go read(temp)
+		//	//case b := <-temp:
+		//	//	fmt.Println("res is ", b)
+		//	//	cMap[0] <- b
+		//
+		//}
 	}
 }
 
@@ -143,7 +181,7 @@ func read(c chan interface{}) {
 
 func register(l *lambdaInstance) {
 	lambdaStoreMap[*l] = l.cn
-	fmt.Println("register lambda store", l.name)
+	myPrint("register lambda store", l.name)
 }
 
 func lambdaTrigger() {
@@ -158,8 +196,14 @@ func lambdaTrigger() {
 		fmt.Println("Error calling LambdaFunction", err)
 	}
 
-	fmt.Println("Lambda Deactivate")
+	myPrint("Lambda Deactivate")
 	lambdaStore.aliveLock.Lock()
 	lambdaStore.alive = false
 	lambdaStore.aliveLock.Unlock()
+}
+
+func myPrint(a ...interface{}) {
+	if isPrint == true {
+		fmt.Println(a)
+	}
 }
