@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/bsm/redeo/resp"
+	"github.com/kelindar/binary"
 	"github.com/wangaoone/redeo"
 	"net"
 	"strconv"
@@ -19,9 +20,14 @@ var (
 	lambdaStoreMap map[lambdaInstance]net.Conn
 	instanceLock   sync.Mutex
 	cMap           = make(map[int]chan interface{}, 1) // client channel mapping table
-	isPrint        = true
-	temp           = make(chan int, 1)
+	isPrint        = false
+	temp           = make(chan Response, 1)
 )
+
+type Response struct {
+	Id   string
+	Body string
+}
 
 type lambdaInstance struct {
 	name      string
@@ -29,8 +35,7 @@ type lambdaInstance struct {
 	cn        net.Conn
 	w         *resp.RequestWriter
 	r         resp.ResponseReader
-	setC      chan redeo.Req
-	getC      chan string
+	c         chan redeo.Req
 	aliveLock sync.Mutex
 	cnLock    sync.Mutex
 	tempLock  sync.Mutex
@@ -40,13 +45,13 @@ func newLambdaInstance(name string) *lambdaInstance {
 	return &lambdaInstance{
 		name:  name,
 		alive: false,
-		setC:  make(chan redeo.Req, 1),
+		c:     make(chan redeo.Req, 1),
 	}
 }
 
 func main() {
-	myPrint("start listening client face port 6378")
-	myPrint("start listening lambda face port 6379")
+	fmt.Println("start listening client face port 6378")
+	fmt.Println("start listening lambda face port 6379")
 	srv := redeo.NewServer(nil)
 	// initial lambda
 	initial()
@@ -56,7 +61,7 @@ func main() {
 	go myPeek(lambdaStore)
 
 	// Start serving (blocking)
-	err := srv.MyServe(clientLis, cMap, lambdaStore.setC)
+	err := srv.MyServe(clientLis, cMap, lambdaStore.c)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -95,6 +100,7 @@ func initial() {
 
 func myPeek(l *lambdaInstance) {
 	for {
+		//obj := receiveObj{"", -1}
 		t, err := l.r.PeekType()
 		if err != nil {
 			return
@@ -102,80 +108,64 @@ func myPeek(l *lambdaInstance) {
 
 		switch t {
 		case resp.TypeBulk:
-			n, _ := l.r.ReadBulkString()
-			id, _ := strconv.Atoi(n)
-			temp <- id
+			n, _ := l.r.ReadBulk(nil)
+			var obj Response
+			err := binary.Unmarshal(n, &obj)
+			if err != nil {
+				fmt.Println(err)
+			}
+			myPrint("res is ", obj)
+			temp <- obj
+		case resp.TypeError:
+			err, _ := l.r.ReadError()
+			fmt.Println(err)
 		default:
 			panic("unexpected response type")
 		}
 	}
 }
 func lambdaHandler(l *lambdaInstance) {
-	//temp := make(chan interface{}, 1)
 	for {
 		select {
-		case a := <-l.setC:
+		case a := <-l.c:
+			myPrint("req from client is ", a.Cmd, a.Argument)
+			// client part
+			// get channel id
+			cid := strconv.Itoa(a.Cid)
+			argsCount := len(a.Argument.Args)
+
+			lambdaStore.aliveLock.Lock()
 			if lambdaStore.alive == false {
 				myPrint("Lambda 2 is not alive, need to activate")
 				// trigger lambda
 				lambdaStore.alive = true
 				go lambdaTrigger()
 			}
-			myPrint("req from client is ", a.Cmd, a.Argument)
-			// client part
-			// get channel
-			cid := strconv.Itoa(a.Cid)
-			argsCount := len(a.Argument.Args)
-
+			lambdaStore.aliveLock.Unlock()
 			switch argsCount {
 			case 1:
 				lambdaStore.w.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), cid)
-				break
+				// Flush pipeline
+				err := lambdaStore.w.Flush()
+				if err != nil {
+					fmt.Println("flush pipeline err is ", err)
+				}
 			case 2:
-				fmt.Println("obj length is ", len(a.Argument.Arg(1)))
+				myPrint("obj length is ", len(a.Argument.Arg(1)))
 				lambdaStore.w.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), a.Argument.Arg(1).String(), cid)
-				break
-			default:
-				myPrint("wrong cmd")
-				break
+				// Flush pipeline
+				err := lambdaStore.w.Flush()
+				if err != nil {
+					fmt.Println("flush pipeline err is ", err)
+				}
+				myPrint("write complete")
 			}
-			// Flush pipeline
-			err := lambdaStore.w.Flush()
-			if err != nil {
-				fmt.Println("flush pipeline err is ", err)
-			}
-		case channelId := <-temp:
-			myPrint("channel id is ", channelId)
-			cMap[channelId] <- 1
+		case obj := <-temp:
+			// parse client channel id
+			id, _ := strconv.Atoi(obj.Id)
+			// send response body to client channel
+			cMap[id] <- obj.Body
 		}
-		// Read response
-		// Consume responses
-		//	for {
-		//		s, err := lambdaStore.r.ReadBulkString()
-		//		if err != nil {
-		//			fmt.Println("read err is ", err)
-		//		}
-		//		myPrint("received, r is", s)
-		//	}
-		//	//channelId, _ := strconv.Atoi(s)
-		//	//cMap[channelId] <- 1
-		//
-		//	//go read(temp)
-		//	//case b := <-temp:
-		//	//	fmt.Println("res is ", b)
-		//	//	cMap[0] <- b
-		//
-		//}
-	}
-}
-
-func read(c chan interface{}) {
-	for {
-		s, err := lambdaStore.r.ReadInt()
-		if err != nil {
-			fmt.Println("read err is ", err)
-		}
-		c <- s
 	}
 }
 

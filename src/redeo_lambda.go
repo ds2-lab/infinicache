@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/bsm/redeo/resp"
+	"github.com/kelindar/binary"
 	"github.com/patrickmn/go-cache"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/s3gof3r"
@@ -13,12 +14,21 @@ import (
 	"time"
 )
 
+type Response struct {
+	Id   string
+	Body string
+}
+
 var (
-	srv           = redeo.NewServer(nil)
-	lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
-	//lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
-	myCache = cache.New(60*time.Minute, 60*time.Minute)
+	srv = redeo.NewServer(nil)
+	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
+	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
+	myCache       = cache.New(60*time.Minute, 60*time.Minute)
 )
+
+func newResponse(id string, body string) Response {
+	return Response{id, body}
+}
 
 func HandleRequest() {
 	go func() {
@@ -29,22 +39,29 @@ func HandleRequest() {
 			fmt.Println("in the get function")
 
 			key := c.Arg(0).String()
-			obj, err := myCache.Get(key)
+			id := c.Arg(1).String()
+
 			//if obj == nil {
 			//	obj = remoteGet("ao.webapp", key)
 			//	myCache.Set(string(c.Arg(0)), obj, -1)
 			//} else {
 			//	fmt.Println("find key")
 			//}
+			value, err := myCache.Get(key)
 			if err == false {
 				fmt.Println("not found")
 			}
-			if obj != nil {
+			if value != nil {
 				fmt.Println("item find")
-				fmt.Println(len(obj.(string)))
+				fmt.Println(len(value.(string)))
 			}
-			//w.AppendBulk(obj.([]uint8))
-			w.AppendBulkString(obj.(string))
+			// construct lambda store response
+			obj := newResponse(id, value.(string))
+			res, _ := binary.Marshal(obj)
+			w.AppendBulk(res)
+			if err := w.Flush(); err != nil {
+				panic(err)
+			}
 		})
 
 		srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -65,24 +82,23 @@ func HandleRequest() {
 				fmt.Println("set failed", err)
 			}
 			fmt.Println("set complete, result is ", key, myCache.ItemCount())
-			//w.AppendInt(1)
-			w.AppendBulkString(id)
-
+			// construct lambda store response
+			obj := newResponse(id, "1")
+			res, _ := binary.Marshal(obj)
+			w.AppendBulk(res)
 			if err := w.Flush(); err != nil {
 				panic(err)
 			}
 		})
-
 		srv.Serve_client(lambdaConn)
 	}()
 
 	// timeout control
 	select {
-	case <-time.After(60 * time.Second):
+	case <-time.After(300 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		return
 	}
-
 }
 
 func remoteGet(bucket string, key string) []byte {
