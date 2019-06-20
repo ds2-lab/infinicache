@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/bsm/redeo/resp"
-	"github.com/kelindar/binary"
 	"github.com/wangaoone/redeo"
 	"net"
 	"strconv"
@@ -108,21 +107,38 @@ func initial() {
 // blocking on peekType, every response's type is bulk
 func myPeek(l *lambdaInstance) {
 	for {
-		t, err := l.r.PeekType()
+		var obj Response
+		field1, err := l.r.PeekType()
 		if err != nil {
 			return
 		}
-		switch t {
+		switch field1 {
 		case resp.TypeBulk:
-			n, _ := l.r.ReadBulk(nil)
-			obj := decode(n)
-			l.peek <- obj
+			id, _ := l.r.ReadBulkString()
+			obj.Id = id
 		case resp.TypeError:
 			err, _ := l.r.ReadError()
 			fmt.Println("peek type err is", err)
 		default:
 			panic("unexpected response type")
 		}
+
+		field2, err := l.r.PeekType()
+		if err != nil {
+			return
+		}
+		switch field2 {
+		case resp.TypeBulk:
+			body, _ := l.r.ReadBulkString()
+			obj.Body = body
+		case resp.TypeError:
+			err, _ := l.r.ReadError()
+			fmt.Println("peek type err is", err)
+		default:
+			panic("unexpected response type")
+		}
+		// send obj to lambda helper channel
+		l.peek <- obj
 	}
 }
 func lambdaHandler(l *lambdaInstance) {
@@ -188,16 +204,6 @@ func lambdaTrigger() {
 	lambdaStore.aliveLock.Lock()
 	lambdaStore.alive = false
 	lambdaStore.aliveLock.Unlock()
-}
-
-// decode response from lambda store
-func decode(bulk []byte) Response {
-	var obj Response
-	err := binary.Unmarshal(bulk, &obj)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return obj
 }
 
 func myPrint(a ...interface{}) {

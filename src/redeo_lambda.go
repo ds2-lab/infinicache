@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/bsm/redeo/resp"
-	"github.com/kelindar/binary"
 	"github.com/patrickmn/go-cache"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/s3gof3r"
@@ -14,21 +13,12 @@ import (
 	"time"
 )
 
-type Response struct {
-	Id   string
-	Body string
-}
-
 var (
 	srv = redeo.NewServer(nil)
 	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
 	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
 	myCache       = cache.New(60*time.Minute, 60*time.Minute)
 )
-
-func newResponse(id string, body string) Response {
-	return Response{id, body}
-}
 
 func HandleRequest() {
 	go func() {
@@ -56,9 +46,10 @@ func HandleRequest() {
 				fmt.Println(len(value.(string)))
 			}
 			// construct lambda store response
-			obj := newResponse(id, value.(string))
-			res, _ := binary.Marshal(obj)
-			w.AppendBulk(res)
+			//obj := newResponse(id, value.(string))
+			//res, _ := binary.Marshal(obj)
+			w.AppendBulkString(id)
+			w.AppendBulkString(value.(string))
 			if err := w.Flush(); err != nil {
 				panic(err)
 			}
@@ -83,9 +74,10 @@ func HandleRequest() {
 			}
 			fmt.Println("set complete, result is ", key, myCache.ItemCount())
 			// construct lambda store response
-			obj := newResponse(id, "1")
-			res, _ := binary.Marshal(obj)
-			w.AppendBulk(res)
+			//obj := newResponse(id, "1")
+			//res, _ := binary.Marshal(obj)
+			w.AppendBulkString(id)
+			w.AppendBulkString("1")
 			if err := w.Flush(); err != nil {
 				panic(err)
 			}
