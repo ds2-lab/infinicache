@@ -13,13 +13,12 @@ import (
 )
 
 var (
-	clientLis, clientOK = net.Listen("tcp", ":6378")
-	lambdaLis, lambdaOK = net.Listen("tcp", ":6379")
-	isPrint             = true
-	lambdaStore         *lambdaInstance
-	cMap                = make(map[int]chan interface{}, 1) // client channel mapping table
-	lambdaStoreMap      map[lambdaInstance]net.Conn
-	instanceLock        sync.Mutex
+	clientLis      net.Listener
+	lambdaLis      net.Listener
+	lambdaStore    *lambdaInstance
+	cMap           = make(map[int]chan interface{}) // client channel mapping table
+	lambdaStoreMap = make(map[int]lambdaInstance)
+	isPrint        = true
 )
 
 type Response struct {
@@ -35,7 +34,6 @@ type lambdaInstance struct {
 	r         resp.ResponseReader
 	c         chan redeo.Req
 	peek      chan Response
-	cnLock    sync.Mutex
 	aliveLock sync.Mutex
 }
 
@@ -49,12 +47,8 @@ func newLambdaInstance(name string) *lambdaInstance {
 }
 
 func main() {
-	if clientOK != nil {
-		return
-	}
-	if lambdaOK != nil {
-		return
-	}
+	clientLis, _ = net.Listen("tcp", ":6378")
+	lambdaLis, _ = net.Listen("tcp", ":6379")
 	fmt.Println("start listening client face port 6378")
 	fmt.Println("start listening lambda face port 6379")
 	// initial ec2 server and lambda store
@@ -74,23 +68,17 @@ func main() {
 }
 
 func initial() {
-	instanceLock.Lock()
 	if lambdaStore == nil {
 		myPrint("create new lambda instance")
 		lambdaStore = newLambdaInstance("Lambda2SmallJPG")
 	}
-	instanceLock.Unlock()
 	// check lambdaStore alive
-	lambdaStore.aliveLock.Lock()
 	if lambdaStore.alive == false {
 		myPrint("Lambda 2 is not alive, need to activate")
 		// trigger lambda
-		lambdaStore.alive = true
 		go lambdaTrigger()
 	}
-	lambdaStore.aliveLock.Unlock()
 	// check lambda connection
-	lambdaStore.cnLock.Lock()
 	if lambdaStore.cn == nil {
 		myPrint("start a new conn")
 		// start a new server to receive conn from lambda store
@@ -100,7 +88,6 @@ func initial() {
 		lambdaStore.w = resp.NewRequestWriter(lambdaStore.cn)
 		lambdaStore.r = resp.NewResponseReader(lambdaStore.cn)
 	}
-	lambdaStore.cnLock.Unlock()
 	myPrint("lambda store has connected", lambdaStore.cn.RemoteAddr())
 }
 
@@ -118,7 +105,7 @@ func myPeek(l *lambdaInstance) {
 			obj.Id = id
 		case resp.TypeError:
 			err, _ := l.r.ReadError()
-			fmt.Println("peek type err is", err)
+			fmt.Println("peek type err1 is", err)
 		default:
 			panic("unexpected response type")
 		}
@@ -133,7 +120,7 @@ func myPeek(l *lambdaInstance) {
 			obj.Body = body
 		case resp.TypeError:
 			err, _ := l.r.ReadError()
-			fmt.Println("peek type err is", err)
+			fmt.Println("peek type err2 is", err)
 		default:
 			panic("unexpected response type")
 		}
@@ -145,11 +132,7 @@ func lambdaHandler(l *lambdaInstance) {
 	for {
 		select {
 		case a := <-l.c: /*blocking on lambda facing channel*/
-			myPrint("req from client is ", a.Cmd, a.Argument)
-			// get channel id
-			cid := strconv.Itoa(a.Cid)
-			argsCount := len(a.Argument.Args)
-
+			// check lambda status first
 			lambdaStore.aliveLock.Lock()
 			if lambdaStore.alive == false {
 				myPrint("Lambda 2 is not alive, need to activate")
@@ -158,6 +141,12 @@ func lambdaHandler(l *lambdaInstance) {
 				go lambdaTrigger()
 			}
 			lambdaStore.aliveLock.Unlock()
+			// req from client
+			myPrint("req from client is ", a.Cmd, a.Argument)
+			// get channel id
+			cid := strconv.Itoa(a.Cid)
+			// get cmd argument
+			argsCount := len(a.Argument.Args)
 			switch argsCount {
 			case 1: /*get or one argument cmd*/
 				lambdaStore.w.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), cid)
@@ -183,12 +172,13 @@ func lambdaHandler(l *lambdaInstance) {
 	}
 }
 
-func register(l *lambdaInstance) {
-	lambdaStoreMap[*l] = l.cn
-	myPrint("register lambda store", l.name)
-}
+//func register(l *lambdaInstance) {
+//	lambdaStoreMap[*l] = l.cn
+//	myPrint("register lambda store", l.name)
+//}
 
 func lambdaTrigger() {
+	lambdaStore.alive = true
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
