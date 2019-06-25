@@ -5,4 +5,6 @@ GOOS=linux go build redeo_lambda.go
 echo "compress file..."
 zip Lambda2SmallJPG redeo_lambda
 echo "updating lambda code.."
+# aws lambda update-function-code --function-name dataNode0 --zip-file fileb://Lambda2SmallJPG.zip
+# aws lambda update-function-code --function-name dataNode1 --zip-file fileb://Lambda2SmallJPG.zip
 aws lambda update-function-code --function-name Lambda2SmallJPG --zip-file fileb://Lambda2SmallJPG.zip

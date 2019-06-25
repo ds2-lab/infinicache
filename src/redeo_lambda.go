@@ -14,81 +14,84 @@ import (
 )
 
 var (
-	srv = redeo.NewServer(nil)
 	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
 	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
+	srv           = redeo.NewServer(nil)
 	myCache       = cache.New(60*time.Minute, 60*time.Minute)
+	isFirst       = true
 )
 
 func HandleRequest() {
-	go func() {
-		fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
+	if isFirst == true {
+		go func() {
+			fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
 
-		// Define handlers
-		srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-			fmt.Println("in the get function")
+			// Define handlers
+			srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
+				fmt.Println("in the get function")
 
-			key := c.Arg(0).String()
-			id := c.Arg(1).String()
+				key := c.Arg(0).String()
+				id := c.Arg(1).String()
 
-			//if obj == nil {
-			//	obj = remoteGet("ao.webapp", key)
-			//	myCache.Set(string(c.Arg(0)), obj, -1)
-			//} else {
-			//	fmt.Println("find key")
-			//}
-			value, err := myCache.Get(key)
-			if err == false {
-				fmt.Println("not found")
-			}
-			if value != nil {
-				fmt.Println("item find")
-				fmt.Println(len(value.(string)))
-			}
-			// construct lambda store response
-			//obj := newResponse(id, value.(string))
-			//res, _ := binary.Marshal(obj)
-			w.AppendBulkString(id)
-			w.AppendBulkString(value.(string))
-			if err := w.Flush(); err != nil {
-				panic(err)
-			}
-		})
+				//if obj == nil {
+				//	obj = remoteGet("ao.webapp", key)
+				//	myCache.Set(string(c.Arg(0)), obj, -1)
+				//} else {
+				//	fmt.Println("find key")
+				//}
+				value, err := myCache.Get(key)
+				if err == false {
+					fmt.Println("not found")
+				}
+				if value != nil {
+					fmt.Println("item find")
+					fmt.Println(len(value.(string)))
+				}
+				// construct lambda store response
+				//obj := newResponse(id, value.(string))
+				//res, _ := binary.Marshal(obj)
+				w.AppendBulkString(id)
+				w.AppendBulkString(value.(string))
+				if err := w.Flush(); err != nil {
+					panic(err)
+				}
+			})
 
-		srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
-			//if c.ArgN() != 3 {
-			//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
-			//	return
-			//}
+			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
+				//if c.ArgN() != 3 {
+				//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+				//	return
+				//}
 
-			key := c.Arg(0).String()
-			val := c.Arg(1).String()
-			id := c.Arg(2).String()
+				key := c.Arg(0).String()
+				val := c.Arg(1).String()
+				id := c.Arg(2).String()
 
-			//mu.Lock()
-			myCache.Set(key, val, -1)
-			//mu.Unlock()
-			temp, err := myCache.Get(key)
-			if temp == nil {
-				fmt.Println("set failed", err)
-			}
-			fmt.Println("set complete, result is ", key, myCache.ItemCount())
-			// construct lambda store response
-			//obj := newResponse(id, "1")
-			//res, _ := binary.Marshal(obj)
-			w.AppendBulkString(id)
-			w.AppendBulkString("1")
-			if err := w.Flush(); err != nil {
-				panic(err)
-			}
-		})
-		srv.Serve_client(lambdaConn)
-	}()
-
+				//mu.Lock()
+				myCache.Set(key, val, -1)
+				//mu.Unlock()
+				temp, err := myCache.Get(key)
+				if temp == nil {
+					fmt.Println("set failed", err)
+				}
+				fmt.Println("set complete, result is ", key, myCache.ItemCount())
+				// construct lambda store response
+				//obj := newResponse(id, "1")
+				//res, _ := binary.Marshal(obj)
+				w.AppendBulkString(id)
+				w.AppendBulkString("1")
+				if err := w.Flush(); err != nil {
+					panic(err)
+				}
+			})
+			srv.Serve_client(lambdaConn)
+		}()
+	}
 	// timeout control
 	select {
-	case <-time.After(300 * time.Second):
+	case <-time.After(30 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
+		isFirst = false
 		return
 	}
 }
