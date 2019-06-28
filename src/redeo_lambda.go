@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/bluele/gcache"
 	"github.com/bsm/redeo/resp"
 	"github.com/patrickmn/go-cache"
 	"github.com/wangaoone/redeo"
@@ -19,6 +20,7 @@ var (
 	srv           = redeo.NewServer(nil)
 	myCache       = cache.New(60*time.Minute, 60*time.Minute)
 	isFirst       = true
+	gc            = gcache.New(20).LRU().Build()
 )
 
 func HandleRequest() {
@@ -43,10 +45,7 @@ func HandleRequest() {
 				if err == false {
 					fmt.Println("not found")
 				}
-				if value != nil {
-					fmt.Println("item find")
-					fmt.Println(len(value.(string)))
-				}
+				fmt.Println("item find", len(value.(string)))
 				// construct lambda store response
 				//obj := newResponse(id, value.(string))
 				//res, _ := binary.Marshal(obj)
@@ -63,22 +62,25 @@ func HandleRequest() {
 				//	return
 				//}
 
-				key := c.Arg(0).String()
-				val := c.Arg(1).String()
-				id := c.Arg(2).String()
+				id := c.Arg(0).String()
+				key := c.Arg(1).String()
+				val := c.Arg(2).Bytes()
 
 				//mu.Lock()
 				myCache.Set(key, val, -1)
+				//gc.Set(key, val)
 				//mu.Unlock()
-				temp, err := myCache.Get(key)
-				if temp == nil {
-					fmt.Println("set failed", err)
-				}
-				fmt.Println("set complete, result is ", key, myCache.ItemCount())
+				//temp, err := myCache.Get(key)
+				//temp, err := gc.Get(key)
+				//if temp == nil {
+				//	fmt.Println("set failed", err)
+				//}
+				fmt.Println("set complete", key, val, id)
 				// construct lambda store response
 				//obj := newResponse(id, "1")
 				//res, _ := binary.Marshal(obj)
 				w.AppendBulkString(id)
+				w.AppendBulkString(key)
 				w.AppendBulkString("1")
 				if err := w.Flush(); err != nil {
 					panic(err)
