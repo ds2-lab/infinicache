@@ -48,24 +48,24 @@ func main() {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, shard), C: make(chan redeo.Response, 1024*1024)}
-	//group := make([]redeo.LambdaInstance, shard)
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, shard), ChunkTable: make(map[string][]string), C: make(chan redeo.Response, 1024*1024)}
 	for i := range group.Arr {
 		node := newLambdaInstance("Lambda2SmallJPG")
-		//node.Id = i
 		myPrint("No.", i, "replication lambda store has registered")
+		// register lambda instance to group
 		group.Arr[i] = *node
+		node.Alive = true
 		go lambdaTrigger(node)
 		// start a new server to receive conn from lambda store
 		myPrint("start a new conn")
 		node.Cn = lambdaSrv.Accept(lambdaLis)
 		myPrint("lambda store has connected", node.Cn.RemoteAddr())
-		// writer and reader
+		// wrap writer and reader
 		node.W = resp.NewRequestWriter(node.Cn)
 		node.R = resp.NewResponseReader(node.Cn)
 		// lambda handler
 		go lambdaHandler(node)
-		fmt.Println(node.Alive)
+		myPrint(node.Alive)
 	}
 	mappingTable.Set(0, group)
 	go groupReclaim(group)
@@ -73,19 +73,24 @@ func initial(lambdaSrv *redeo.Server) {
 }
 
 func groupReclaim(group redeo.Group) {
-	clientId := 0
 	for {
-		for i := 0; i < shard; i++ {
-			obj := <-group.C
-			id, _ := strconv.Atoi(obj.Id)
-			myPrint("client id is ", id, "obj body is", obj.Body, "key is ", obj.Key)
-			clientId = id
+		// blocking on group channel
+		obj := <-group.C
+		// store obj body
+		if len(group.ChunkTable[obj.Key]) != shard {
+			group.ChunkTable[obj.Key] = append(group.ChunkTable[obj.Key], obj.Body)
 		}
-		myPrint("lambda group has finished receive response from", shard, "lambdas")
-		// send response body to client channel
-		//cMap[id] <- obj.Body
-		myPrint("client id is ", clientId)
-		cMap[clientId] <- "1"
+		// already get full response
+		if len(group.ChunkTable[obj.Key]) == shard {
+			clientId, _ := strconv.Atoi(obj.Id)
+			myPrint("client id is ", clientId)
+			// send response body to client channel
+			cMap[clientId] <- "1"
+			myPrint("lambda group has finished receive response from", shard, "lambdas")
+			myPrint(group.ChunkTable[obj.Key])
+			// release the map mem
+			delete(group.ChunkTable, obj.Key)
+		}
 	}
 }
 
@@ -103,7 +108,23 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 func myPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
-		// field 1 for client id
+		// field 0 for client id
+		field0, err := l.R.PeekType()
+		if err != nil {
+			fmt.Println("field0 err", err)
+			return
+		}
+		switch field0 {
+		case resp.TypeBulk:
+			id, _ := l.R.ReadBulkString()
+			obj.Id = id
+		case resp.TypeError:
+			err, _ := l.R.ReadError()
+			fmt.Println("peek type err0 is", err)
+		default:
+			panic("unexpected response type")
+		}
+		// field 1 for obj key
 		field1, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
@@ -111,38 +132,22 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field1 {
 		case resp.TypeBulk:
-			id, _ := l.R.ReadBulkString()
-			obj.Id = id
+			key, _ := l.R.ReadBulkString()
+			obj.Key = key
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
+			return
 		default:
 			panic("unexpected response type")
 		}
-		// field 2 for obj key
+		// field 2 for obj body
 		field2, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field2 err", err)
 			return
 		}
 		switch field2 {
-		case resp.TypeBulk:
-			key, _ := l.R.ReadBulkString()
-			obj.Key = key
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err2 is", err)
-			return
-		default:
-			panic("unexpected response type")
-		}
-		// field 3 for obj body
-		field3, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field2 err", err)
-			return
-		}
-		switch field3 {
 		case resp.TypeBulk:
 			body, _ := l.R.ReadBulkString()
 			obj.Body = body
@@ -167,6 +172,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			l.AliveLock.Lock()
 			if l.Alive == false {
 				myPrint("Lambda 2 is not alive, need to activate")
+				l.Alive = true
 				// trigger lambda
 				go lambdaTrigger(l)
 			}
@@ -220,13 +226,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 	}
 }
 
-//func register(l *lambdaInstance) {
-//	lambdaStoreMap[*l] = l.cn
-//	myPrint("register lambda store", l.name)
-//}
-
 func lambdaTrigger(l *redeo.LambdaInstance) {
-	l.Alive = true
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -239,9 +239,9 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 	}
 
 	myPrint("Lambda Deactivate")
-	//l.AliveLock.Lock()
+	l.AliveLock.Lock()
 	l.Alive = false
-	//l.AliveLock.Unlock()
+	l.AliveLock.Unlock()
 }
 
 func myPrint(a ...interface{}) {

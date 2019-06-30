@@ -91,7 +91,7 @@ func HandleRequest() {
 	}
 	// timeout control
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(10 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		isFirst = false
 		return
