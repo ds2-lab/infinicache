@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/cornelk/hashmap"
+	"github.com/klauspost/reedsolomon"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
@@ -46,9 +48,41 @@ func main() {
 	}
 }
 
+func decoder(data [][]byte) []byte {
+	enc, err := reedsolomon.New(10, 3)
+	if err != nil {
+		fmt.Println(err)
+	}
+	ok, err := enc.Verify(data)
+	if ok {
+		fmt.Println("No reconstruction needed")
+	} else {
+		fmt.Println("Verification failed. Reconstructing data")
+		err = enc.Reconstruct(data)
+		if err != nil {
+			fmt.Println("Reconstruct failed -", err)
+		}
+		ok, err = enc.Verify(data)
+		if !ok {
+			fmt.Println("Verification failed after reconstruction, data likely corrupted.")
+		}
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(ok)
+	}
+	var res bytes.Buffer
+	err = enc.Join(&res, data, shard)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(res.Bytes())
+	return res.Bytes()
+}
+
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, shard), ChunkTable: make(map[string][]string), C: make(chan redeo.Response, 1024*1024)}
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, shard), ChunkTable: make(map[string][][]byte), C: make(chan redeo.Response, 1024*1024)}
 	for i := range group.Arr {
 		node := newLambdaInstance("Lambda2SmallJPG")
 		myPrint("No.", i, "replication lambda store has registered")
@@ -78,11 +112,11 @@ func groupReclaim(group redeo.Group) {
 		obj := <-group.C
 		// store obj body
 		if len(group.ChunkTable[obj.Key]) != shard {
-			group.ChunkTable[obj.Key] = append(group.ChunkTable[obj.Key], obj.Body)
+			group.ChunkTable[obj.Key][obj.ChunkId] = obj.Body
 		}
 		// already get full response
 		if len(group.ChunkTable[obj.Key]) == shard {
-			clientId, _ := strconv.Atoi(obj.Id)
+			clientId, _ := strconv.Atoi(obj.ClientId)
 			myPrint("client id is ", clientId)
 			// send response body to client channel
 			cMap[clientId] <- "1"
@@ -117,14 +151,14 @@ func myPeek(l *redeo.LambdaInstance) {
 		switch field0 {
 		case resp.TypeBulk:
 			id, _ := l.R.ReadBulkString()
-			obj.Id = id
+			obj.ClientId = id
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err0 is", err)
 		default:
 			panic("unexpected response type")
 		}
-		// field 1 for obj key
+		// field 1 for client id
 		field1, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
@@ -132,16 +166,15 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field1 {
 		case resp.TypeBulk:
-			key, _ := l.R.ReadBulkString()
-			obj.Key = key
+			id, _ := l.R.ReadInt()
+			obj.ChunkId = id
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
-			return
 		default:
 			panic("unexpected response type")
 		}
-		// field 2 for obj body
+		// field 2 for obj key
 		field2, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field2 err", err)
@@ -149,11 +182,28 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field2 {
 		case resp.TypeBulk:
-			body, _ := l.R.ReadBulkString()
-			obj.Body = body
+			key, _ := l.R.ReadBulkString()
+			obj.Key = key
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err2 is", err)
+			return
+		default:
+			panic("unexpected response type")
+		}
+		// field 3 for obj body
+		field3, err := l.R.PeekType()
+		if err != nil {
+			fmt.Println("field3 err", err)
+			return
+		}
+		switch field3 {
+		case resp.TypeBulk:
+			body, _ := l.R.ReadBulk(nil)
+			obj.Body = body
+		case resp.TypeError:
+			err, _ := l.R.ReadError()
+			fmt.Println("peek type err3 is", err)
 			return
 		default:
 			panic("unexpected response type")
@@ -180,7 +230,8 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			// req from client
 			//myPrint("req from client is ", a.Cmd, a.Key, a.Val, a.Cid)
 			// get channel id
-			cid := strconv.Itoa(a.Cid)
+			clientId := strconv.Itoa(a.ClientId)
+			chunkId := strconv.Itoa(a.ClientId)
 			//myPrint("id is ", cid)
 			// get cmd argument
 			//argsCount := len(a.Argument.Args)
@@ -201,8 +252,9 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			//	myPrint("write complete")
 			//}
 			//myPrint("obj length is ", len(a.Val))
-			myPrint("val is", a.Val, "id is ", cid)
-			l.W.MyWriteCmd(a.Cmd, cid, a.Key, a.Val)
+			myPrint("val is", a.Val, "id is ", clientId)
+			// write key and val in []byte format
+			l.W.MyWriteCmd(a.Cmd, clientId, chunkId, a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
