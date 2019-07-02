@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/bluele/gcache"
 	"github.com/bsm/redeo/resp"
 	"github.com/patrickmn/go-cache"
 	"github.com/wangaoone/redeo"
@@ -20,7 +19,7 @@ var (
 	srv           = redeo.NewServer(nil)
 	myCache       = cache.New(60*time.Minute, 60*time.Minute)
 	isFirst       = true
-	gc            = gcache.New(20).LRU().Build()
+	//gc            = gcache.New(20).LRU().Build()
 )
 
 func HandleRequest() {
@@ -32,8 +31,9 @@ func HandleRequest() {
 			srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 				fmt.Println("in the get function")
 
-				id := c.Arg(0).String()
-				key := c.Arg(0).String()
+				clientId := c.Arg(0).String()
+				chunkId, _ := c.Arg(1).Int()
+				key := c.Arg(2).String()
 
 				//if obj == nil {
 				//	obj = remoteGet("ao.webapp", key)
@@ -45,12 +45,13 @@ func HandleRequest() {
 				if err == false {
 					fmt.Println("not found")
 				}
-				fmt.Println("item find", len(val.([]byte)))
+				//fmt.Println("item find", len(val.([]byte)))
+				fmt.Println("item find", val.([]byte))
 				// construct lambda store response
-				//obj := newResponse(id, value.(string))
-				//res, _ := binary.Marshal(obj)
-				w.AppendBulkString(id)
-				w.AppendBulkString(val.(string))
+				w.AppendBulkString(key)
+				w.AppendBulkString(clientId)
+				w.AppendInt(chunkId)
+				w.AppendBulk(val.([]byte))
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
@@ -77,12 +78,12 @@ func HandleRequest() {
 				//	fmt.Println("set failed", err)
 				//}
 				fmt.Println("set complete", key, val, clientId)
-				// write clientId, chunkId, Key, body back to server
+				// write Key, clientId, chunkId, body back to server
+				w.AppendBulkString(key)
 				w.AppendBulkString(clientId)
 				w.AppendInt(chunkId)
-				w.AppendBulkString(key)
-				//w.AppendBulkString("1")
 				w.AppendBulk([]byte{1, 2, 3})
+				//w.AppendBulkString("1")
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}

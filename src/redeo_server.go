@@ -12,6 +12,7 @@ import (
 	"github.com/wangaoone/redeo/resp"
 	"net"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -48,7 +49,7 @@ func main() {
 	}
 }
 
-func decoder(data [][]byte) []byte {
+func decoding(data [][]byte) []byte {
 	enc, err := reedsolomon.New(10, 3)
 	if err != nil {
 		fmt.Println(err)
@@ -99,11 +100,18 @@ func initial(lambdaSrv *redeo.Server) {
 		node.R = resp.NewResponseReader(node.Cn)
 		// lambda handler
 		go lambdaHandler(node)
+		// lambda facing peeking response type
+		go myPeek(node)
 		myPrint(node.Alive)
 	}
 	mappingTable.Set(0, group)
 	go groupReclaim(group)
+}
 
+func add(arr [][]byte, ele *[]byte) [][]byte {
+	arr = append(arr, nil)
+	arr[len(arr)-1] = *ele
+	return arr
 }
 
 func groupReclaim(group redeo.Group) {
@@ -112,12 +120,16 @@ func groupReclaim(group redeo.Group) {
 		obj := <-group.C
 		// store obj body
 		if len(group.ChunkTable[obj.Key]) != shard {
-			group.ChunkTable[obj.Key][obj.ChunkId] = obj.Body
+			group.ChunkTable[obj.Key] = add(group.ChunkTable[obj.Key], &obj.Body)
+			//group.ChunkTable[obj.Key][obj.ChunkId] = obj.Body
 		}
+		fmt.Println("table is ", group.ChunkTable[obj.Key])
 		// already get full response
 		if len(group.ChunkTable[obj.Key]) == shard {
 			clientId, _ := strconv.Atoi(obj.ClientId)
 			myPrint("client id is ", clientId)
+			res := decoding(group.ChunkTable[obj.Key])
+			fmt.Println(res)
 			// send response body to client channel
 			cMap[clientId] <- "1"
 			myPrint("lambda group has finished receive response from", shard, "lambdas")
@@ -133,7 +145,7 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 		//name:  "dataNode" + strconv.Itoa(id),
 		Name:  name,
 		Alive: false,
-		C:     make(chan redeo.SetReq, 1024*1024),
+		C:     make(chan redeo.Req, 1024*1024),
 		Peek:  make(chan redeo.Response, 1024*1024),
 	}
 }
@@ -142,7 +154,9 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 func myPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
-		// field 0 for client id
+		//
+		// field 0 for obj key
+		// bulkString
 		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field0 err", err)
@@ -150,15 +164,16 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field0 {
 		case resp.TypeBulk:
-			id, _ := l.R.ReadBulkString()
-			obj.ClientId = id
+			obj.Key, _ = l.R.ReadBulkString()
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err0 is", err)
 		default:
 			panic("unexpected response type")
 		}
+		//
 		// field 1 for client id
+		// bulkString
 		field1, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
@@ -166,32 +181,33 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field1 {
 		case resp.TypeBulk:
-			id, _ := l.R.ReadInt()
-			obj.ChunkId = id
+			obj.ClientId, _ = l.R.ReadBulkString()
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
 		default:
 			panic("unexpected response type")
 		}
-		// field 2 for obj key
+		//
+		// field 2 for chunk id
+		// Int
 		field2, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field2 err", err)
 			return
 		}
 		switch field2 {
-		case resp.TypeBulk:
-			key, _ := l.R.ReadBulkString()
-			obj.Key = key
+		case resp.TypeInt:
+			obj.ChunkId, _ = l.R.ReadInt()
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err2 is", err)
-			return
 		default:
 			panic("unexpected response type")
 		}
+		//
 		// field 3 for obj body
+		// bulkString
 		field3, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field3 err", err)
@@ -199,8 +215,7 @@ func myPeek(l *redeo.LambdaInstance) {
 		}
 		switch field3 {
 		case resp.TypeBulk:
-			body, _ := l.R.ReadBulk(nil)
-			obj.Body = body
+			obj.Body, _ = l.R.ReadBulk(nil)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -227,42 +242,31 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				go lambdaTrigger(l)
 			}
 			l.AliveLock.Unlock()
+			//*
 			// req from client
-			//myPrint("req from client is ", a.Cmd, a.Key, a.Val, a.Cid)
-			// get channel id
+			//*
+			// get channel and chunk id
 			clientId := strconv.Itoa(a.ClientId)
-			chunkId := strconv.Itoa(a.ClientId)
-			//myPrint("id is ", cid)
+			chunkId := strconv.Itoa(a.ChunkId)
+			fmt.Println("client chunk", clientId, chunkId)
 			// get cmd argument
-			//argsCount := len(a.Argument.Args)
-			//switch argsCount {
-			//case 1: /*get or one argument cmd*/
-			//	l.W.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), cid)
-			//	err := l.W.Flush()
-			//	if err != nil {
-			//		fmt.Println("flush pipeline err is ", err)
-			//	}
-			//case 2: /*set or two argument cmd*/
-			//	myPrint("obj length is ", len(a.Argument.Arg(1)))
-			//	l.W.WriteCmdString(a.Cmd, a.Argument.Arg(0).String(), a.Argument.Arg(1).String(), cid)
-			//	err := l.W.Flush()
-			//	if err != nil {
-			//		fmt.Println("flush pipeline err is ", err)
-			//	}
-			//	myPrint("write complete")
-			//}
-			//myPrint("obj length is ", len(a.Val))
-			myPrint("val is", a.Val, "id is ", clientId)
-			// write key and val in []byte format
-			l.W.MyWriteCmd(a.Cmd, clientId, chunkId, a.Key, a.Val)
-			err := l.W.Flush()
-			if err != nil {
-				fmt.Println("flush pipeline err is ", err)
+			cmd := strings.ToLower(a.Cmd)
+			switch cmd {
+			case "get": /*get or one argument cmd*/
+				l.W.MyWriteCmd(a.Cmd, clientId, chunkId, a.Key)
+				err := l.W.Flush()
+				if err != nil {
+					fmt.Println("flush pipeline err is ", err)
+				}
+			case "set": /*set or two argument cmd*/
+				myPrint("val is", a.Val, "id is ", clientId, "obj length is ", len(a.Val))
+				// write key and val in []byte format
+				l.W.MyWriteCmd(a.Cmd, clientId, chunkId, a.Key, a.Val)
+				err := l.W.Flush()
+				if err != nil {
+					fmt.Println("flush pipeline err is ", err)
+				}
 			}
-			//myPrint("No.", l.Id, "replication writes complete")
-			// lambda facing peeking response type
-			go myPeek(l)
-			//groupBy(l, a.Key)
 		case obj := <-l.Peek: /*blocking on lambda facing receive*/
 			//group, ok := mappingTable.Get(obj.Key)
 			group, ok := mappingTable.Get(0)
@@ -270,10 +274,8 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				fmt.Println("get lambda instance failed")
 				return
 			}
+			// send chunk to group channel
 			group.(redeo.Group).C <- obj
-			// send response body to client channel
-			//cMap[id] <- obj.Body
-			//cMap[id] <- "1"
 		}
 	}
 }
