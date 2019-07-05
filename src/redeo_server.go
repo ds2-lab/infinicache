@@ -13,7 +13,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 var (
@@ -22,7 +21,6 @@ var (
 	cMap         = make(map[int]chan interface{}) // client channel mapping table
 	mappingTable = hashmap.New(1024)              // lambda store mapping table
 	isPrint      = true
-	lock         sync.Mutex
 )
 
 func main() {
@@ -44,7 +42,7 @@ func main() {
 }
 
 func decoding(data [][]byte) string {
-	enc, err := reedsolomon.New(10, 3, reedsolomon.WithMaxGoroutines(64))
+	enc, err := reedsolomon.New(redeo.DataShards, redeo.ParityShards, reedsolomon.WithMaxGoroutines(32))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -68,7 +66,7 @@ func decoding(data [][]byte) string {
 	}
 	//fmt.Println("decoding data is ", data)
 	var res bytes.Buffer
-	err = enc.Join(&res, data, 13)
+	err = enc.Join(&res, data, redeo.DataShards+redeo.ParityShards)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -77,7 +75,7 @@ func decoding(data [][]byte) string {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, 13), ChunkTable: make(map[redeo.Index][][]byte),
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
 		C: make(chan redeo.Response, 1024*1024), MemCounter: 0}
 	for i := range group.Arr {
 		node := newLambdaInstance("Lambda2SmallJPG")
@@ -116,11 +114,11 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 // blocking on lambda peek Type
 // lambda handle incoming lambda store response
 //
-// field 0 : obj 	key
-// field 1 : client	id
-// field 2 : req	id
-// field 3 : chunk	id
-// field 4 : obj 	val
+// field 0 : obj key
+// field 1 : client id
+// field 2 : req id
+// field 3 : chunk id
+// field 4 : obj val
 
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
@@ -212,39 +210,42 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		switch field4 {
 		case resp.TypeBulk:
 			index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
-			lock.Lock()
+			group.(*redeo.Group).Lock.Lock()
 			_, found := group.(*redeo.Group).ChunkTable[index]
 			if found == false {
-				group.(*redeo.Group).ChunkTable[index] = make([][]byte, 13)
+				group.(*redeo.Group).ChunkTable[index] = make([][]byte, redeo.DataShards+redeo.ParityShards)
 				fmt.Println("not found existed obj Id", "<", obj.Id.ClientId, obj.Id.ReqId, ">")
 			}
-			lock.Unlock()
+			group.(*redeo.Group).Lock.Unlock()
 			group.(*redeo.Group).ChunkTable[index][obj.Id.ChunkId], _ = l.R.ReadBulk(nil)
-			lock.Lock()
+			group.(*redeo.Group).Lock.Lock()
 			fmt.Println("client, reqId,chunk ", obj.Id.ClientId, obj.Id.ReqId, obj.Id.ChunkId)
 			if isFull(group.(*redeo.Group).ChunkTable[index]) {
 				res := decoding(group.(*redeo.Group).ChunkTable[index])
 				cMap[obj.Id.ClientId] <- res
 				delete(group.(*redeo.Group).ChunkTable, index)
 			}
-			lock.Unlock()
+			group.(*redeo.Group).Lock.Unlock()
 		case resp.TypeInt:
 			index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
-			lock.Lock()
+			group.(*redeo.Group).Lock.Lock()
 			_, found := group.(*redeo.Group).ChunkTable[index]
 			if found == false {
-				group.(*redeo.Group).ChunkTable[index] = make([][]byte, 13)
+				group.(*redeo.Group).ChunkTable[index] = make([][]byte, redeo.DataShards+redeo.ParityShards)
 				fmt.Println("not found existed obj Id", "<", obj.Id.ClientId, obj.Id.ReqId, ">")
 			}
-			lock.Unlock()
-			_, _ = l.R.ReadInt()
+			group.(*redeo.Group).Lock.Unlock()
+			_, err = l.R.ReadInt()
+			if err != nil {
+				fmt.Println("read int err")
+			}
 			group.(*redeo.Group).ChunkTable[index][obj.Id.ChunkId] = []byte{1}
-			lock.Lock()
+			group.(*redeo.Group).Lock.Lock()
 			if isFull(group.(*redeo.Group).ChunkTable[index]) {
 				delete(group.(*redeo.Group).ChunkTable, index)
 			}
 			cMap[obj.Id.ClientId] <- string(1)
-			lock.Unlock()
+			group.(*redeo.Group).Lock.Unlock()
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
