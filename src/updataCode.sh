@@ -2,7 +2,7 @@
 
 name="Lambda2SmallJPG"
 mem=3008
-concurrency=14
+concurrency=30
 
 echo "compiling lambda code..."
 GOOS=linux go build redeo_lambda.go
