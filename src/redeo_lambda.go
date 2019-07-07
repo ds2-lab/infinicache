@@ -93,6 +93,7 @@ func HandleRequest() {
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
+				fmt.Println("client Id:", clientId, "req Id:", reqId, "chunk Id:", chunkId)
 
 				//mu.Lock()
 				//myCache.Set(key, val, -1)

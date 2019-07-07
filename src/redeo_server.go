@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -17,14 +18,21 @@ import (
 )
 
 var (
+	multiDeployment = flag.Bool("multiDeployment", false, "enable multi-lambda deployment")
+	isPrint         = flag.Bool("isPrint", true, "enable print log")
+)
+
+var (
 	clientLis    net.Listener
 	lambdaLis    net.Listener
 	cMap         = make(map[int]chan interface{}) // client channel mapping table
 	mappingTable = hashmap.New(1024)              // lambda store mapping table
-	isPrint      = true
 )
 
 func main() {
+	flag.Parse()
+	fmt.Println("multiDeployment:", *multiDeployment, "||", "isPrint:", *isPrint)
+	fmt.Println("======================================")
 	clientLis, _ = net.Listen("tcp", ":6378")
 	lambdaLis, _ = net.Listen("tcp", ":6379")
 	fmt.Println("start listening client face port 6378")
@@ -88,29 +96,56 @@ func decoding(data [][]byte) string {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
-		C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
-	for i := range group.Arr {
-		node := newLambdaInstance("Lambda2SmallJPG")
-		myPrint("No.", i, "replication lambda store has registered")
-		// register lambda instance to group
-		group.Arr[i] = *node
-		node.Alive = true
-		go lambdaTrigger(node)
-		// start a new server to receive conn from lambda store
-		myPrint("start a new conn")
-		node.Cn = lambdaSrv.Accept(lambdaLis)
-		myPrint("lambda store has connected", node.Cn.RemoteAddr())
-		// wrap writer and reader
-		node.W = resp.NewRequestWriter(node.Cn)
-		node.R = resp.NewResponseReader(node.Cn)
-		// lambda handler
-		go lambdaHandler(node)
-		// lambda facing peeking response type
-		go LambdaPeek(node)
-		myPrint(node.Alive)
+	if *multiDeployment {
+		group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
+			C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
+		for i := range group.Arr {
+			node := newLambdaInstance("Lambda2SmallJPG")
+			myPrint("No.", i, "replication lambda store has registered")
+			// register lambda instance to group
+			group.Arr[i] = *node
+			node.Alive = true
+			go lambdaTrigger(node)
+			// start a new server to receive conn from lambda store
+			myPrint("start a new conn")
+			node.Cn = lambdaSrv.Accept(lambdaLis)
+			myPrint("lambda store has connected", node.Cn.RemoteAddr())
+			// wrap writer and reader
+			node.W = resp.NewRequestWriter(node.Cn)
+			node.R = resp.NewResponseReader(node.Cn)
+			// lambda handler
+			go lambdaHandler(node)
+			// lambda facing peeking response type
+			go LambdaPeek(node)
+			myPrint(node.Alive)
+		}
+		mappingTable.Set(0, &group)
+	} else {
+		group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
+			C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
+		for i := range group.Arr {
+			node := newLambdaInstance("Node" + strconv.Itoa(i))
+			myPrint(node.Name, "lambda store has registered")
+			// register lambda instance to group
+			group.Arr[i] = *node
+			node.Alive = true
+			go lambdaTrigger(node)
+			// start a new server to receive conn from lambda store
+			myPrint("start a new conn")
+			node.Cn = lambdaSrv.Accept(lambdaLis)
+			myPrint("lambda store has connected", node.Cn.RemoteAddr())
+			// wrap writer and reader
+			node.W = resp.NewRequestWriter(node.Cn)
+			node.R = resp.NewResponseReader(node.Cn)
+			// lambda handler
+			go lambdaHandler(node)
+			// lambda facing peeking response type
+			go LambdaPeek(node)
+			myPrint(node.Alive)
+		}
+		mappingTable.Set(0, &group)
 	}
-	mappingTable.Set(0, &group)
+
 }
 
 // create new lambda instance
@@ -358,7 +393,7 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 }
 
 func myPrint(a ...interface{}) {
-	if isPrint == true {
+	if *isPrint {
 		fmt.Println(a)
 	}
 }
