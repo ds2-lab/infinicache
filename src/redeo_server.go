@@ -31,6 +31,7 @@ var (
 
 func main() {
 	flag.Parse()
+	fmt.Println("======================================")
 	fmt.Println("multiDeployment:", *multiDeployment, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
 	clientLis, _ = net.Listen("tcp", ":6378")
@@ -86,7 +87,7 @@ func decoding(data [][]byte) string {
 	}
 	var res bytes.Buffer
 	t4 := time.Now()
-	err = enc.Join(&res, data, redeo.DataShards+redeo.ParityShards)
+	err = enc.Join(&res, data, len(data[0])*redeo.DataShards)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -96,7 +97,7 @@ func decoding(data [][]byte) string {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	if *multiDeployment {
+	if *multiDeployment == false {
 		group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
 			C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
 		for i := range group.Arr {
@@ -325,6 +326,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		select {
 		case a := <-l.C: /*blocking on lambda facing channel*/
 			// check lambda status first
+			t := time.Now()
 			l.AliveLock.Lock()
 			if l.Alive == false {
 				myPrint("Lambda 2 is not alive, need to activate")
@@ -333,6 +335,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				go lambdaTrigger(l)
 			}
 			l.AliveLock.Unlock()
+			fmt.Println("check lambda alive time is ", time.Since(t))
 			//*
 			// req from client
 			//*
@@ -347,6 +350,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			case "set": /*set or two argument cmd*/
 				//myPrint("val is", a.Val, "id is ", clientId, "obj length is ", len(a.Val))
 				// record the memory usage
+				t := time.Now()
 				l.Counter = l.Counter + uint64(len(a.Val))
 				// write key and val in []byte format
 				l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
@@ -354,14 +358,18 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				if err != nil {
 					fmt.Println("flush pipeline err is ", err)
 				}
+				fmt.Println("write to lambda store time is ", time.Since(t))
 			case "get": /*get or one argument cmd*/
+				t := time.Now()
 				l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key)
 				err := l.W.Flush()
 				if err != nil {
 					fmt.Println("flush pipeline err is ", err)
 				}
+				fmt.Println("write to lambda store time is ", time.Since(t))
 			}
 		case obj := <-l.Peek: /*blocking on lambda facing receive*/
+			fmt.Println("aaaaaabbbbbbcccc")
 			//group, ok := mappingTable.Get(obj.Key)
 			group, ok := mappingTable.Get(0)
 			if ok == false {
