@@ -21,6 +21,7 @@ var (
 )
 
 func HandleRequest() {
+	fmt.Println("time right now is ", time.Now().UnixNano())
 	if isFirst == true {
 		go func() {
 			fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())

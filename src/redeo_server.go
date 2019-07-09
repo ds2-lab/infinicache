@@ -51,50 +51,6 @@ func main() {
 	}
 }
 
-func decoding(data [][]byte) string {
-	enc, err := reedsolomon.New(redeo.DataShards, redeo.ParityShards, reedsolomon.WithMaxGoroutines(redeo.ECMaxGoroutine))
-	if err != nil {
-		fmt.Println(err)
-	}
-	//t1 := time.Now()
-	//ok, err := enc.Verify(data)
-	//fmt.Println("verify time 1 is", time.Since(t1))
-	//if ok {
-	//	fmt.Println("No reconstruction needed")
-	//} else {
-	//	fmt.Println("Verification failed. Reconstructing data")
-	//	t2 := time.Now()
-	//	err = enc.Reconstruct(data)
-	//	fmt.Println("reconstruct time is", time.Since(t2))
-	//	if err != nil {
-	//		fmt.Println("Reconstruct failed -", err)
-	//	}
-	//	t3 := time.Now()
-	//	ok, err = enc.Verify(data)
-	//	fmt.Println("verify time 2 is", time.Since(t3))
-	//	if !ok {
-	//		fmt.Println("Verification failed after reconstruction, data likely corrupted.")
-	//	}
-	//	if err != nil {
-	//		fmt.Println(err)
-	//	}
-	//}
-	t2 := time.Now()
-	err = enc.Reconstruct(data)
-	fmt.Println("reconstruct time is", time.Since(t2))
-	if err != nil {
-		fmt.Println("Reconstruct failed -", err)
-	}
-	var res bytes.Buffer
-	t4 := time.Now()
-	err = enc.Join(&res, data, len(data[0])*redeo.DataShards)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("join time is", time.Since(t4))
-	return res.String()
-}
-
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
 	if *multiDeployment == false {
@@ -158,6 +114,29 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 		C:     make(chan redeo.Req, 1024*1024),
 		Peek:  make(chan redeo.Response, 1024*1024),
 	}
+}
+
+// EC decoding
+// do the decoding when server receive minimum data shard
+func decoding(data [][]byte) string {
+	enc, err := reedsolomon.New(redeo.DataShards, redeo.ParityShards, reedsolomon.WithMaxGoroutines(redeo.ECMaxGoroutine))
+	if err != nil {
+		fmt.Println(err)
+	}
+	t2 := time.Now()
+	err = enc.Reconstruct(data)
+	fmt.Println("reconstruct time is", time.Since(t2))
+	if err != nil {
+		fmt.Println("Reconstruct failed -", err)
+	}
+	var res bytes.Buffer
+	t4 := time.Now()
+	err = enc.Join(&res, data, len(data[0])*redeo.DataShards)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("join time is", time.Since(t4))
+	return res.String()
 }
 
 // blocking on lambda peek Type
@@ -276,10 +255,10 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			group.(*redeo.Group).Lock.Lock()
 			fmt.Println("client, reqId,chunk ", obj.Id.ClientId, obj.Id.ReqId, obj.Id.ChunkId)
 			group.(*redeo.Group).ChunkCounter[index] += 1
-			if group.(*redeo.Group).ChunkCounter[index] == 10 {
+			if group.(*redeo.Group).ChunkCounter[index] == redeo.DataShards {
 				t := time.Now()
 				res := decoding(group.(*redeo.Group).ChunkTable[index])
-				fmt.Println("decoding time is", time.Since(t))
+				fmt.Println("Decoding time in GET is", time.Since(t))
 				cMap[obj.Id.ClientId] <- res
 				//delete(group.(*redeo.Group).ChunkTable, index)
 			}
@@ -323,61 +302,43 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 func lambdaHandler(l *redeo.LambdaInstance) {
 	fmt.Println("conn is", l.Cn)
 	for {
-		select {
-		case a := <-l.C: /*blocking on lambda facing channel*/
-			// check lambda status first
-			t := time.Now()
-			l.AliveLock.Lock()
-			if l.Alive == false {
-				myPrint("Lambda 2 is not alive, need to activate")
-				l.Alive = true
-				// trigger lambda
-				go lambdaTrigger(l)
+		a := <-l.C /*blocking on lambda facing channel*/
+		// check lambda status first
+		l.AliveLock.Lock()
+		if l.Alive == false {
+			myPrint("Lambda 2 is not alive, need to activate")
+			l.Alive = true
+			// trigger lambda
+			go lambdaTrigger(l)
+		}
+		l.AliveLock.Unlock()
+		//*
+		// req from client
+		//*
+		// get channel and chunk id
+		clientId := strconv.Itoa(a.Id.ClientId)
+		reqId := strconv.Itoa(a.Id.ReqId)
+		chunkId := strconv.Itoa(a.Id.ChunkId)
+		//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
+		// get cmd argument
+		cmd := strings.ToLower(a.Cmd)
+		switch cmd {
+		case "set": /*set or two argument cmd*/
+			//myPrint("val is", a.Val, "id is ", clientId, "obj length is ", len(a.Val))
+			// record the memory usage
+			l.Counter = l.Counter + uint64(len(a.Val))
+			// write key and val in []byte format
+			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
+			err := l.W.Flush()
+			if err != nil {
+				fmt.Println("flush pipeline err is ", err)
 			}
-			l.AliveLock.Unlock()
-			fmt.Println("check lambda alive time is ", time.Since(t))
-			//*
-			// req from client
-			//*
-			// get channel and chunk id
-			clientId := strconv.Itoa(a.Id.ClientId)
-			reqId := strconv.Itoa(a.Id.ReqId)
-			chunkId := strconv.Itoa(a.Id.ChunkId)
-			//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
-			// get cmd argument
-			cmd := strings.ToLower(a.Cmd)
-			switch cmd {
-			case "set": /*set or two argument cmd*/
-				//myPrint("val is", a.Val, "id is ", clientId, "obj length is ", len(a.Val))
-				// record the memory usage
-				t := time.Now()
-				l.Counter = l.Counter + uint64(len(a.Val))
-				// write key and val in []byte format
-				l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
-				err := l.W.Flush()
-				if err != nil {
-					fmt.Println("flush pipeline err is ", err)
-				}
-				fmt.Println("write to lambda store time is ", time.Since(t))
-			case "get": /*get or one argument cmd*/
-				t := time.Now()
-				l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key)
-				err := l.W.Flush()
-				if err != nil {
-					fmt.Println("flush pipeline err is ", err)
-				}
-				fmt.Println("write to lambda store time is ", time.Since(t))
+		case "get": /*get or one argument cmd*/
+			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key)
+			err := l.W.Flush()
+			if err != nil {
+				fmt.Println("flush pipeline err is ", err)
 			}
-		case obj := <-l.Peek: /*blocking on lambda facing receive*/
-			fmt.Println("aaaaaabbbbbbcccc")
-			//group, ok := mappingTable.Get(obj.Key)
-			group, ok := mappingTable.Get(0)
-			if ok == false {
-				fmt.Println("get lambda instance failed")
-				return
-			}
-			// send chunk to group channel
-			group.(*redeo.Group).C <- obj
 		}
 	}
 }
@@ -404,14 +365,4 @@ func myPrint(a ...interface{}) {
 	if *isPrint {
 		fmt.Println(a)
 	}
-}
-
-func isFull(slice [][]byte) bool {
-	isFull := true
-	for i := range slice {
-		if len(slice[i]) == 0 {
-			isFull = false
-		}
-	}
-	return isFull
 }
