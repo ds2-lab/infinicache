@@ -21,11 +21,9 @@ var (
 )
 
 func HandleRequest() {
-	fmt.Println("time right now is ", time.Now().UnixNano())
 	if isFirst == true {
 		go func() {
 			fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
-
 			// Define handlers
 			srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 				t := time.Now()
@@ -94,7 +92,8 @@ func HandleRequest() {
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
-				fmt.Println("client Id:", clientId, "req Id:", reqId, "chunk Id:", chunkId)
+				fmt.Println("client Id:", clientId, "req Id:", reqId)
+				fmt.Println("request is", val)
 
 				//mu.Lock()
 				//myCache.Set(key, val, -1)
@@ -116,7 +115,7 @@ func HandleRequest() {
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("set complete", "key:", key, "req id:,", reqId, "client id:", clientId)
+				fmt.Println("set complete", "key:", key, "val len", len(val), "req id:,", reqId, "client id:", clientId)
 			})
 			srv.Serve_client(lambdaConn)
 		}()

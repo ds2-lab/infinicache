@@ -168,12 +168,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		// get mapping table with key
-		group, ok := mappingTable.Get(0)
-		if ok == false {
-			fmt.Println("get lambda instance failed")
-		}
-		//
 		// field 1 for client id
 		// bulkString
 		field1, err := l.R.PeekType()
@@ -219,8 +213,8 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		}
 		switch field3 {
 		case resp.TypeInt:
-			chunkId, _ := l.R.ReadInt()
-			obj.Id.ChunkId = int(chunkId)
+			_, _ = l.R.ReadInt()
+			//obj.Id.ChunkId = int(chunkId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -237,56 +231,14 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		}
 		switch field4 {
 		case resp.TypeBulk:
-			// initialize index
-			index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
-			// whether the [][]byte is existed with this index
-			// if not, create it
-			group.(*redeo.Group).Lock.Lock()
-			_, found := group.(*redeo.Group).ChunkTable[index]
-			if found == false {
-				group.(*redeo.Group).ChunkTable[index] = make([][]byte, redeo.DataShards+redeo.ParityShards)
-				group.(*redeo.Group).ChunkCounter[index] = 0
-				fmt.Println("not found existed obj Id", "<", obj.Id.ClientId, obj.Id.ReqId, ">")
-			}
-			group.(*redeo.Group).Lock.Unlock()
-			// read chunk from lambda store
-			group.(*redeo.Group).ChunkTable[index][obj.Id.ChunkId], _ = l.R.ReadBulk(nil)
-			// whether the [][]byte with this index is full
-			group.(*redeo.Group).Lock.Lock()
-			fmt.Println("client, reqId,chunk ", obj.Id.ClientId, obj.Id.ReqId, obj.Id.ChunkId)
-			group.(*redeo.Group).ChunkCounter[index] += 1
-			if group.(*redeo.Group).ChunkCounter[index] == redeo.DataShards {
-				t := time.Now()
-				res := decoding(group.(*redeo.Group).ChunkTable[index])
-				fmt.Println("Decoding time in GET is", time.Since(t))
-				cMap[obj.Id.ClientId] <- res
-				//delete(group.(*redeo.Group).ChunkTable, index)
-			}
-			group.(*redeo.Group).Lock.Unlock()
 		case resp.TypeInt:
 			index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
-			group.(*redeo.Group).Lock.Lock()
-			_, found := group.(*redeo.Group).ChunkTable[index]
-			if found == false {
-				group.(*redeo.Group).ChunkTable[index] = make([][]byte, redeo.DataShards+redeo.ParityShards)
-				group.(*redeo.Group).ChunkCounter[index] = 0
-				fmt.Println("not found existed obj Id", "<", obj.Id.ClientId, obj.Id.ReqId, ">")
-			}
-			group.(*redeo.Group).Lock.Unlock()
-			_, err = l.R.ReadInt()
+			res, err := l.R.ReadInt()
 			if err != nil {
-				fmt.Println("read int err")
+				fmt.Println("responsr err is ", err)
 			}
-			group.(*redeo.Group).ChunkTable[index][obj.Id.ChunkId] = []byte{1}
-			group.(*redeo.Group).Lock.Lock()
-			//if isFull(group.(*redeo.Group).ChunkTable[index]) {
-			fmt.Println("client, reqId,chunk ", obj.Id.ClientId, obj.Id.ReqId, obj.Id.ChunkId)
-			group.(*redeo.Group).ChunkCounter[index] += 1
-			if group.(*redeo.Group).ChunkCounter[index] == redeo.DataShards+redeo.ParityShards {
-				//delete(group.(*redeo.Group).ChunkTable, index)
-				cMap[obj.Id.ClientId] <- string(1)
-			}
-			group.(*redeo.Group).Lock.Unlock()
+			fmt.Println("receive response is", res, "client id, req id", index.ClientId, index.ReqId)
+			cMap[obj.Id.ClientId] <- string(res)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
@@ -318,7 +270,6 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		// get channel and chunk id
 		clientId := strconv.Itoa(a.Id.ClientId)
 		reqId := strconv.Itoa(a.Id.ReqId)
-		chunkId := strconv.Itoa(a.Id.ChunkId)
 		//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
@@ -328,13 +279,13 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			// record the memory usage
 			l.Counter = l.Counter + uint64(len(a.Val))
 			// write key and val in []byte format
-			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, clientId, reqId, "", a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
 			}
 		case "get": /*get or one argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key)
+			l.W.MyWriteCmd(a.Cmd, clientId, reqId, "", a.Key)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
