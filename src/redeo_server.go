@@ -213,8 +213,8 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		}
 		switch field3 {
 		case resp.TypeInt:
-			_, _ = l.R.ReadInt()
-			//obj.Id.ChunkId = int(chunkId)
+			chunkId, _ := l.R.ReadInt()
+			obj.Id.ChunkId = int(chunkId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -231,14 +231,21 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		}
 		switch field4 {
 		case resp.TypeBulk:
-		case resp.TypeInt:
-			index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
-			res, err := l.R.ReadInt()
+			//index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
+			res, err := l.R.ReadBulk(nil)
 			if err != nil {
-				fmt.Println("responsr err is ", err)
+				fmt.Println("response err is ", err)
 			}
-			fmt.Println("receive response is", res, "client id, req id", index.ClientId, index.ReqId)
-			cMap[obj.Id.ClientId] <- string(res)
+			chunk := redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
+			cMap[obj.Id.ClientId] <- chunk
+		case resp.TypeInt:
+			//index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
+			_, err := l.R.ReadInt()
+			if err != nil {
+				fmt.Println("response err is ", err)
+			}
+			chunk := redeo.Chunk{Id: obj.Id.ChunkId, Body: []byte{1}}
+			cMap[obj.Id.ClientId] <- chunk
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
@@ -270,7 +277,8 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		// get channel and chunk id
 		clientId := strconv.Itoa(a.Id.ClientId)
 		reqId := strconv.Itoa(a.Id.ReqId)
-		//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
+		chunkId := strconv.Itoa(a.Id.ChunkId)
+		fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
@@ -279,7 +287,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			// record the memory usage
 			l.Counter = l.Counter + uint64(len(a.Val))
 			// write key and val in []byte format
-			l.W.MyWriteCmd(a.Cmd, clientId, reqId, "", a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)

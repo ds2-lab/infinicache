@@ -12,11 +12,16 @@ import (
 	"time"
 )
 
+type chunk struct {
+	id   int64
+	body []byte
+}
+
 var (
 	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
 	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
 	srv           = redeo.NewServer(nil)
-	myMap         = make(map[string][]byte)
+	myMap         = make(map[string]chunk)
 	isFirst       = true
 )
 
@@ -31,51 +36,28 @@ func HandleRequest() {
 
 				clientId, _ := c.Arg(0).Int()
 				reqId, _ := c.Arg(1).Int()
-				chunkId, _ := c.Arg(2).Int()
+				//_, _ = c.Arg(2).Int()
 				key := c.Arg(3).String()
 
-				//if obj == nil {
-				//	obj = remoteGet("ao.webapp", key)
-				//	myCache.Set(string(c.Arg(0)), obj, -1)
-				//} else {
-				//	fmt.Println("find key")
-				//}
-				t1 := time.Now()
 				//val, err := myCache.Get(key)
 				//if err == false {
 				//	fmt.Println("not found")
 				//}
-				val, found := myMap[key]
+				chunk, found := myMap[key]
 				if found == false {
 					fmt.Println("not found")
 				}
-				fmt.Println("cache time is", time.Since(t1))
-				fmt.Println("item find", len(val))
+				fmt.Println("item find", len(chunk.body))
 
-				t2 := time.Now()
 				// construct lambda store response
-				t4 := time.Now()
 				w.AppendBulkString(key)
-				fmt.Println("append key", time.Since(t4))
-				t5 := time.Now()
 				w.AppendInt(clientId)
-				fmt.Println("append client id", time.Since(t5))
-				t6 := time.Now()
 				w.AppendInt(reqId)
-				fmt.Println("append request id", time.Since(t6))
-				t7 := time.Now()
-				w.AppendInt(chunkId)
-				fmt.Println("append chunk id", time.Since(t7))
-				t8 := time.Now()
-				w.AppendBulk(val)
-				fmt.Println("append val id", time.Since(t8))
-				t9 := time.Now()
+				w.AppendInt(chunk.id)
+				w.AppendBulk(chunk.body)
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("flush", time.Since(t9))
-				fmt.Println("writer append time is", time.Since(t2))
-
 				fmt.Println("duration time is", time.Since(t),
 					"get complete", "key:", key, "req id:", reqId, "client id:", clientId)
 			})
@@ -92,12 +74,12 @@ func HandleRequest() {
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
-				fmt.Println("client Id:", clientId, "req Id:", reqId)
-				fmt.Println("request is", val)
+				fmt.Println("client Id:", clientId, "req Id:", reqId, "chunk id:", chunkId)
+				chunk := chunk{id: chunkId, body: val}
 
 				//mu.Lock()
 				//myCache.Set(key, val, -1)
-				myMap[key] = val
+				myMap[key] = chunk
 				//gc.Set(key, val)
 				//mu.Unlock()
 				//temp, err := myCache.Get(key)
