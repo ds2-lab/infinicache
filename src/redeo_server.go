@@ -24,7 +24,6 @@ var (
 	clientLis net.Listener
 	lambdaLis net.Listener
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
-	group     redeo.Group
 )
 
 func main() {
@@ -40,7 +39,7 @@ func main() {
 	lambdaSrv := redeo.NewServer(nil)
 
 	// initial lambda store group
-	initial(lambdaSrv)
+	group := initial(lambdaSrv)
 
 	// Start serving (blocking)
 	err := srv.MyServe(clientLis, cMap, group)
@@ -50,8 +49,8 @@ func main() {
 }
 
 // initial lambda group
-func initial(lambdaSrv *redeo.Server) {
-	group = redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
+func initial(lambdaSrv *redeo.Server) redeo.Group {
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
 	if *replica == true {
 		for i := range group.Arr {
 			node := newLambdaInstance("Lambda2SmallJPG")
@@ -95,7 +94,7 @@ func initial(lambdaSrv *redeo.Server) {
 			myPrint(node.Alive)
 		}
 	}
-
+	return group
 }
 
 // create new lambda instance
