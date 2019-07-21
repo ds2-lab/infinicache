@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/cornelk/hashmap"
-	"github.com/klauspost/reedsolomon"
+	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
@@ -18,8 +17,8 @@ import (
 )
 
 var (
-	multiDeployment = flag.Bool("multiDeployment", false, "enable multi-lambda deployment")
-	isPrint         = flag.Bool("isPrint", true, "enable print log")
+	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
+	isPrint = flag.Bool("isPrint", true, "Enable log printing")
 )
 
 var (
@@ -32,7 +31,7 @@ var (
 func main() {
 	flag.Parse()
 	fmt.Println("======================================")
-	fmt.Println("multiDeployment:", *multiDeployment, "||", "isPrint:", *isPrint)
+	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
 	clientLis, _ = net.Listen("tcp", ":6378")
 	lambdaLis, _ = net.Listen("tcp", ":6379")
@@ -53,9 +52,8 @@ func main() {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	if *multiDeployment == false {
-		group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
-			C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
+	if *replica == true {
 		for i := range group.Arr {
 			node := newLambdaInstance("Lambda2SmallJPG")
 			myPrint("No.", i, "replication lambda store has registered")
@@ -76,10 +74,7 @@ func initial(lambdaSrv *redeo.Server) {
 			go LambdaPeek(node)
 			myPrint(node.Alive)
 		}
-		mappingTable.Set(0, &group)
 	} else {
-		group := redeo.Group{Arr: make([]redeo.LambdaInstance, redeo.DataShards+redeo.ParityShards), ChunkTable: make(map[redeo.Index][][]byte),
-			C: make(chan redeo.Response, 1024*1024), MemCounter: 0, ChunkCounter: make(map[redeo.Index]int)}
 		for i := range group.Arr {
 			node := newLambdaInstance("Node" + strconv.Itoa(i))
 			myPrint(node.Name, "lambda store has registered")
@@ -100,43 +95,18 @@ func initial(lambdaSrv *redeo.Server) {
 			go LambdaPeek(node)
 			myPrint(node.Alive)
 		}
-		mappingTable.Set(0, &group)
 	}
+	mappingTable.Set(0, &group)
 
 }
 
 // create new lambda instance
 func newLambdaInstance(name string) *redeo.LambdaInstance {
 	return &redeo.LambdaInstance{
-		//name:  "dataNode" + strconv.Itoa(id),
 		Name:  name,
 		Alive: false,
 		C:     make(chan redeo.Req, 1024*1024),
-		Peek:  make(chan redeo.Response, 1024*1024),
 	}
-}
-
-// EC decoding
-// do the decoding when server receive minimum data shard
-func decoding(data [][]byte) string {
-	enc, err := reedsolomon.New(redeo.DataShards, redeo.ParityShards, reedsolomon.WithMaxGoroutines(redeo.ECMaxGoroutine))
-	if err != nil {
-		fmt.Println(err)
-	}
-	t2 := time.Now()
-	err = enc.Reconstruct(data)
-	fmt.Println("reconstruct time is", time.Since(t2))
-	if err != nil {
-		fmt.Println("Reconstruct failed -", err)
-	}
-	var res bytes.Buffer
-	t4 := time.Now()
-	err = enc.Join(&res, data, len(data[0])*redeo.DataShards)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("join time is", time.Since(t4))
-	return res.String()
 }
 
 // blocking on lambda peek Type
@@ -154,11 +124,14 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		//
 		// field 0 for obj key
 		// bulkString
+		t0 := time.Now()
 		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field0 err", err)
 			return
 		}
+		fmt.Println("Sever PeekType obj key time is", time.Since(t0))
+		t1 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
 			obj.Key, _ = l.R.ReadBulkString()
@@ -168,13 +141,17 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		fmt.Println("read field0 bulkString time is", time.Since(t1))
 		// field 1 for client id
 		// bulkString
+		t2 := time.Now()
 		field1, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
 			return
 		}
+		fmt.Println("Sever PeekType clientId time is", time.Since(t2))
+		t3 := time.Now()
 		switch field1 {
 		case resp.TypeInt:
 			clientId, _ := l.R.ReadInt()
@@ -185,14 +162,18 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		fmt.Println("read field1 clientId time is", time.Since(t3))
 		//
 		// field 2 for req id
 		// bulkString
+		t4 := time.Now()
 		field2, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field2 err", err)
 			return
 		}
+		fmt.Println("Sever PeekType reqId time is", time.Since(t4))
+		t5 := time.Now()
 		switch field2 {
 		case resp.TypeInt:
 			reqId, _ := l.R.ReadInt()
@@ -203,14 +184,18 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		fmt.Println("read field2 reqId time is", time.Since(t5))
 		//
 		// field 3 for chunk id
 		// Int
+		t6 := time.Now()
 		field3, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field3 err", err)
 			return
 		}
+		fmt.Println("Sever PeekType chunkId time is", time.Since(t6))
+		t7 := time.Now()
 		switch field3 {
 		case resp.TypeInt:
 			chunkId, _ := l.R.ReadInt()
@@ -221,14 +206,18 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		fmt.Println("read field3 chunkId time is", time.Since(t7))
 		//
 		// field 4 for obj body
 		// bulkString
+		t8 := time.Now()
 		field4, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field4 err", err)
 			return
 		}
+		fmt.Println("Sever PeekType objBody time is", time.Since(t8))
+		t9 := time.Now()
 		switch field4 {
 		case resp.TypeBulk:
 			//index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
@@ -253,6 +242,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		fmt.Println("read field4 objBody time is", time.Since(t9))
 	}
 }
 
@@ -265,7 +255,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		// check lambda status first
 		l.AliveLock.Lock()
 		if l.Alive == false {
-			myPrint("Lambda 2 is not alive, need to activate")
+			myPrint("Lambda store is not alive, need to activate")
 			l.Alive = true
 			// trigger lambda
 			go lambdaTrigger(l)
@@ -276,24 +266,20 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		//*
 		// get channel and chunk id
 		clientId := strconv.Itoa(a.Id.ClientId)
-		reqId := strconv.Itoa(a.Id.ReqId)
+		//reqId := strconv.Itoa(a.Id.ReqId)
 		chunkId := strconv.Itoa(a.Id.ChunkId)
-		fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
+		//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
-			//myPrint("val is", a.Val, "id is ", clientId, "obj length is ", len(a.Val))
-			// record the memory usage
-			l.Counter = l.Counter + uint64(len(a.Val))
-			// write key and val in []byte format
-			l.W.MyWriteCmd(a.Cmd, clientId, reqId, chunkId, a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, clientId, "", chunkId, a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
 			}
 		case "get": /*get or one argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, clientId, reqId, "", a.Key)
+			l.W.MyWriteCmd(a.Cmd, clientId, "", "", a.Key)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)

@@ -50,16 +50,28 @@ func HandleRequest() {
 				fmt.Println("item find", len(chunk.body))
 
 				// construct lambda store response
+				t1 := time.Now()
 				w.AppendBulkString(key)
+				fmt.Println("appendBulkString time is", time.Since(t1))
+				t2 := time.Now()
 				w.AppendInt(clientId)
-				w.AppendInt(reqId)
+				fmt.Println("appendClientId time is", time.Since(t2))
+				t3 := time.Now()
+				w.AppendInt(1)
+				fmt.Println("appendReqId time is", time.Since(t3))
+				t4 := time.Now()
 				w.AppendInt(chunk.id)
+				fmt.Println("appendChunkId time is", time.Since(t4))
+				t5 := time.Now()
 				w.AppendBulk(chunk.body)
+				fmt.Println("appendBody time is ", time.Since(t5))
+				t6 := time.Now()
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
+				fmt.Println("flush time is ", time.Since(t6))
 				fmt.Println("duration time is", time.Since(t),
-					"get complete", "key:", key, "req id:", reqId, "client id:", clientId)
+					"get complete", "key:", key, "req id:", reqId, "client id:", clientId, "chunk id is", chunk.id)
 			})
 
 			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -70,41 +82,30 @@ func HandleRequest() {
 				//}
 
 				clientId, _ := c.Arg(0).Int()
-				reqId, _ := c.Arg(1).Int()
+				//reqId, _ := c.Arg(1).Int()
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
-				fmt.Println("client Id:", clientId, "req Id:", reqId, "chunk id:", chunkId)
 				chunk := chunk{id: chunkId, body: val}
 
-				//mu.Lock()
-				//myCache.Set(key, val, -1)
 				myMap[key] = chunk
-				//gc.Set(key, val)
-				//mu.Unlock()
-				//temp, err := myCache.Get(key)
-				//temp, err := gc.Get(key)
-				//if temp == nil {
-				//	fmt.Println("set failed", err)
-				//}
-				//fmt.Println("set complete", key, val, clientId)
 				// write Key, clientId, chunkId, body back to server
 				w.AppendBulkString(key)
 				w.AppendInt(clientId)
-				w.AppendInt(reqId)
+				w.AppendInt(1)
 				w.AppendInt(chunkId)
 				w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("set complete", "key:", key, "val len", len(val), "req id:,", reqId, "client id:", clientId)
+				fmt.Println("set complete", "key:", key, "val len", len(val), "client id:", clientId, "chunk id:", chunkId)
 			})
 			srv.Serve_client(lambdaConn)
 		}()
 	}
 	// timeout control
 	select {
-	case <-time.After(60 * time.Second):
+	case <-time.After(120 * time.Second):
 		fmt.Println("Lambda timeout, going to return function")
 		isFirst = false
 		return
