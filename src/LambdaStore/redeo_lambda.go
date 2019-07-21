@@ -1,4 +1,4 @@
-package LambdaStore
+package main
 
 import (
 	"bytes"

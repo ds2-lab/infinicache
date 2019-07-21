@@ -5,10 +5,12 @@
 #### package
 ```golang
 go get -u github.com/wangaoone/redeo
+go get -u github.com/wangaoone/redeo/resp
 go get -u github.com/aws/aws-sdk-go/...
-go get -u github.com/bsm/redeo/resp
-go get -u github.com/patrickmn/go-cache
 go get -u github.com/wangaoone/s3gof3r
+go get -u github.com/buraksezer/consistent
+go get -u github.com/cespare/xxhash
+go get -u github.com/seiflotfy/cuckoofilter
 ```
 ### Port
 Client facing port： 6379  
