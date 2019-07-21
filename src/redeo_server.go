@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/cornelk/hashmap"
 	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -18,14 +17,14 @@ import (
 
 var (
 	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
-	isPrint = flag.Bool("isPrint", true, "Enable log printing")
+	isPrint = flag.Bool("isPrint", false, "Enable log printing")
 )
 
 var (
-	clientLis    net.Listener
-	lambdaLis    net.Listener
-	cMap         = make(map[int]chan interface{}) // client channel mapping table
-	mappingTable = hashmap.New(1024)              // lambda store mapping table
+	clientLis net.Listener
+	lambdaLis net.Listener
+	cMap      = make(map[int]chan interface{}) // client channel mapping table
+	group     redeo.Group
 )
 
 func main() {
@@ -44,7 +43,7 @@ func main() {
 	initial(lambdaSrv)
 
 	// Start serving (blocking)
-	err := srv.MyServe(clientLis, cMap, mappingTable)
+	err := srv.MyServe(clientLis, cMap, group)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -52,7 +51,7 @@ func main() {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
+	group = redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
 	if *replica == true {
 		for i := range group.Arr {
 			node := newLambdaInstance("Lambda2SmallJPG")
@@ -96,7 +95,6 @@ func initial(lambdaSrv *redeo.Server) {
 			myPrint(node.Alive)
 		}
 	}
-	mappingTable.Set(0, &group)
 
 }
 
@@ -130,7 +128,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field0 err", err)
 			return
 		}
-		fmt.Println("Sever PeekType obj key time is", time.Since(t0))
+		myPrint("Sever PeekType obj key time is", time.Since(t0))
 		t1 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
@@ -141,7 +139,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		fmt.Println("read field0 bulkString time is", time.Since(t1))
+		myPrint("read field0 bulkString time is", time.Since(t1))
 		// field 1 for client id
 		// bulkString
 		t2 := time.Now()
@@ -150,7 +148,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field1 err", err)
 			return
 		}
-		fmt.Println("Sever PeekType clientId time is", time.Since(t2))
+		myPrint("Sever PeekType clientId time is", time.Since(t2))
 		t3 := time.Now()
 		switch field1 {
 		case resp.TypeInt:
@@ -162,7 +160,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		fmt.Println("read field1 clientId time is", time.Since(t3))
+		myPrint("read field1 clientId time is", time.Since(t3))
 		//
 		// field 2 for req id
 		// bulkString
@@ -172,7 +170,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field2 err", err)
 			return
 		}
-		fmt.Println("Sever PeekType reqId time is", time.Since(t4))
+		myPrint("Sever PeekType reqId time is", time.Since(t4))
 		t5 := time.Now()
 		switch field2 {
 		case resp.TypeInt:
@@ -184,7 +182,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		fmt.Println("read field2 reqId time is", time.Since(t5))
+		myPrint("read field2 reqId time is", time.Since(t5))
 		//
 		// field 3 for chunk id
 		// Int
@@ -194,7 +192,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field3 err", err)
 			return
 		}
-		fmt.Println("Sever PeekType chunkId time is", time.Since(t6))
+		myPrint("Sever PeekType chunkId time is", time.Since(t6))
 		t7 := time.Now()
 		switch field3 {
 		case resp.TypeInt:
@@ -206,7 +204,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		fmt.Println("read field3 chunkId time is", time.Since(t7))
+		myPrint("read field3 chunkId time is", time.Since(t7))
 		//
 		// field 4 for obj body
 		// bulkString
@@ -216,7 +214,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field4 err", err)
 			return
 		}
-		fmt.Println("Sever PeekType objBody time is", time.Since(t8))
+		myPrint("Sever PeekType objBody time is", time.Since(t8))
 		t9 := time.Now()
 		switch field4 {
 		case resp.TypeBulk:
@@ -242,7 +240,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		fmt.Println("read field4 objBody time is", time.Since(t9))
+		myPrint("read field4 objBody time is", time.Since(t9))
 	}
 }
 
