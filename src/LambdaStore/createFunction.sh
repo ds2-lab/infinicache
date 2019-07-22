@@ -3,6 +3,9 @@
 prefix="Proxy1"
 name="Node"
 
+GOOS=linux go build redeo_lambda.go
+zip Lambda2SmallJPG redeo_lambda
+
 echo "Creating lambda functions..."
 
 for i in {0..13}
