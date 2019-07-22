@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/pkg/profile"
 	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -27,6 +28,9 @@ var (
 )
 
 func main() {
+	// CPU profiling by default
+	defer profile.Start().Stop()
+
 	flag.Parse()
 	fmt.Println("======================================")
 	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
@@ -109,37 +113,14 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 // blocking on lambda peek Type
 // lambda handle incoming lambda store response
 //
-// field 0 : obj key
-// field 1 : client id
-// field 2 : req id
-// field 3 : chunk id
-// field 4 : obj val
+// field 0 : client id
+// field 1 : chunk id
+// field 2 : obj val
 
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
-		//
-		// field 0 for obj key
-		// bulkString
-		t0 := time.Now()
-		field0, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field0 err", err)
-			return
-		}
-		myPrint("Sever PeekType obj key time is", time.Since(t0))
-		t1 := time.Now()
-		switch field0 {
-		case resp.TypeBulk:
-			obj.Key, _ = l.R.ReadBulkString()
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err0 is", err)
-		default:
-			panic("unexpected response type")
-		}
-		myPrint("read field0 bulkString time is", time.Since(t1))
-		// field 1 for client id
+		// field 0 for client id
 		// bulkString
 		t2 := time.Now()
 		field1, err := l.R.PeekType()
@@ -147,7 +128,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field1 err", err)
 			return
 		}
-		myPrint("Sever PeekType clientId time is", time.Since(t2))
+		time2 := time.Since(t2)
 		t3 := time.Now()
 		switch field1 {
 		case resp.TypeInt:
@@ -159,31 +140,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		myPrint("read field1 clientId time is", time.Since(t3))
+		time3 := time.Since(t3)
 		//
-		// field 2 for req id
-		// bulkString
-		t4 := time.Now()
-		field2, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field2 err", err)
-			return
-		}
-		myPrint("Sever PeekType reqId time is", time.Since(t4))
-		t5 := time.Now()
-		switch field2 {
-		case resp.TypeInt:
-			reqId, _ := l.R.ReadInt()
-			obj.Id.ReqId = int(reqId)
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err2 is", err)
-		default:
-			panic("unexpected response type")
-		}
-		myPrint("read field2 reqId time is", time.Since(t5))
-		//
-		// field 3 for chunk id
+		// field 1 for chunk id
 		// Int
 		t6 := time.Now()
 		field3, err := l.R.PeekType()
@@ -191,7 +150,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field3 err", err)
 			return
 		}
-		myPrint("Sever PeekType chunkId time is", time.Since(t6))
+		time6 := time.Since(t6)
 		t7 := time.Now()
 		switch field3 {
 		case resp.TypeInt:
@@ -203,9 +162,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		myPrint("read field3 chunkId time is", time.Since(t7))
+		time7 := time.Since(t7)
 		//
-		// field 4 for obj body
+		// field 2 for obj body
 		// bulkString
 		t8 := time.Now()
 		field4, err := l.R.PeekType()
@@ -213,7 +172,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field4 err", err)
 			return
 		}
-		myPrint("Sever PeekType objBody time is", time.Since(t8))
+		time8 := time.Since(t8)
 		t9 := time.Now()
 		switch field4 {
 		case resp.TypeBulk:
@@ -239,7 +198,14 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		myPrint("read field4 objBody time is", time.Since(t9))
+		time9 := time.Since(t9)
+		myPrint(obj.Id.ClientId, obj.Id.ChunkId,
+			"Sever PeekType clientId time is", time2,
+			"Sever read field0 clientId time is", time3,
+			"Sever PeekType chunkId time is", time6,
+			"Sever read field1 chunkId time is", time7,
+			"Sever PeekType objBody time is", time8,
+			"Sever read field2 chunkBody time is", time9)
 	}
 }
 

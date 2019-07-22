@@ -18,8 +18,8 @@ type chunk struct {
 }
 
 var (
-	//lambdaConn, _ = net.Dial("tcp", "52.201.234.235:6379") // t2.micro ec2 server
-	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server
+	//lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server Proxy0
+	lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
 	srv           = redeo.NewServer(nil)
 	myMap         = make(map[string]chunk)
 	isFirst       = true
@@ -35,8 +35,6 @@ func HandleRequest() {
 				fmt.Println("in the get function")
 
 				clientId, _ := c.Arg(0).Int()
-				reqId, _ := c.Arg(1).Int()
-				//_, _ = c.Arg(2).Int()
 				key := c.Arg(3).String()
 
 				//val, err := myCache.Get(key)
@@ -50,15 +48,9 @@ func HandleRequest() {
 				fmt.Println("item find", len(chunk.body))
 
 				// construct lambda store response
-				t1 := time.Now()
-				w.AppendBulkString(key)
-				fmt.Println("appendBulkString time is", time.Since(t1))
 				t2 := time.Now()
 				w.AppendInt(clientId)
 				fmt.Println("appendClientId time is", time.Since(t2))
-				t3 := time.Now()
-				w.AppendInt(1)
-				fmt.Println("appendReqId time is", time.Since(t3))
 				t4 := time.Now()
 				w.AppendInt(chunk.id)
 				fmt.Println("appendChunkId time is", time.Since(t4))
@@ -71,7 +63,7 @@ func HandleRequest() {
 				}
 				fmt.Println("flush time is ", time.Since(t6))
 				fmt.Println("duration time is", time.Since(t),
-					"get complete", "key:", key, "req id:", reqId, "client id:", clientId, "chunk id is", chunk.id)
+					"get complete", "key:", key, "client id:", clientId, "chunk id is", chunk.id)
 			})
 
 			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -82,7 +74,6 @@ func HandleRequest() {
 				//}
 
 				clientId, _ := c.Arg(0).Int()
-				//reqId, _ := c.Arg(1).Int()
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
@@ -90,9 +81,7 @@ func HandleRequest() {
 
 				myMap[key] = chunk
 				// write Key, clientId, chunkId, body back to server
-				w.AppendBulkString(key)
 				w.AppendInt(clientId)
-				w.AppendInt(1)
 				w.AppendInt(chunkId)
 				w.AppendInt(1)
 				if err := w.Flush(); err != nil {
