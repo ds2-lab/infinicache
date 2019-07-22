@@ -17,3 +17,4 @@ do
 	--handler redeo_lambda \
 	--zip-file fileb://Lambda2SmallJPG.zip
 done
+go
