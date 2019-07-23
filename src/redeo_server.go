@@ -163,7 +163,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			// reqCounter++
 			reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
 			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}
+
 				abandon = true
 			}
 		case resp.TypeError:
@@ -189,7 +189,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		case resp.TypeInt:
 			chunkId, _ := l.R.ReadInt()
 			obj.Id.ChunkId = int(chunkId)
-			l.R.SetIdx(obj.Id.ChunkId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -216,6 +215,8 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			}
 			if !abandon {
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
+			} else {
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}
 			}
 		case resp.TypeInt:
 			_, err := l.R.ReadInt()
@@ -266,13 +267,13 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, connId, a.ReqId, chunkId, a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
 			}
 		case "get": /*get or one argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, connId, a.ReqId, "", a.Key)
+			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, "", a.Key)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
