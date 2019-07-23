@@ -34,7 +34,8 @@ func HandleRequest() {
 				t := time.Now()
 				fmt.Println("in the get function")
 
-				clientId, _ := c.Arg(0).Int()
+				connId, _ := c.Arg(0).Int()
+				reqId, _ := c.Arg(1).Int()
 				key := c.Arg(3).String()
 
 				//val, err := myCache.Get(key)
@@ -49,8 +50,9 @@ func HandleRequest() {
 
 				// construct lambda store response
 				t2 := time.Now()
-				w.AppendInt(clientId)
+				w.AppendInt(connId)
 				fmt.Println("appendClientId time is", time.Since(t2))
+				w.AppendInt(reqId)
 				t4 := time.Now()
 				w.AppendInt(chunk.id)
 				fmt.Println("appendChunkId time is", time.Since(t4))
@@ -63,7 +65,7 @@ func HandleRequest() {
 				}
 				fmt.Println("flush time is ", time.Since(t6))
 				fmt.Println("duration time is", time.Since(t),
-					"get complete", "key:", key, "client id:", clientId, "chunk id is", chunk.id)
+					"get complete", "key:", key, "client id:", connId, "chunk id is", chunk.id)
 			})
 
 			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -73,7 +75,8 @@ func HandleRequest() {
 				//	return
 				//}
 
-				clientId, _ := c.Arg(0).Int()
+				connId, _ := c.Arg(0).Int()
+				reqId, _ := c.Arg(1).Int()
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
@@ -81,13 +84,14 @@ func HandleRequest() {
 
 				myMap[key] = chunk
 				// write Key, clientId, chunkId, body back to server
-				w.AppendInt(clientId)
+				w.AppendInt(connId)
+				w.AppendInt(reqId)
 				w.AppendInt(chunkId)
 				w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("set complete", "key:", key, "val len", len(val), "client id:", clientId, "chunk id:", chunkId)
+				fmt.Println("set complete", "key:", key, "val len", len(val), "client id:", connId, "chunk id:", chunkId)
 			})
 			srv.Serve_client(lambdaConn)
 		}()

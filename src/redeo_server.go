@@ -13,6 +13,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -106,7 +107,7 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 	return &redeo.LambdaInstance{
 		Name:  name,
 		Alive: false,
-		C:     make(chan redeo.Req, 1024*1024),
+		C:     make(chan *redeo.ServerReq, 1024*1024),
 	}
 }
 
@@ -120,20 +121,20 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
-		// field 0 for client id
+		// field 0 for conn id
 		// bulkString
 		t2 := time.Now()
-		field1, err := l.R.PeekType()
+		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
 			return
 		}
 		time2 := time.Since(t2)
 		t3 := time.Now()
-		switch field1 {
+		switch field0 {
 		case resp.TypeInt:
-			clientId, _ := l.R.ReadInt()
-			obj.Id.ClientId = int(clientId)
+			connId, _ := l.R.ReadInt()
+			obj.Id.ConnId = int(connId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
@@ -141,8 +142,40 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			panic("unexpected response type")
 		}
 		time3 := time.Since(t3)
+		// field 1 for req id
+		// bulkString
+		field1, err := l.R.PeekType()
+		if err != nil {
+			fmt.Println("field1 err", err)
+			return
+		}
+
+		// read field 1
+		//var ReqCounter int32
+		abandon := false
+		switch field1 {
+		case resp.TypeInt:
+			reqId, _ := l.R.ReadInt()
+			counter, ok := redeo.ReqMap.Get(reqId)
+			if ok == false {
+				fmt.Println("No reqId found")
+			}
+			// reqCounter++
+			reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
+			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}
+				abandon = true
+			}
+		case resp.TypeError:
+			err, _ := l.R.ReadError()
+			fmt.Println("peek type err1 is", err)
+			panic("peek type err")
+		default:
+			panic("unexpected response type")
+		}
+
 		//
-		// field 1 for chunk id
+		// field 2 for chunk id
 		// Int
 		t6 := time.Now()
 		field3, err := l.R.PeekType()
@@ -156,6 +189,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		case resp.TypeInt:
 			chunkId, _ := l.R.ReadInt()
 			obj.Id.ChunkId = int(chunkId)
+			l.R.SetIdx(obj.Id.ChunkId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -176,21 +210,19 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		t9 := time.Now()
 		switch field4 {
 		case resp.TypeBulk:
-			//index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
 			res, err := l.R.ReadBulk(nil)
 			if err != nil {
 				fmt.Println("response err is ", err)
 			}
-			chunk := redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
-			cMap[obj.Id.ClientId] <- chunk
+			if !abandon {
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
+			}
 		case resp.TypeInt:
-			//index := redeo.Index{ClientId: obj.Id.ClientId, ReqId: obj.Id.ReqId}
 			_, err := l.R.ReadInt()
 			if err != nil {
 				fmt.Println("response err is ", err)
 			}
-			chunk := redeo.Chunk{Id: obj.Id.ChunkId, Body: []byte{1}}
-			cMap[obj.Id.ClientId] <- chunk
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: []byte{1}}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
@@ -199,7 +231,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			panic("unexpected response type")
 		}
 		time9 := time.Since(t9)
-		myPrint(obj.Id.ClientId, obj.Id.ChunkId,
+		myPrint(obj.Id.ConnId, obj.Id.ChunkId,
 			"Sever PeekType clientId time is", time2,
 			"Sever read field0 clientId time is", time3,
 			"Sever PeekType chunkId time is", time6,
@@ -228,21 +260,19 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		// req from client
 		//*
 		// get channel and chunk id
-		clientId := strconv.Itoa(a.Id.ClientId)
-		//reqId := strconv.Itoa(a.Id.ReqId)
+		connId := strconv.Itoa(a.Id.ConnId)
 		chunkId := strconv.Itoa(a.Id.ChunkId)
-		//fmt.Println("client, chunk, reqId", clientId, chunkId, reqId)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, clientId, "", chunkId, a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, connId, a.ReqId, chunkId, a.Key, a.Val)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
 			}
 		case "get": /*get or one argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, clientId, "", "", a.Key)
+			l.W.MyWriteCmd(a.Cmd, connId, a.ReqId, "", a.Key)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)
