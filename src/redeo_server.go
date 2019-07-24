@@ -135,6 +135,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		case resp.TypeInt:
 			connId, _ := l.R.ReadInt()
 			obj.Id.ConnId = int(connId)
+			fmt.Println("conn id", obj.Id.ConnId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
@@ -149,21 +150,20 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("field1 err", err)
 			return
 		}
-
 		// read field 1
 		//var ReqCounter int32
 		abandon := false
 		switch field1 {
-		case resp.TypeInt:
-			reqId, _ := l.R.ReadInt()
+		case resp.TypeBulk:
+			reqId, _ := l.R.ReadBulkString()
 			counter, ok := redeo.ReqMap.Get(reqId)
 			if ok == false {
 				fmt.Println("No reqId found")
 			}
 			// reqCounter++
 			reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
+			fmt.Println("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
 			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
-
 				abandon = true
 			}
 		case resp.TypeError:
@@ -173,7 +173,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-
 		//
 		// field 2 for chunk id
 		// Int
@@ -214,6 +213,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				fmt.Println("response err is ", err)
 			}
 			if !abandon {
+				fmt.Println("Abandon is ", abandon)
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
 			} else {
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}

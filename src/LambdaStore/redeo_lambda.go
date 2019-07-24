@@ -18,8 +18,8 @@ type chunk struct {
 }
 
 var (
-	//lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server Proxy0
-	lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
+	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server Proxy0
+	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
 	srv           = redeo.NewServer(nil)
 	myMap         = make(map[string]chunk)
 	isFirst       = true
@@ -35,7 +35,8 @@ func HandleRequest() {
 				fmt.Println("in the get function")
 
 				connId, _ := c.Arg(0).Int()
-				reqId, _ := c.Arg(1).Int()
+				reqId := c.Arg(1).String()
+				fmt.Println("reqId is", reqId)
 				key := c.Arg(3).String()
 
 				//val, err := myCache.Get(key)
@@ -52,7 +53,7 @@ func HandleRequest() {
 				t2 := time.Now()
 				w.AppendInt(connId)
 				fmt.Println("appendClientId time is", time.Since(t2))
-				w.AppendInt(reqId)
+				w.AppendBulkString(reqId)
 				t4 := time.Now()
 				w.AppendInt(chunk.id)
 				fmt.Println("appendChunkId time is", time.Since(t4))
@@ -76,7 +77,8 @@ func HandleRequest() {
 				//}
 
 				connId, _ := c.Arg(0).Int()
-				reqId, _ := c.Arg(1).Int()
+				reqId := c.Arg(1).String()
+				fmt.Println("reqId is ", reqId)
 				chunkId, _ := c.Arg(2).Int()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
@@ -85,7 +87,7 @@ func HandleRequest() {
 				myMap[key] = chunk
 				// write Key, clientId, chunkId, body back to server
 				w.AppendInt(connId)
-				w.AppendInt(reqId)
+				w.AppendBulkString(reqId)
 				w.AppendInt(chunkId)
 				w.AppendInt(1)
 				if err := w.Flush(); err != nil {
