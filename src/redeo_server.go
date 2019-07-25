@@ -114,9 +114,10 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 // blocking on lambda peek Type
 // lambda handle incoming lambda store response
 //
-// field 0 : client id
-// field 1 : chunk id
-// field 2 : obj val
+// field 0 : conn id
+// field 1 : req id
+// field 2 : chunk id
+// field 3 : obj val
 
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
@@ -267,7 +268,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
-			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Val)
+			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Body)
 			err := l.W.Flush()
 			if err != nil {
 				fmt.Println("flush pipeline err is ", err)

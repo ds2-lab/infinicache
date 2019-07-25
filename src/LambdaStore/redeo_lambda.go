@@ -18,8 +18,9 @@ type chunk struct {
 }
 
 var (
-	lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server Proxy0
+	//lambdaConn, _ = net.Dial("tcp", "54.204.180.34:6379") // 10Gbps ec2 server Proxy0
 	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
+	lambdaConn, _ = net.Dial("tcp", "54.211.243.58:6379") // 10Gbps ec2 server Proxy0
 	srv           = redeo.NewServer(nil)
 	myMap         = make(map[string]chunk)
 	isFirst       = true
