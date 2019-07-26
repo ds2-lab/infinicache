@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ScottMansfield/nanolog"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -32,14 +33,27 @@ func main() {
 	// CPU profiling by default
 	defer profile.Start().Stop()
 
+	// Log goroutine
+	t := time.NewTicker(10 * time.Second)
+	defer t.Stop()
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				if err := nanolog.Flush(); err != nil {
+					fmt.Println("log flush err")
+				}
+			}
+		}
+	}()
 	flag.Parse()
 	fmt.Println("======================================")
 	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
 	clientLis, _ = net.Listen("tcp", ":6378")
 	lambdaLis, _ = net.Listen("tcp", ":6379")
-	fmt.Println("start listening client face port 6378")
-	fmt.Println("start listening lambda face port 6379")
+	fmt.Println("start listening client face port :6378，lambda face port :6379")
+	// initial proxy and lambda server
 	srv := redeo.NewServer(nil)
 	lambdaSrv := redeo.NewServer(nil)
 
@@ -65,9 +79,8 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
-			myPrint("start a new conn")
 			node.Cn = lambdaSrv.Accept(lambdaLis)
-			myPrint("lambda store has connected", node.Cn.RemoteAddr())
+			myPrint("start a new conn, lambda store has connected", node.Cn.RemoteAddr())
 			// wrap writer and reader
 			node.W = resp.NewRequestWriter(node.Cn)
 			node.R = resp.NewResponseReader(node.Cn)
@@ -86,9 +99,8 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
-			myPrint("start a new conn")
 			node.Cn = lambdaSrv.Accept(lambdaLis)
-			myPrint("lambda store has connected", node.Cn.RemoteAddr())
+			myPrint("start a new conn, lambda store has connected", node.Cn.RemoteAddr())
 			// wrap writer and reader
 			node.W = resp.NewRequestWriter(node.Cn)
 			node.R = resp.NewResponseReader(node.Cn)
@@ -122,6 +134,7 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
+		//
 		// field 0 for conn id
 		// bulkString
 		t2 := time.Now()
@@ -133,9 +146,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		time2 := time.Since(t2)
 		t3 := time.Now()
 		switch field0 {
-		case resp.TypeInt:
-			connId, _ := l.R.ReadInt()
-			obj.Id.ConnId = int(connId)
+		case resp.TypeBulk:
+			connId, _ := l.R.ReadBulkString()
+			obj.Id.ConnId, _ = strconv.Atoi(connId)
 			fmt.Println("conn id", obj.Id.ConnId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
@@ -144,6 +157,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			panic("unexpected response type")
 		}
 		time3 := time.Since(t3)
+		//
 		// field 1 for req id
 		// bulkString
 		field1, err := l.R.PeekType()
@@ -163,7 +177,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			}
 			// reqCounter++
 			reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
-			fmt.Println("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
+			//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
 			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
 				abandon = true
 			}
@@ -186,9 +200,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		time6 := time.Since(t6)
 		t7 := time.Now()
 		switch field3 {
-		case resp.TypeInt:
-			chunkId, _ := l.R.ReadInt()
-			obj.Id.ChunkId = int(chunkId)
+		case resp.TypeBulk:
+			chunkId, _ := l.R.ReadBulkString()
+			obj.Id.ChunkId, _ = strconv.Atoi(chunkId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -214,7 +228,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				fmt.Println("response err is ", err)
 			}
 			if !abandon {
-				fmt.Println("Abandon is ", abandon)
+				myPrint("Abandon is ", abandon)
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
 			} else {
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}
@@ -233,20 +247,24 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			panic("unexpected response type")
 		}
 		time9 := time.Since(t9)
-		myPrint(obj.Id.ConnId, obj.Id.ChunkId,
-			"Sever PeekType clientId time is", time2,
-			"Sever read field0 clientId time is", time3,
-			"Sever PeekType chunkId time is", time6,
-			"Sever read field1 chunkId time is", time7,
-			"Sever PeekType objBody time is", time8,
-			"Sever read field2 chunkBody time is", time9)
+		//myPrint(obj.Id.ConnId, obj.Id.ChunkId,
+		//	"Sever PeekType clientId time is", time2,
+		//	"Sever read field0 clientId time is", time3,
+		//	"Sever PeekType chunkId time is", time6,
+		//	"Sever read field1 chunkId time is", time7,
+		//	"Sever PeekType objBody time is", time8,
+		//	"Sever read field2 chunkBody time is", time9)
+		if err := nanolog.Log(resp.LogProxy, obj.Id.ConnId, obj.Id.ChunkId,
+			time2, time3, time6, time7, time8, time9); err != nil {
+			fmt.Println("LogProxy err ", err)
+		}
 	}
 }
 
 // lambda Handler
 // lambda handle incoming client request
 func lambdaHandler(l *redeo.LambdaInstance) {
-	fmt.Println("conn is", l.Cn)
+	myPrint("conn is", l.Cn)
 	for {
 		a := <-l.C /*blocking on lambda facing channel*/
 		// check lambda status first
