@@ -2,7 +2,10 @@
 ### Prepare
 #### Go install (Amazon AMI)
 [Amazon AMI](https://hackernoon.com/deploying-a-go-application-on-aws-ec2-76390c09c2c5)  
-[Ubuntu AMI](https://tecadmin.net/install-go-on-ubuntu/)
+[Ubuntu AMI](https://tecadmin.net/install-go-on-ubuntu/)  
+#### Lambda Role
+Go to AWS IAM console and create a basic lambda exection role for the lambda function  
+AWS IAM console -> Create role -> Lambda -> AWSLambdaBasicExecutionRole
 #### Package
 ```golang
 go get -u github.com/aws/aws-sdk-go/...

@@ -15,14 +15,9 @@ function update_lambda_timeout() {
 }
 
 function start_proxy() {
-    EC=$1
-    MEM=$2
-    OBJSZ=$3
-    NO=$4
     echo "running proxy server"
-    echo "_"$NO"_"$EC"_"lambda$MEM"_"$OBJSZ
-#    -prefix="_"$NO"_"$EC"_"lambda$MEM"_"$OBJSZ
-    GOMAXPROCS=36 go run ~/project/lambdaStore/server.go -replica=false -isPrint=true
+    PREFIX=$1
+    GOMAXPROCS=36 go run ~/project/lambdaStore/server.go -replica=false -isPrint=true -prefix=$PREFIX
 }
 
 function bench() {
@@ -34,5 +29,6 @@ function bench() {
     D=$6
     P=$7
     OP=$8
-    go run ~/project/src/github.com/tddg/redbench/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX -sz $SZ -d $D -p $P -op $OP -dec
+    FILE=$9
+    go run ~/project/src/github.com/tddg/redbench/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX -sz $SZ -d $D -p $P -op $OP -file $FILE -dec
 }

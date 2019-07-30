@@ -10,6 +10,7 @@ import (
 	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -28,6 +29,7 @@ var (
 	clientLis net.Listener
 	lambdaLis net.Listener
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
+	filePath  = "/var/run/pidLog.txt"
 )
 
 func logCreate() {
@@ -76,8 +78,9 @@ func main() {
 	// initial lambda store group
 	group := initial(lambdaSrv)
 
+	ioutil.WriteFile(filePath, []byte(fmt.Sprintf("%d", os.Getpid())), 0660)
 	// Start serving (blocking)
-	err := srv.MyServe(clientLis, cMap, group)
+	err := srv.MyServe(clientLis, cMap, group, filePath)
 	if err != nil {
 		fmt.Println(err)
 	}
