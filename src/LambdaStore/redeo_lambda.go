@@ -27,17 +27,18 @@ var (
 )
 
 func HandleRequest() {
+	timeOut := time.Duration(20 * time.Second)
 	if isFirst == true {
 		go func() {
 			fmt.Println("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
 			// Define handlers
 			srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 				t := time.Now()
-				fmt.Println("in the get function")
+				timeOut = time.Duration(20 * time.Second)
+				fmt.Println("In GET handler")
 
 				connId := c.Arg(0).String()
 				reqId := c.Arg(1).String()
-				fmt.Println("reqId is", reqId)
 				key := c.Arg(3).String()
 
 				//val, err := myCache.Get(key)
@@ -48,31 +49,38 @@ func HandleRequest() {
 				if found == false {
 					fmt.Println("not found")
 				}
-				fmt.Println("item find", len(chunk.body))
 				//lock.Lock()
 				// construct lambda store response
 				t2 := time.Now()
 				w.AppendBulkString(connId)
-				fmt.Println("appendClientId time is", time.Since(t2))
+				time2 := time.Since(t2)
 				w.AppendBulkString(reqId)
 				t4 := time.Now()
 				w.AppendBulkString(chunk.id)
-				fmt.Println("appendChunkId time is", time.Since(t4))
+				time4 := time.Since(t4)
 				t5 := time.Now()
 				w.AppendBulk(chunk.body)
-				fmt.Println("appendBody time is ", time.Since(t5))
+				time5 := time.Since(t5)
 				t6 := time.Now()
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("flush time is ", time.Since(t6))
-				fmt.Println("duration time is", time.Since(t),
-					"get complete", "key:", key, "client id:", connId, "chunk id is", chunk.id)
+				time6 := time.Since(t6)
+				duration := time.Since(t)
+				fmt.Println("GET complete, Key:",
+					key, "connID: ", connId, "ChunkID: ", chunk.id, "Item found", len(chunk.body),
+					"AppendClientId time is", time2,
+					"AppendChunkId time is", time4,
+					"AppendBody time is ", time5,
+					"Flush time is ", time6,
+					"Duration time is", duration)
 				//lock.Unlock()
 			})
 
 			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
-				fmt.Println("in the set function")
+				t := time.Now()
+				timeOut = time.Duration(20 * time.Second)
+				fmt.Println("In SET handler")
 				//if c.ArgN() != 3 {
 				//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
 				//	return
@@ -80,7 +88,6 @@ func HandleRequest() {
 
 				connId := c.Arg(0).String()
 				reqId := c.Arg(1).String()
-				fmt.Println("reqId is ", reqId)
 				chunkId := c.Arg(2).String()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
@@ -96,7 +103,10 @@ func HandleRequest() {
 				if err := w.Flush(); err != nil {
 					panic(err)
 				}
-				fmt.Println("set complete", "key:", key, "val len", len(val), "client id:", connId, "chunk id:", chunkId)
+				duration := time.Since(t)
+				fmt.Println("SET complete, Key:",
+					key, "connID: ", connId, "ChunkID: ", chunk.id, "Item found", len(chunk.body),
+					"Duration time is", duration)
 				//lock.Unlock()
 			})
 			srv.Serve_client(lambdaConn)
@@ -104,7 +114,7 @@ func HandleRequest() {
 	}
 	// timeout control
 	select {
-	case <-time.After(300 * time.Second):
+	case <-time.After(timeOut):
 		fmt.Println("Lambda timeout, going to return function")
 		isFirst = false
 		return

@@ -7,11 +7,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/pkg/profile"
 	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -21,6 +21,7 @@ import (
 var (
 	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
 	isPrint = flag.Bool("isPrint", false, "Enable log printing")
+	prefix  = flag.String("prefix", "log", "log file prefix")
 )
 
 var (
@@ -29,14 +30,30 @@ var (
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
 )
 
-func main() {
-	// CPU profiling by default
-	defer profile.Start().Stop()
+func logCreate() {
+	// get local time
+	location, _ := time.LoadLocation("EST")
+	// Set up nanoLog writer
+	nanoLogout, err := os.Create(time.Now().In(location).String() + *prefix + "_proxy.clog")
+	if err != nil {
+		panic(err)
+	}
+	err = nanolog.SetWriter(nanoLogout)
+	if err != nil {
+		panic(err)
+	}
+}
 
+func main() {
+	flag.Parse()
+	// CPU profiling by default
+	//defer profile.Start().Stop()
+	// init log
+	logCreate()
 	// Log goroutine
-	t := time.NewTicker(10 * time.Second)
-	defer t.Stop()
+	//defer t.Stop()
 	go func() {
+		t := time.NewTicker(10 * time.Second)
 		for {
 			select {
 			case <-t.C:
@@ -46,7 +63,6 @@ func main() {
 			}
 		}
 	}()
-	flag.Parse()
 	fmt.Println("======================================")
 	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
@@ -255,7 +271,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		//	"Sever PeekType objBody time is", time8,
 		//	"Sever read field2 chunkBody time is", time9)
 		if err := nanolog.Log(resp.LogProxy, obj.Id.ConnId, obj.Id.ChunkId,
-			time2, time3, time6, time7, time8, time9); err != nil {
+			time2.String(), time3.String(), time6.String(), time7.String(), time8.String(), time9.String()); err != nil {
 			fmt.Println("LogProxy err ", err)
 		}
 	}
