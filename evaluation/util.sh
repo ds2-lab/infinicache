@@ -14,6 +14,21 @@ function update_lambda_timeout() {
     done
 }
 
+function update_lambda_mem() {
+    NAME=$1
+    MEM=$2
+    echo "updating lambda store mem"
+    for i in {0..13}
+    do
+#            aws lambda update-function-code --function-name $prefix$i --zip-file fileb://Lambda2SmallJPG.zip
+            aws lambda update-function-configuration --function-name $NAME$i --memory-size $MEM
+#        aws lambda update-function-configuration --function-name $NAME$i --timeout $TIME
+#            aws lambda update-function-configuration --function-name $prefix$name$i --handler redeo_lambda
+#            aws lambda put-function-concurrency --function-name $name$i --reserved-concurrent-executions $concurrency
+    done
+}
+
+
 function start_proxy() {
     echo "running proxy server"
     PREFIX=$1
@@ -30,5 +45,6 @@ function bench() {
     P=$7
     OP=$8
     FILE=$9
-    go run ~/project/src/github.com/tddg/redbench/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX -sz $SZ -d $D -p $P -op $OP -file $FILE -dec
+    go run ~/project/src/github.com/wangaoone/redbench/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX \
+    -sz $SZ -d $D -p $P -op $OP -file $FILE -dec
 }
