@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"errors"
 	"github.com/ScottMansfield/nanolog"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -15,17 +16,20 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 const MaxLambdaStores = 14
+const LambdaStoreName = "LambdaStore"
 
 var (
 	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
 	isPrint = flag.Bool("isPrint", false, "Enable log printing")
 	prefix  = flag.String("prefix", "log", "log file prefix")
+	dataCollected sync.WaitGroup
 )
 
 var (
@@ -69,6 +73,7 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 		args[3] = entry.firstByte
 		entry.lambda2Server = args[4].(int64)
 		entry.readBulk = args[5].(int64)
+		return nil
 	} else if handle == resp.LogServer2Client {
 		fmt.Println("key Server2Client is ", key)
 		entry := reqMap[key]
@@ -77,13 +82,13 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 		entry.flush = args[5].(int64)
 		entry.end = args[6].(int64)
 		delete(reqMap, key)
-		nanolog.Log(resp.LogData, entry.cmd, entry.reqId, entry.chunkId,
+		return nanolog.Log(resp.LogData, entry.cmd, entry.reqId, entry.chunkId,
 			entry.start, entry.end,
 			entry.firstByte, entry.lambda2Server, entry.server2Client,
 			entry.readBulk, entry.appendBulk, entry.flush)
 	}
-	//return nanolog.Log(handle, args...)
-	return nil
+
+	return nanolog.Log(handle, args...)
 }
 
 func logCreate() {
@@ -146,23 +151,41 @@ func main() {
 			case <-sig:
 				t.Stop()
 				if err := nanolog.Flush(); err != nil {
-					fmt.Println("log flush err")
+					fmt.Println("Failed to save data:", err)
+				}
+
+				// Collect data
+				for _, node := range group.Arr {
+					node.W.WriteCmdString("data")
+					err := node.W.Flush()
+					if err != nil {
+						fmt.Println("Failed to submit data request:", err)
+						continue
+					}
+					dataCollected.Add(1)
+				}
+				dataCollected.Wait()
+				if err := nanolog.Flush(); err != nil {
+					fmt.Println("Failed to save data from lambdas:", err)
 				}
 
 				err := os.Remove(filePath)
 				if err != nil {
-					fmt.Println("rm file err", err)
+					fmt.Println("Failed to remove pid:", err)
 				}
 
 				lambdaLis.Close()
 				clientLis.Close()
 				close(done)
 
+				// Collect data
+
+
 				return
 			case <-t.C:
 				if time.Since(timeStamp) >= 10*time.Second {
 					if err := nanolog.Flush(); err != nil {
-						fmt.Println("log flush err")
+						fmt.Println("Failed to save data:", err)
 					}
 				}
 			}
@@ -178,13 +201,13 @@ func main() {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) redeo.Group {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, MaxLambdaStores), MemCounter: 0}
+	group := redeo.Group{Arr: make([]*redeo.LambdaInstance, MaxLambdaStores), MemCounter: 0}
 	if *replica == true {
 		for i := range group.Arr {
-			node := newLambdaInstance("Lambda2SmallJPG")
+			node := newLambdaInstance(LambdaStoreName)
 			myPrint("No.", i, "replication lambda store has registered")
 			// register lambda instance to group
-			group.Arr[i] = *node
+			group.Arr[i] = node
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
@@ -204,7 +227,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			node := newLambdaInstance("Node" + strconv.Itoa(i))
 			myPrint(node.Name, "lambda store has registered")
 			// register lambda instance to group
-			group.Arr[i] = *node
+			group.Arr[i] = node
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
@@ -249,13 +272,18 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
-			return
+			continue
 		}
 		t2 := time.Now()
 		//t3 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
 			connId, _ := l.R.ReadBulkString()
+			if connId == "data" {
+				collectDataFromLambda(l)
+				err = errors.New("continue")
+				break
+			}
 			obj.Id.ConnId, _ = strconv.Atoi(connId)
 			fmt.Println("conn id", obj.Id.ConnId)
 		case resp.TypeError:
@@ -264,6 +292,10 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
+		if err != nil {
+			continue
+		}
+
 		//time3 := time.Since(t3)
 		//
 		// field 1 for req id
@@ -271,7 +303,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field1, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
-			return
+			continue
 		}
 		// read field 1
 		//var ReqCounter int32
@@ -293,10 +325,13 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
-			panic("peek type err")
 		default:
 			panic("unexpected response type")
 		}
+		if err != nil {
+			continue
+		}
+
 		//
 		// field 2 for chunk id
 		// Int
@@ -325,6 +360,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			fmt.Println("peek type err3 is", err)
 		default:
 			panic("unexpected response type")
+		}
+		if err != nil {
+			continue
 		}
 		//time7 := time.Since(t7)
 		//
@@ -358,9 +396,11 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
-			return
 		default:
 			panic("unexpected response type")
+		}
+		if err != nil {
+			continue
 		}
 		time9 := time.Since(t9)
 
@@ -445,4 +485,23 @@ func myPrint(a ...interface{}) {
 	if *isPrint {
 		fmt.Println(a)
 	}
+}
+
+func collectDataFromLambda(l *redeo.LambdaInstance) {
+	len, err := l.R.ReadInt()
+	if err != nil {
+		fmt.Println("Failed to read length of data from lambda", err)
+		return
+	}
+	for i := int64(0); i < len; i++ {
+		op, _ := l.R.ReadBulkString()
+		status, _ := l.R.ReadBulkString()
+		reqId, _ := l.R.ReadBulkString()
+		chunkId, _ := l.R.ReadBulkString()
+		dAppend, _ := l.R.ReadInt()
+		dFlush, _ := l.R.ReadInt()
+		dTotal, _ := l.R.ReadInt()
+		nanoLog(resp.LogLambda, "data", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
+	}
+	dataCollected.Done()
 }
