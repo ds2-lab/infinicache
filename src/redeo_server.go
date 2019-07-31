@@ -45,7 +45,7 @@ type dataEntry struct {
 	reqId         string
 	chunkId       int64
 	start         int64
-	end           int64
+	duration      int64
 	firstByte     int64
 	lambda2Server int64
 	server2Client int64
@@ -80,10 +80,10 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 		entry.server2Client = args[3].(int64)
 		entry.appendBulk = args[4].(int64)
 		entry.flush = args[5].(int64)
-		entry.end = args[6].(int64)
+		entry.duration = args[6].(int64) - entry.start
 		delete(reqMap, key)
 		return nanolog.Log(resp.LogData, entry.cmd, entry.reqId, entry.chunkId,
-			entry.start, entry.end,
+			entry.start, entry.duration,
 			entry.firstByte, entry.lambda2Server, entry.server2Client,
 			entry.readBulk, entry.appendBulk, entry.flush)
 	}
