@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"github.com/wangaoone/s3gof3r"
-	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"io"
 	"net"
 	"time"
@@ -18,25 +18,25 @@ type Chunk struct {
 }
 
 type DataEntry struct {
-	op              string
-	status          string
-	reqId           string
-	chunkId         string
-	durationAppend  time.Duration
-	durationFlush   time.Duration
-	duration        time.Duration
+	op             string
+	status         string
+	reqId          string
+	chunkId        string
+	durationAppend time.Duration
+	durationFlush  time.Duration
+	duration       time.Duration
 }
 
-const OP_GET = "0"
-const OP_SET = "1"
+const OP_GET = "1"
+const OP_SET = "0"
 
 var (
 	lambdaConn, _ = net.Dial("tcp", "3.220.244.122:6379") // 10Gbps ec2 server UbuntuProxy0
 	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
-	srv           = redeo.NewServer(nil)
-	myMap         = make(map[string]*Chunk)
-	isFirst       = true
-	log           = logger.NilLogger
+	srv     = redeo.NewServer(nil)
+	myMap   = make(map[string]*Chunk)
+	isFirst = true
+	log     = logger.NilLogger
 )
 
 func HandleRequest() {
@@ -65,7 +65,7 @@ func HandleRequest() {
 				chunk, found := myMap[key]
 				if found == false {
 					log.Debug("%s not found", key)
-					dataGatherer <- &DataEntry{ OP_GET, "404", reqId, "-1", 0, 0, time.Since(t) }
+					dataGatherer <- &DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
 					return
 				}
 
@@ -80,7 +80,7 @@ func HandleRequest() {
 				t3 := time.Now()
 				if err := w.Flush(); err != nil {
 					log.Error("Error on get::flush(key %s): %v", key, err)
-					dataGatherer <- &DataEntry{ OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t) }
+					dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
 					return
 				}
 				d3 := time.Since(t3)
@@ -91,7 +91,7 @@ func HandleRequest() {
 				log.Debug("Flush duration is ", d3)
 				log.Debug("Total duration is", dt)
 				log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
-				dataGatherer <- &DataEntry{ OP_GET, "200", reqId, chunk.id, d2, d3, dt }
+				dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
 			})
 
 			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
@@ -107,7 +107,7 @@ func HandleRequest() {
 				chunkId := c.Arg(2).String()
 				key := c.Arg(3).String()
 				val := c.Arg(4).Bytes()
-				myMap[key] = &Chunk{ chunkId, val }
+				myMap[key] = &Chunk{chunkId, val}
 
 				// write Key, clientId, chunkId, body back to server
 				w.AppendBulkString(connId)
@@ -116,17 +116,18 @@ func HandleRequest() {
 				w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					log.Error("Error on set::flush(key %s): %v", key, err)
-					dataGatherer <- &DataEntry{ OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t) }
+					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
 					return
 				}
 
 				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length", key, connId, chunkId, len(val))
-				dataGatherer <- &DataEntry{ OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t) }
+				dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 			})
 
 			srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
 				log.Debug("in the data function")
 
+				w.AppendBulkString("data")
 				w.AppendInt(int64(len(dataDepository)))
 				for _, entry := range dataDepository {
 					w.AppendBulkString(entry.op)

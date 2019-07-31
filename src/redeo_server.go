@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"errors"
 	"github.com/ScottMansfield/nanolog"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -26,9 +26,9 @@ const MaxLambdaStores = 14
 const LambdaStoreName = "LambdaStore"
 
 var (
-	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
-	isPrint = flag.Bool("isPrint", false, "Enable log printing")
-	prefix  = flag.String("prefix", "log", "log file prefix")
+	replica       = flag.Bool("replica", true, "Enable lambda replica deployment")
+	isPrint       = flag.Bool("isPrint", false, "Enable log printing")
+	prefix        = flag.String("prefix", "log", "log file prefix")
 	dataCollected sync.WaitGroup
 )
 
@@ -109,7 +109,7 @@ func logCreate() {
 func main() {
 	done := make(chan struct{})
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGTERM|syscall.SIGINT|syscall.SIGKILL)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL)
 	//signal.Notify(sig, syscall.SIGINT)
 	flag.Parse()
 	// CPU profiling by default
@@ -164,6 +164,7 @@ func main() {
 					}
 					dataCollected.Add(1)
 				}
+				//fmt.Println("wait for data")
 				dataCollected.Wait()
 				if err := nanolog.Flush(); err != nil {
 					fmt.Println("Failed to save data from lambdas:", err)
@@ -179,7 +180,6 @@ func main() {
 				close(done)
 
 				// Collect data
-
 
 				return
 			case <-t.C:
@@ -501,6 +501,7 @@ func collectDataFromLambda(l *redeo.LambdaInstance) {
 		dAppend, _ := l.R.ReadInt()
 		dFlush, _ := l.R.ReadInt()
 		dTotal, _ := l.R.ReadInt()
+		fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 		nanoLog(resp.LogLambda, "data", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 	}
 	dataCollected.Done()
