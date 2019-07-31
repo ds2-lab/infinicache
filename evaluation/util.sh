@@ -1,5 +1,10 @@
 #!/bin/bash
 
+PWD=`dirname $0`
+REDBENCH=$GOPATH/github.com/wangaoone/redbench
+
+echo $PWD
+
 function update_lambda_timeout() {
     NAME=$1
     TIME=$2
@@ -32,7 +37,7 @@ function update_lambda_mem() {
 function start_proxy() {
     echo "running proxy server"
     PREFIX=$1
-    GOMAXPROCS=36 go run ~/project/lambdaStore/server.go -replica=false -isPrint=true -prefix=$PREFIX
+    GOMAXPROCS=36 go run $PWD/../src/redeo_server.go -replica=false -isPrint=true -prefix=$PREFIX
 }
 
 function bench() {
@@ -45,6 +50,6 @@ function bench() {
     P=$7
     OP=$8
     FILE=$9
-    go run ~/project/src/github.com/wangaoone/redbench/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX \
+    go run $REDBENCH/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX \
     -sz $SZ -d $D -p $P -op $OP -file $FILE -dec
 }

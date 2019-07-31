@@ -1,6 +1,13 @@
 #!/bin/bash
 
-source util.sh
+if [ "$GOPATH" == "" ] ; then
+  echo "No \$GOPATH defined. Install go and set \$GOPATH first."
+fi
+
+PWD=`dirname $0`
+ENTRY=`date "+%Y%m%d%H%M"`
+
+source $PWD/util.sh
 
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 MEM=128
@@ -58,9 +65,9 @@ function perform(){
 
     for i in {1..2}
     do
-        PREPROXY=No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ
-        PRESET=No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ"_SET"
-        PREGET=No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ"_GET"
+        PREPROXY=$PWD/$ENTRY/No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ
+        PRESET=$PWD/$ENTRY/No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ"_SET"
+        PREGET=$PWD/$ENTRY/No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ"_GET"
 
         update_lambda_timeout Node $((TIME+i*10))
         wait
@@ -92,7 +99,8 @@ PS=(2 1 1 2 4)
 C=(1)
 N=(3)
 
-for mem in 128 256 512 1024 1536 2048 3008
+mkdir -p $PWD/$ENTRY
+for mem in 128 256 # 512 1024 1536 2048 3008
 do
     update_lambda_mem Node $mem
     for sz in 10485760 20971520 # 41943040 62914020 83886080 104857600
