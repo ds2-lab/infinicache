@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PWD=`dirname $0`
-REDBENCH=$GOPATH/github.com/wangaoone/redbench
+REDBENCH=$GOPATH/src/github.com/wangaoone/redbench
 
 echo $PWD
 
