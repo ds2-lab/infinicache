@@ -38,6 +38,7 @@ var (
 	filePath  = "/tmp/pidLog.txt"
 	timeStamp = time.Now()
 	reqMap    = make(map[string]*dataEntry)
+	logMu     sync.Mutex
 )
 
 type dataEntry struct {
@@ -58,30 +59,36 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 	timeStamp = time.Now()
 	key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 	if handle == resp.LogStart {
-		fmt.Println("key set is ", key)
+		logMu.Lock()
 		reqMap[key] = &dataEntry{
 			cmd:     args[0].(string),
 			reqId:   args[1].(string),
 			chunkId: args[2].(int64),
 			start:   args[3].(int64),
 		}
+		logMu.Unlock()
 		return nil
 	} else if handle == resp.LogProxy {
-		fmt.Println("key proxy is ", key)
+		logMu.Lock()
 		entry := reqMap[key]
+		logMu.Unlock()
+
 		entry.firstByte = args[3].(int64) - entry.start
 		args[3] = entry.firstByte
 		entry.lambda2Server = args[4].(int64)
 		entry.readBulk = args[5].(int64)
 		return nil
 	} else if handle == resp.LogServer2Client {
-		fmt.Println("key Server2Client is ", key)
+		logMu.Lock()
 		entry := reqMap[key]
+		delete(reqMap, key)
+		logMu.Unlock()
+
 		entry.server2Client = args[3].(int64)
 		entry.appendBulk = args[4].(int64)
 		entry.flush = args[5].(int64)
 		entry.duration = args[6].(int64) - entry.start
-		delete(reqMap, key)
+
 		return nanolog.Log(resp.LogData, entry.cmd, entry.reqId, entry.chunkId,
 			entry.start, entry.duration,
 			entry.firstByte, entry.lambda2Server, entry.server2Client,
@@ -350,10 +357,10 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			// if abandon response, cmd must be GET
 			if abandon {
 				obj.Cmd = "get"
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
 				if err = nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
 					fmt.Println("LogProxy err ", err)
 				}
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
 			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
