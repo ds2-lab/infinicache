@@ -7,17 +7,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/wangaoone/ecRedis"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"io/ioutil"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
+
+const MaxLambdaStores = 14
 
 var (
 	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
@@ -34,48 +37,61 @@ var (
 )
 
 type dataEntry struct {
-	reqId  string
-	chunkId int
-	start  int64
+	cmd           string
+	reqId         string
+	chunkId       int64
+	start         int64
+	end           int64
+	firstByte     int64
 	lambda2Server int64
 	server2Client int64
-	firstByte int64
-	readBulk int64
-	appendBulk int64
-	flush int64
-	end int64
+	readBulk      int64
+	appendBulk    int64
+	flush         int64
 }
 
 func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 	timeStamp = time.Now()
-	key := fmt.Sprintf("%s-%d", args[0], args[1])
+	key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 	if handle == resp.LogStart {
-		reqMap[key] = &dataEntry{ reqId: args[0].(string), chunkId: args[1].(int), start: args[2].(int64) }
+		fmt.Println("key set is ", key)
+		reqMap[key] = &dataEntry{
+			cmd:     args[0].(string),
+			reqId:   args[1].(string),
+			chunkId: args[2].(int64),
+			start:   args[3].(int64),
+		}
 		return nil
 	} else if handle == resp.LogProxy {
+		fmt.Println("key proxy is ", key)
 		entry := reqMap[key]
-		entry.lambda2Server = args[2].(int64)
-		entry.firstByte = args[3].(int64)
-		entry.readBulk = args[4].(int64)
+		entry.firstByte = args[3].(int64) - entry.start
+		args[3] = entry.firstByte
+		entry.lambda2Server = args[4].(int64)
+		entry.readBulk = args[5].(int64)
 	} else if handle == resp.LogServer2Client {
+		fmt.Println("key Server2Client is ", key)
 		entry := reqMap[key]
-		entry.server2Client = args[2].(int64)
-		entry.appendBulk = args[3].(int64)
-		entry.flush = args[4].(int64)
-		entry.end = args[5].(int64)
+		entry.server2Client = args[3].(int64)
+		entry.appendBulk = args[4].(int64)
+		entry.flush = args[5].(int64)
+		entry.end = args[6].(int64)
 		delete(reqMap, key)
-		nanolog.Log(resp.LogData, entry.reqId, entry.chunkId, entry.start,
-			entry.lambda2Server, entry.server2Client, entry.firstByte, entry.readBulk,
-			entry.appendBulk, entry.flush, entry.end)
+		nanolog.Log(resp.LogData, entry.cmd, entry.reqId, entry.chunkId,
+			entry.start, entry.end,
+			entry.firstByte, entry.lambda2Server, entry.server2Client,
+			entry.readBulk, entry.appendBulk, entry.flush)
 	}
-	return nanolog.Log(handle, args...)
+	//return nanolog.Log(handle, args...)
+	return nil
 }
 
 func logCreate() {
 	// get local time
 	//location, _ := time.LoadLocation("EST")
 	// Set up nanoLog writer
-	nanoLogout, err := os.Create("/tmp/proxy/" + *prefix + "_proxy.clog")
+	//nanoLogout, err := os.Create("/tmp/proxy/" + *prefix + "_proxy.clog")
+	nanoLogout, err := os.Create(*prefix + "_proxy.clog")
 	if err != nil {
 		panic(err)
 	}
@@ -86,24 +102,16 @@ func logCreate() {
 }
 
 func main() {
+	done := make(chan struct{})
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM|syscall.SIGINT|syscall.SIGKILL)
+	//signal.Notify(sig, syscall.SIGINT)
 	flag.Parse()
 	// CPU profiling by default
 	//defer profile.Start().Stop()
 	// init log
 	logCreate()
-	// Log goroutine
-	//defer t.Stop()
-	go func() {
-		t := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-t.C:
-				if err := nanolog.Flush(); err != nil {
-					fmt.Println("log flush err")
-				}
-			}
-		}
-	}()
+
 	fmt.Println("======================================")
 	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
@@ -128,8 +136,41 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println("lambda store ready!")
+
+	// Log goroutine
+	//defer t.Stop()
+	go func() {
+		t := time.NewTicker(1 * time.Second)
+		for {
+			select {
+			case <-sig:
+				t.Stop()
+				if err := nanolog.Flush(); err != nil {
+					fmt.Println("log flush err")
+				}
+
+				err := os.Remove(filePath)
+				if err != nil {
+					fmt.Println("rm file err", err)
+				}
+
+				lambdaLis.Close()
+				clientLis.Close()
+				close(done)
+
+				return
+			case <-t.C:
+				if time.Since(timeStamp) >= 10*time.Second {
+					if err := nanolog.Flush(); err != nil {
+						fmt.Println("log flush err")
+					}
+				}
+			}
+		}
+	}()
+
 	// Start serving (blocking)
-	err = srv.MyServe(clientLis, cMap, group, filePath, nanoLog)
+	err = srv.MyServe(clientLis, cMap, group, nanoLog, done)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -137,7 +178,7 @@ func main() {
 
 // initial lambda group
 func initial(lambdaSrv *redeo.Server) redeo.Group {
-	group := redeo.Group{Arr: make([]redeo.LambdaInstance, ecRedis.MaxLambdaStores), MemCounter: 0}
+	group := redeo.Group{Arr: make([]redeo.LambdaInstance, MaxLambdaStores), MemCounter: 0}
 	if *replica == true {
 		for i := range group.Arr {
 			node := newLambdaInstance("Lambda2SmallJPG")
@@ -201,18 +242,16 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
-		t0 := time.Now()
 		var obj redeo.Response
 		//
 		// field 0 for conn id
 		// bulkString
-		t2 := time.Now()
 		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
 			return
 		}
-		time2 := time.Since(t2)
+		t2 := time.Now()
 		//t3 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
@@ -250,10 +289,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
 			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
 				abandon = true
-				if err = nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, int64(time.Since(t0)), int64(time2), 0); err != nil {
-					fmt.Println("LogProxy err ", err)
-				}
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: -1}
 			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
@@ -276,7 +311,15 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		switch field3 {
 		case resp.TypeBulk:
 			chunkId, _ := l.R.ReadBulkString()
-			obj.Id.ChunkId, _ = strconv.Atoi(chunkId)
+			obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+			// if abandon response, cmd must be GET
+			if abandon {
+				obj.Cmd = "get"
+				if err = nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
+					fmt.Println("LogProxy err ", err)
+				}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
+			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err3 is", err)
@@ -301,15 +344,17 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			if err != nil {
 				fmt.Println("response err is ", err)
 			}
+			obj.Cmd = "get"
 			if !abandon {
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
 			}
 		case resp.TypeInt:
 			_, err := l.R.ReadInt()
 			if err != nil {
 				fmt.Println("response err is ", err)
 			}
-			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, Body: []byte{1}}
+			obj.Cmd = "set"
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
@@ -331,8 +376,8 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		if abandon {
 			continue
 		}
-		time0 := time.Since(t0)
-		if err := nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, int64(time0), int64(time2), int64(time9)); err != nil {
+		time0 := time.Since(t2)
+		if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
 			fmt.Println("LogProxy err ", err)
 		}
 	}
@@ -358,7 +403,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		//*
 		// get channel and chunk id
 		connId := strconv.Itoa(a.Id.ConnId)
-		chunkId := strconv.Itoa(a.Id.ChunkId)
+		chunkId := strconv.FormatInt(a.Id.ChunkId, 10)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
 		switch cmd {
