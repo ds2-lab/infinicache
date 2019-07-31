@@ -26,17 +26,16 @@ var (
 )
 
 var (
-	clientLis net.Listener
 	lambdaLis net.Listener
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
-	filePath  = "/var/run/pidLog.txt"
+	filePath  = "/tmp/pidLog.txt"
 )
 
 func logCreate() {
 	// get local time
-	location, _ := time.LoadLocation("EST")
+	//location, _ := time.LoadLocation("EST")
 	// Set up nanoLog writer
-	nanoLogout, err := os.Create(time.Now().In(location).String() + *prefix + "_proxy.clog")
+	nanoLogout, err := os.Create("/tmp/proxy/" + *prefix + "_proxy.clog")
 	if err != nil {
 		panic(err)
 	}
@@ -68,8 +67,14 @@ func main() {
 	fmt.Println("======================================")
 	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
 	fmt.Println("======================================")
-	clientLis, _ = net.Listen("tcp", ":6378")
-	lambdaLis, _ = net.Listen("tcp", ":6379")
+	clientLis, err := net.Listen("tcp", ":6378")
+	if err != nil {
+		fmt.Println("client facing listen", err)
+	}
+	lambdaLis, err = net.Listen("tcp", ":6379")
+	if err != nil {
+		fmt.Println("lambda facing listen", err)
+	}
 	fmt.Println("start listening client face port :6378，lambda face port :6379")
 	// initial proxy and lambda server
 	srv := redeo.NewServer(nil)
@@ -78,9 +83,13 @@ func main() {
 	// initial lambda store group
 	group := initial(lambdaSrv)
 
-	ioutil.WriteFile(filePath, []byte(fmt.Sprintf("%d", os.Getpid())), 0660)
+	err = ioutil.WriteFile(filePath, []byte(fmt.Sprintf("%d", os.Getpid())), 0660)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("lambda store ready!")
 	// Start serving (blocking)
-	err := srv.MyServe(clientLis, cMap, group, filePath)
+	err = srv.MyServe(clientLis, cMap, group, filePath)
 	if err != nil {
 		fmt.Println(err)
 	}
