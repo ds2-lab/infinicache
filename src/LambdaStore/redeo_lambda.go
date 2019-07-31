@@ -128,6 +128,15 @@ func HandleRequest() {
 				log.Debug("in the data function")
 
 				w.AppendInt(int64(len(dataDepository)))
+				for entry := range(dataDepository) {
+					w.AppendBulkString(entry.op)
+					w.AppendBulkString(entry.status)
+					w.AppendBulkString(entry.reqId)
+					w.AppendBulkString(entry.chunkId)
+					w.AppendInt(entry.durationAppend)
+					w.AppendInt(entry.durationFlush)
+					w.AppendInt(entry.duration)
+				}
 				if err := w.Flush(); err != nil {
 					log.Error("Error on data::flush: %v", err)
 					return
