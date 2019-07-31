@@ -29,7 +29,13 @@ var (
 	lambdaLis net.Listener
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
 	filePath  = "/tmp/pidLog.txt"
+	timeStamp = time.Now()
 )
+
+func nanoLog(handle nanolog.Handle, args ...interface{}) error {
+	timeStamp = time.Now()
+	return nanolog.Log(handle, args...)
+}
 
 func logCreate() {
 	// get local time
@@ -89,7 +95,7 @@ func main() {
 	}
 	fmt.Println("lambda store ready!")
 	// Start serving (blocking)
-	err = srv.MyServe(clientLis, cMap, group, filePath)
+	err = srv.MyServe(clientLis, cMap, group, filePath, nanoLog)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -161,6 +167,7 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
+		t0 := time.Now()
 		var obj redeo.Response
 		//
 		// field 0 for conn id
@@ -172,7 +179,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			return
 		}
 		time2 := time.Since(t2)
-		t3 := time.Now()
+		//t3 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
 			connId, _ := l.R.ReadBulkString()
@@ -184,7 +191,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		time3 := time.Since(t3)
+		//time3 := time.Since(t3)
 		//
 		// field 1 for req id
 		// bulkString
@@ -199,6 +206,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		switch field1 {
 		case resp.TypeBulk:
 			reqId, _ := l.R.ReadBulkString()
+			obj.Id.ReqId = reqId
 			counter, ok := redeo.ReqMap.Get(reqId)
 			if ok == false {
 				fmt.Println("No reqId found")
@@ -219,14 +227,14 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		//
 		// field 2 for chunk id
 		// Int
-		t6 := time.Now()
+		//t6 := time.Now()
 		field3, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field3 err", err)
 			return
 		}
-		time6 := time.Since(t6)
-		t7 := time.Now()
+		//time6 := time.Since(t6)
+		//t7 := time.Now()
 		switch field3 {
 		case resp.TypeBulk:
 			chunkId, _ := l.R.ReadBulkString()
@@ -237,17 +245,17 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		default:
 			panic("unexpected response type")
 		}
-		time7 := time.Since(t7)
+		//time7 := time.Since(t7)
 		//
-		// field 2 for obj body
+		// field 3 for obj body
 		// bulkString
-		t8 := time.Now()
+		//t8 := time.Now()
 		field4, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field4 err", err)
 			return
 		}
-		time8 := time.Since(t8)
+		//time8 := time.Since(t8)
 		t9 := time.Now()
 		switch field4 {
 		case resp.TypeBulk:
@@ -257,16 +265,16 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			}
 			if !abandon {
 				myPrint("Abandon is ", abandon)
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: res}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res}
 			} else {
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: -1}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: -1}
 			}
 		case resp.TypeInt:
 			_, err := l.R.ReadInt()
 			if err != nil {
 				fmt.Println("response err is ", err)
 			}
-			cMap[obj.Id.ConnId] <- &redeo.Chunk{Id: obj.Id.ChunkId, Body: []byte{1}}
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, Body: []byte{1}}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
@@ -282,8 +290,8 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		//	"Sever read field1 chunkId time is", time7,
 		//	"Sever PeekType objBody time is", time8,
 		//	"Sever read field2 chunkBody time is", time9)
-		if err := nanolog.Log(resp.LogProxy, obj.Id.ConnId, obj.Id.ChunkId,
-			time2.String(), time3.String(), time6.String(), time7.String(), time8.String(), time9.String()); err != nil {
+		time0 := time.Since(t0)
+		if err := nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, time0.String(), time2.String(), time9.String()); err != nil {
 			fmt.Println("LogProxy err ", err)
 		}
 	}
