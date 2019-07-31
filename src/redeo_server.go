@@ -30,10 +30,44 @@ var (
 	cMap      = make(map[int]chan interface{}) // client channel mapping table
 	filePath  = "/tmp/pidLog.txt"
 	timeStamp = time.Now()
+	reqMap    = make(map[string]*dataEntry)
 )
+
+type dataEntry struct {
+	reqId  string
+	chunkId int
+	start  int64
+	lambda2Server int64
+	server2Client int64
+	firstByte int64
+	readBulk int64
+	appendBulk int64
+	flush int64
+	end int64
+}
 
 func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 	timeStamp = time.Now()
+	key := fmt.Sprintf("%s-%d", args[0], args[1])
+	if handle == resp.LogStart {
+		reqMap[key] = &dataEntry{ reqId: args[0].(string), chunkId: args[1].(int), start: args[2].(int64) }
+		return nil
+	} else if handle == resp.LogProxy {
+		entry := reqMap[key]
+		entry.lambda2Server = args[2].(int64)
+		entry.firstByte = args[3].(int64)
+		entry.readBulk = args[4].(int64)
+	} else if handle == resp.LogServer2Client {
+		entry := reqMap[key]
+		entry.server2Client = args[2].(int64)
+		entry.appendBulk = args[3].(int64)
+		entry.flush = args[4].(int64)
+		entry.end = args[5].(int64)
+		delete(reqMap, key)
+		nanolog.Log(resp.LogData, entry.reqId, entry.chunkId, entry.start,
+			entry.lambda2Server, entry.server2Client, entry.firstByte, entry.readBulk,
+			entry.appendBulk, entry.flush, entry.end)
+	}
 	return nanolog.Log(handle, args...)
 }
 
@@ -216,6 +250,10 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
 			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
 				abandon = true
+				if err = nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, int64(time.Since(t0)), int64(time2), 0); err != nil {
+					fmt.Println("LogProxy err ", err)
+				}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: -1}
 			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
@@ -231,7 +269,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field3, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field3 err", err)
-			return
+			continue
 		}
 		//time6 := time.Since(t6)
 		//t7 := time.Now()
@@ -253,7 +291,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field4, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field4 err", err)
-			return
+			continue
 		}
 		//time8 := time.Since(t8)
 		t9 := time.Now()
@@ -264,10 +302,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				fmt.Println("response err is ", err)
 			}
 			if !abandon {
-				myPrint("Abandon is ", abandon)
 				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res}
-			} else {
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: -1}
 			}
 		case resp.TypeInt:
 			_, err := l.R.ReadInt()
@@ -283,6 +318,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			panic("unexpected response type")
 		}
 		time9 := time.Since(t9)
+
 		//myPrint(obj.Id.ConnId, obj.Id.ChunkId,
 		//	"Sever PeekType clientId time is", time2,
 		//	"Sever read field0 clientId time is", time3,
@@ -290,8 +326,13 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		//	"Sever read field1 chunkId time is", time7,
 		//	"Sever PeekType objBody time is", time8,
 		//	"Sever read field2 chunkBody time is", time9)
+
+		// Skip log on abandon
+		if abandon {
+			continue
+		}
 		time0 := time.Since(t0)
-		if err := nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, time0.String(), time2.String(), time9.String()); err != nil {
+		if err := nanoLog(resp.LogProxy, obj.Id.ReqId, obj.Id.ChunkId, int64(time0), int64(time2), int64(time9)); err != nil {
 			fmt.Println("LogProxy err ", err)
 		}
 	}
