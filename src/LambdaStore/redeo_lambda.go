@@ -40,7 +40,7 @@ var (
 )
 
 func HandleRequest() {
-	timeOut := time.Duration(120 * time.Second)
+	timeOut := time.Duration(300 * time.Second)
 	done := make(chan struct{})
 	dataGatherer := make(chan *DataEntry, 10)
 	dataDepository := make([]*DataEntry, 0, 100)
