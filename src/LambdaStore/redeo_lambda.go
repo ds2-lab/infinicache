@@ -10,6 +10,7 @@ import (
 	"github.com/wangaoone/s3gof3r"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -132,7 +133,6 @@ func HandleRequest() {
 				w.AppendBulkString(reqId)
 				w.AppendBulkString(chunkId)
 				fmt.Println("chunkId is ", chunkId)
-				//w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					log.Error("Error on set::flush(key %s): %v", key, err)
 					dataDeposited.Add(1)
@@ -151,15 +151,15 @@ func HandleRequest() {
 				dataDeposited.Wait()
 
 				w.AppendBulkString("data")
-				w.AppendInt(int64(len(dataDepository)))
+				w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 				for _, entry := range dataDepository {
 					w.AppendBulkString(entry.op)
 					w.AppendBulkString(entry.status)
 					w.AppendBulkString(entry.reqId)
 					w.AppendBulkString(entry.chunkId)
-					w.AppendInt(int64(entry.durationAppend))
-					w.AppendInt(int64(entry.durationFlush))
-					w.AppendInt(int64(entry.duration))
+					w.AppendBulkString(entry.durationAppend.String())
+					w.AppendBulkString(entry.durationFlush.String())
+					w.AppendBulkString(entry.duration.String())
 				}
 				if err := w.Flush(); err != nil {
 					log.Error("Error on data::flush: %v", err)

@@ -442,19 +442,24 @@ func myPrint(a ...interface{}) {
 }
 
 func collectDataFromLambda(l *redeo.LambdaInstance) {
-	len, err := l.R.ReadInt()
+	strLen, err := l.R.ReadBulkString()
+	len := 0
 	if err != nil {
 		fmt.Println("Failed to read length of data from lambda", err)
-		return
+	} else {
+		len, err = strconv.Atoi(strLen)
+		if err != nil {
+			fmt.Println("convert strLen is err", err)
+		}
 	}
-	for i := int64(0); i < len; i++ {
+	for i := 0; i < len; i++ {
 		op, _ := l.R.ReadBulkString()
 		status, _ := l.R.ReadBulkString()
 		reqId, _ := l.R.ReadBulkString()
 		chunkId, _ := l.R.ReadBulkString()
-		dAppend, _ := l.R.ReadInt()
-		dFlush, _ := l.R.ReadInt()
-		dTotal, _ := l.R.ReadInt()
+		dAppend, _ := l.R.ReadBulkString()
+		dFlush, _ := l.R.ReadBulkString()
+		dTotal, _ := l.R.ReadBulkString()
 		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 		nanoLog(resp.LogLambda, "data", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 	}
