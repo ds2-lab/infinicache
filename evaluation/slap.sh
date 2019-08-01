@@ -63,7 +63,7 @@ function perform(){
     TIME=$9
 #    echo $i"_"DATA$P"_"lambda$MEM"_"$SZ
 
-    for i in {1..2}
+    for i in {1..5}
     do
         PREPROXY=$PWD/$ENTRY/No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ
         PRESET=$PWD/$ENTRY/No.$i"_"$DATA"_"$PARITY"_"lambda$MEM"_"$SZ"_SET"
@@ -100,16 +100,16 @@ C=(1)
 N=(3)
 
 mkdir -p $PWD/$ENTRY
-for mem in 128 256 # 512 1024 1536 2048 3008
+for mem in 128 256 512 1024 1536 2048 3008
 do
     update_lambda_mem Node $mem
-    for sz in 10485760 20971520 # 41943040 62914020 83886080 104857600
+    for sz in 10485760 20971520 41943040 62914020 83886080 104857600
     do
         for k in {0..4}
         do
             for l in 0
             do
-                perform $mem ${N[l]} ${C[l]} 1 2 $sz ${DS[k]} ${PS[k]} 150
+                perform $mem ${N[l]} ${C[l]} 1 2 $sz ${DS[k]} ${PS[k]} $1
 #                perform $mem 1 3 1 2 $sz ${DS[k]} ${PS[k]} 200
             done
         done
