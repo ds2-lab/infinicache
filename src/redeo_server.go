@@ -275,26 +275,25 @@ func newLambdaInstance(name string) *redeo.LambdaInstance {
 func LambdaPeek(l *redeo.LambdaInstance) {
 	for {
 		var obj redeo.Response
-		//
-		// field 0 for conn id
-		// bulkString
+		// field 0 for cmd
 		field0, err := l.R.PeekType()
 		if err != nil {
 			fmt.Println("field1 err", err)
 			continue
 		}
 		t2 := time.Now()
-		//t3 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
-			connId, _ := l.R.ReadBulkString()
-			if connId == "data" {
+			cmd, _ := l.R.ReadBulkString()
+			switch cmd {
+			case "get":
+			case "set":
+				setHandler(l, t2)
+				err = errors.New("continue")
+			case "data":
 				collectDataFromLambda(l)
 				err = errors.New("continue")
-				break
 			}
-			obj.Id.ConnId, _ = strconv.Atoi(connId)
-			//fmt.Println("conn id", obj.Id.ConnId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
@@ -304,145 +303,67 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		if err != nil {
 			continue
 		}
-
-		//time3 := time.Since(t3)
-		//
+		// Get Handler
+		// field 1 connId
+		connId, _ := l.R.ReadBulkString()
+		obj.Id.ConnId, _ = strconv.Atoi(connId)
 		// field 1 for req id
-		// bulkString
-		field1, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field1 err", err)
-			continue
-		}
-		// read field 1
-		//var ReqCounter int32
 		abandon := false
-		switch field1 {
-		case resp.TypeBulk:
-			reqId, _ := l.R.ReadBulkString()
-			obj.Id.ReqId = reqId
-			counter, ok := redeo.ReqMap.Get(reqId)
-			if ok == false {
-				fmt.Println("No reqId found")
-			}
-			// reqCounter++
-			reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
-			//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
-			if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
-				abandon = true
-			}
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err1 is", err)
-		default:
-			panic("unexpected response type")
+		reqId, _ := l.R.ReadBulkString()
+		obj.Id.ReqId = reqId
+		counter, ok := redeo.ReqMap.Get(reqId)
+		if ok == false {
+			fmt.Println("No reqId found")
 		}
-		if err != nil {
-			continue
+		reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
+		//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
+		if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
+			abandon = true
 		}
-
-		//
-		// field 2 for chunk id
-		// Int
-		//t6 := time.Now()
-		field3, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field3 err", err)
-			continue
-		}
-		//time6 := time.Since(t6)
-		//t7 := time.Now()
-		switch field3 {
-		case resp.TypeBulk:
-			chunkId, _ := l.R.ReadBulkString()
-			obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
-			// if abandon response, cmd must be GET
-			if abandon {
-				obj.Cmd = "get"
-				//c, err := cMap.Get(obj.Id.ConnId)
-				//if err == false {
-				//	fmt.Println("get channel err", err)
-				//}
-				//c := cMap[obj.Id.ConnId]
-				//cMap.Get(obj.Id.ConnId <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
-				if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
-					fmt.Println("LogProxy err ", err)
-				}
-			}
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err3 is", err)
-		default:
-			panic("unexpected response type")
-		}
-		if err != nil {
-			continue
-		}
-		//time7 := time.Since(t7)
-		//
-		// field 3 for obj body
-		// bulkString
-		//t8 := time.Now()
-		field4, err := l.R.PeekType()
-		if err != nil {
-			fmt.Println("field4 err", err)
-			continue
-		}
-		//time8 := time.Since(t8)
-		t9 := time.Now()
-		switch field4 {
-		case resp.TypeBulk:
-			res, err := l.R.ReadBulk(nil)
-			if err != nil {
-				fmt.Println("response err is ", err)
-			}
+		// field 3 for chunk id
+		chunkId, _ := l.R.ReadBulkString()
+		obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+		fmt.Println("Lambda peek chunkId is", obj.Id.ChunkId)
+		// if abandon response, cmd must be GET
+		if abandon {
 			obj.Cmd = "get"
-			if !abandon {
-				//c, err := cMap.Get(obj.Id.ConnId)
-				//if err == false {
-				//	fmt.Println("get channel err", err)
-				//}
-				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
+			if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
+				fmt.Println("LogProxy err ", err)
 			}
-		case resp.TypeInt:
-			_, err := l.R.ReadInt()
-			if err != nil {
-				fmt.Println("response err is ", err)
-			}
-			obj.Cmd = "set"
-			//c, ok := cMap.Get(obj.Id.ConnId)
-			//if ok == false {
-			//	fmt.Println("get channel err", err)
-			//}
-			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			fmt.Println("peek type err4 is", err)
-		default:
-			panic("unexpected response type")
 		}
+		// field 3 for obj body
+		t9 := time.Now()
+		res, err := l.R.ReadBulk(nil)
 		if err != nil {
-			continue
+			fmt.Println("response err is ", err)
+		}
+		if !abandon {
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
 		}
 		time9 := time.Since(t9)
-
-		//myPrint(obj.Id.ConnId, obj.Id.ChunkId,
-		//	"Sever PeekType clientId time is", time2,
-		//	"Sever read field0 clientId time is", time3,
-		//	"Sever PeekType chunkId time is", time6,
-		//	"Sever read field1 chunkId time is", time7,
-		//	"Sever PeekType objBody time is", time8,
-		//	"Sever read field2 chunkBody time is", time9)
-
 		// Skip log on abandon
 		if abandon {
 			continue
 		}
 		time0 := time.Since(t2)
-		if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
+		if err := nanoLog(resp.LogProxy, "get", obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
 			fmt.Println("LogProxy err ", err)
 		}
+	}
+}
+
+func setHandler(l *redeo.LambdaInstance, t time.Time) {
+	var obj redeo.Response
+	connId, _ := l.R.ReadBulkString()
+	obj.Id.ConnId, _ = strconv.Atoi(connId)
+	obj.Id.ReqId, _ = l.R.ReadBulkString()
+	chunkId, _ := l.R.ReadBulkString()
+	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+	fmt.Println("lambda peek chunk id is ", obj.Id.ChunkId)
+	cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
+	if err := nanoLog(resp.LogProxy, "set", obj.Id.ReqId, obj.Id.ChunkId, t.UnixNano(), int64(time.Since(t)), int64(0)); err != nil {
+		fmt.Println("LogProxy err ", err)
 	}
 }
 

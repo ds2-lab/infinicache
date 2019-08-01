@@ -31,13 +31,13 @@ const OP_GET = "1"
 const OP_SET = "0"
 
 var (
-	server = "3.217.213.43:6379" // 10Gbps ec2 server UbuntuProxy0
+	server     = "3.217.213.43:6379" // 10Gbps ec2 server UbuntuProxy0
 	lambdaConn net.Conn
 	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
 	srv     = redeo.NewServer(nil)
 	myMap   = make(map[string]*Chunk)
 	isFirst = true
-	log     = &logger.ColorLogger {
+	log     = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
 )
@@ -80,6 +80,7 @@ func HandleRequest() {
 				}
 
 				// construct lambda store response
+				w.AppendBulkString("get")
 				w.AppendBulkString(connId)
 				w.AppendBulkString(reqId)
 				w.AppendBulkString(chunk.id)
@@ -120,10 +121,11 @@ func HandleRequest() {
 				myMap[key] = &Chunk{chunkId, val}
 
 				// write Key, clientId, chunkId, body back to server
+				w.AppendBulkString("set")
 				w.AppendBulkString(connId)
 				w.AppendBulkString(reqId)
 				w.AppendBulkString(chunkId)
-				w.AppendInt(1)
+				//w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					log.Error("Error on set::flush(key %s): %v", key, err)
 					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
