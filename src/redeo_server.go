@@ -294,7 +294,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				break
 			}
 			obj.Id.ConnId, _ = strconv.Atoi(connId)
-			fmt.Println("conn id", obj.Id.ConnId)
+			//fmt.Println("conn id", obj.Id.ConnId)
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err1 is", err)
@@ -524,7 +524,7 @@ func collectDataFromLambda(l *redeo.LambdaInstance) {
 		dAppend, _ := l.R.ReadInt()
 		dFlush, _ := l.R.ReadInt()
 		dTotal, _ := l.R.ReadInt()
-		fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
+		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 		nanoLog(resp.LogLambda, "data", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 	}
 	dataCollected.Done()
