@@ -453,15 +453,16 @@ func collectDataFromLambda(l *redeo.LambdaInstance) {
 		}
 	}
 	for i := 0; i < len; i++ {
-		op, _ := l.R.ReadBulkString()
-		status, _ := l.R.ReadBulkString()
-		reqId, _ := l.R.ReadBulkString()
-		chunkId, _ := l.R.ReadBulkString()
-		dAppend, _ := l.R.ReadBulkString()
-		dFlush, _ := l.R.ReadBulkString()
-		dTotal, _ := l.R.ReadBulkString()
+		//op, _ := l.R.ReadBulkString()
+		//status, _ := l.R.ReadBulkString()
+		//reqId, _ := l.R.ReadBulkString()
+		//chunkId, _ := l.R.ReadBulkString()
+		//dAppend, _ := l.R.ReadBulkString()
+		//dFlush, _ := l.R.ReadBulkString()
+		//dTotal, _ := l.R.ReadBulkString()
+		dat, _ := l.R.ReadBulkString()
 		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
-		nanoLog(resp.LogLambda, "data", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
+		nanoLog(resp.LogLambda, "data", dat)
 	}
 	dataCollected.Done()
 }

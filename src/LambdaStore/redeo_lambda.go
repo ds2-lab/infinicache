@@ -153,13 +153,18 @@ func HandleRequest() {
 				w.AppendBulkString("data")
 				w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 				for _, entry := range dataDepository {
-					w.AppendBulkString(entry.op)
-					w.AppendBulkString(entry.status)
-					w.AppendBulkString(entry.reqId)
-					w.AppendBulkString(entry.chunkId)
-					w.AppendBulkString(entry.durationAppend.String())
-					w.AppendBulkString(entry.durationFlush.String())
-					w.AppendBulkString(entry.duration.String())
+					format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d",
+						entry.op, entry.reqId, entry.chunkId, entry.status,
+						entry.duration, entry.durationAppend, entry.durationFlush)
+					w.AppendBulkString(format)
+
+					//w.AppendBulkString(entry.op)
+					//w.AppendBulkString(entry.status)
+					//w.AppendBulkString(entry.reqId)
+					//w.AppendBulkString(entry.chunkId)
+					//w.AppendBulkString(entry.durationAppend.String())
+					//w.AppendBulkString(entry.durationFlush.String())
+					//w.AppendBulkString(entry.duration.String())
 				}
 				if err := w.Flush(); err != nil {
 					log.Error("Error on data::flush: %v", err)
