@@ -31,12 +31,15 @@ const OP_GET = "1"
 const OP_SET = "0"
 
 var (
-	lambdaConn, _ = net.Dial("tcp", "3.220.244.122:6379") // 10Gbps ec2 server UbuntuProxy0
+	server = "3.217.213.43:6379" // 10Gbps ec2 server UbuntuProxy0
+	lambdaConn net.Conn
 	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
 	srv     = redeo.NewServer(nil)
 	myMap   = make(map[string]*Chunk)
 	isFirst = true
-	log     = logger.NilLogger
+	log     = &logger.ColorLogger {
+		Level: logger.LOG_LEVEL_WARN,
+	}
 )
 
 func HandleRequest() {
@@ -46,6 +49,13 @@ func HandleRequest() {
 	dataDepository := make([]*DataEntry, 0, 100)
 
 	if isFirst == true {
+		log.Debug("Ready to connect %s", server)
+		lambdaConn, connErr := net.Dial("tcp", server)
+		if connErr != nil {
+			log.Error("Failed to connect server %s: %v", server, connErr)
+			return
+		}
+
 		isFirst = false
 		go func() {
 			log.Debug("conn is", lambdaConn.LocalAddr(), lambdaConn.RemoteAddr())
