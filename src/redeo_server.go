@@ -61,8 +61,8 @@ type dataEntry struct {
 
 func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 	timeStamp = time.Now()
-	key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 	if handle == resp.LogStart {
+		key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 		logMu.Lock()
 		reqMap[key] = &dataEntry{
 			cmd:     args[0].(string),
@@ -73,6 +73,7 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 		logMu.Unlock()
 		return nil
 	} else if handle == resp.LogProxy {
+		key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 		logMu.Lock()
 		entry := reqMap[key]
 		logMu.Unlock()
@@ -83,6 +84,7 @@ func nanoLog(handle nanolog.Handle, args ...interface{}) error {
 		entry.readBulk = args[5].(int64)
 		return nil
 	} else if handle == resp.LogServer2Client {
+		key := fmt.Sprintf("%s-%s-%d", args[0], args[1], args[2])
 		logMu.Lock()
 		entry := reqMap[key]
 		//delete(reqMap, key)
