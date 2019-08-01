@@ -10,7 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
+	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -118,7 +120,8 @@ func logCreate() {
 func main() {
 	done := make(chan struct{})
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGABRT)
+	//signal.Notify(sig, syscall.SIGKILL)
 	//signal.Notify(sig, syscall.SIGINT)
 	flag.Parse()
 	// CPU profiling by default
@@ -158,6 +161,7 @@ func main() {
 		for {
 			select {
 			case <-sig:
+				log.Println("Receive signal, killing server...")
 				t.Stop()
 				if err := nanolog.Flush(); err != nil {
 					fmt.Println("Failed to save data:", err)
@@ -173,7 +177,7 @@ func main() {
 					}
 					dataCollected.Add(1)
 				}
-				//fmt.Println("wait for data")
+				log.Println("Waiting data from Lambda")
 				dataCollected.Wait()
 				if err := nanolog.Flush(); err != nil {
 					fmt.Println("Failed to save data from lambdas:", err)
@@ -187,7 +191,7 @@ func main() {
 				lambdaLis.Close()
 				clientLis.Close()
 				close(done)
-
+				log.Println("Server closed")
 				// Collect data
 
 				return
@@ -278,7 +282,13 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		// field 0 for cmd
 		field0, err := l.R.PeekType()
 		if err != nil {
-			fmt.Println("field1 err", err)
+			if err == io.EOF {
+				log.Println("lambda disconnected, EOF")
+				l.Closed = true
+				return
+			} else {
+				fmt.Println("LambdaPeek field0 err", err)
+			}
 			continue
 		}
 		t2 := time.Now()

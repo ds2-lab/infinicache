@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
@@ -9,6 +10,7 @@ import (
 	"github.com/wangaoone/s3gof3r"
 	"io"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -31,7 +33,7 @@ const OP_GET = "1"
 const OP_SET = "0"
 
 var (
-	server     = "3.217.213.43:6379" // 10Gbps ec2 server UbuntuProxy0
+	server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
 	lambdaConn net.Conn
 	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
 	srv     = redeo.NewServer(nil)
@@ -47,6 +49,7 @@ func HandleRequest() {
 	done := make(chan struct{})
 	dataGatherer := make(chan *DataEntry, 10)
 	dataDepository := make([]*DataEntry, 0, 100)
+	var dataDeposited sync.WaitGroup
 
 	if isFirst == true {
 		log.Debug("Ready to connect %s", server)
@@ -75,6 +78,7 @@ func HandleRequest() {
 				chunk, found := myMap[key]
 				if found == false {
 					log.Debug("%s not found", key)
+					dataDeposited.Add(1)
 					dataGatherer <- &DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
 					return
 				}
@@ -91,6 +95,7 @@ func HandleRequest() {
 				t3 := time.Now()
 				if err := w.Flush(); err != nil {
 					log.Error("Error on get::flush(key %s): %v", key, err)
+					dataDeposited.Add(1)
 					dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
 					return
 				}
@@ -102,6 +107,7 @@ func HandleRequest() {
 				log.Debug("Flush duration is ", d3)
 				log.Debug("Total duration is", dt)
 				log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
+				dataDeposited.Add(1)
 				dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
 			})
 
@@ -125,19 +131,24 @@ func HandleRequest() {
 				w.AppendBulkString(connId)
 				w.AppendBulkString(reqId)
 				w.AppendBulkString(chunkId)
+				fmt.Println("chunkId is ", chunkId)
 				//w.AppendInt(1)
 				if err := w.Flush(); err != nil {
 					log.Error("Error on set::flush(key %s): %v", key, err)
+					dataDeposited.Add(1)
 					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
 					return
 				}
 
 				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length", key, connId, chunkId, len(val))
+				dataDeposited.Add(1)
 				dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 			})
 
 			srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
 				log.Debug("in the data function")
+
+				dataDeposited.Wait()
 
 				w.AppendBulkString("data")
 				w.AppendInt(int64(len(dataDepository)))
@@ -169,6 +180,7 @@ func HandleRequest() {
 				return
 			case entry := <-dataGatherer:
 				dataDepository = append(dataDepository, entry)
+				dataDeposited.Done()
 			}
 		}
 	}()

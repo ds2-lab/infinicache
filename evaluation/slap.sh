@@ -98,6 +98,10 @@ DS=(4 5 10 10 10)
 PS=(2 1 1 2 4)
 C=(1)
 N=(3)
+TIMEOUT=150
+if [ "$1" != "" ]; then
+    TIMEOUT="$1"
+fi
 
 mkdir -p $PWD/$ENTRY
 for mem in 128 256 512 1024 1536 2048 3008
