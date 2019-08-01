@@ -285,11 +285,11 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field0, err := l.R.PeekType()
 		if err != nil {
 			if err == io.EOF {
-				log.Println("lambda disconnected, EOF")
+				log.Println("Lambda store disconnected:", l.Name)
 				l.Closed = true
 				return
 			} else {
-				fmt.Println("LambdaPeek field0 err", err)
+				fmt.Println("Failed to peek field0:", err)
 			}
 			continue
 		}
@@ -388,7 +388,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		// check lambda status first
 		l.AliveLock.Lock()
 		if l.Alive == false {
-			myPrint("Lambda store is not alive, need to activate")
+			myPrint("Lambda store is not alive, need to activate:", l.Name)
 			l.Alive = true
 			// trigger lambda
 			go lambdaTrigger(l)
@@ -431,7 +431,7 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 		fmt.Println("Error calling LambdaFunction", err)
 	}
 
-	myPrint("Lambda Deactivate")
+	myPrint("Lambda store deactivated:", l.Name)
 	l.AliveLock.Lock()
 	l.Alive = false
 	l.AliveLock.Unlock()

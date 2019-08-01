@@ -171,6 +171,11 @@ func HandleRequest() {
 					return
 				}
 				log.Debug("data complete")
+				lambdaConn.Close()
+				lambdaConn = nil
+				// No need to close server, it will serve the new connection next time.
+				isFirst = true
+				close(done)
 			})
 
 			srv.Serve_client(lambdaConn)
