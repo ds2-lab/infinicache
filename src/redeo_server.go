@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/cornelk/hashmap"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"io/ioutil"
@@ -36,7 +35,8 @@ var (
 var (
 	lambdaLis net.Listener
 	//cMap      = make(map[int]chan interface{}) // client channel mapping table
-	cMap      = hashmap.New(1024 * 1024)
+	//cMap      = hashmap.New(1024 * 1024)
+	cMap      = make([]chan interface{}, 1024*1024)
 	filePath  = "/tmp/pidLog.txt"
 	timeStamp = time.Now()
 	reqMap    = make(map[string]*dataEntry)
@@ -202,7 +202,7 @@ func main() {
 	}()
 
 	// Start serving (blocking)
-	err = srv.MyServe(clientLis, *cMap, group, nanoLog, done)
+	err = srv.MyServe(clientLis, cMap, group, nanoLog, done)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -359,12 +359,13 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			// if abandon response, cmd must be GET
 			if abandon {
 				obj.Cmd = "get"
-				c, err := cMap.Get(obj.Id.ConnId)
-				if err == false {
-					fmt.Println("get channel err", err)
-				}
+				//c, err := cMap.Get(obj.Id.ConnId)
+				//if err == false {
+				//	fmt.Println("get channel err", err)
+				//}
+				//c := cMap[obj.Id.ConnId]
 				//cMap.Get(obj.Id.ConnId <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
-				c.(chan interface{}) <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
 				if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
 					fmt.Println("LogProxy err ", err)
 				}
@@ -398,11 +399,11 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			}
 			obj.Cmd = "get"
 			if !abandon {
-				c, err := cMap.Get(obj.Id.ConnId)
-				if err == false {
-					fmt.Println("get channel err", err)
-				}
-				c.(chan interface{}) <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
+				//c, err := cMap.Get(obj.Id.ConnId)
+				//if err == false {
+				//	fmt.Println("get channel err", err)
+				//}
+				cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
 			}
 		case resp.TypeInt:
 			_, err := l.R.ReadInt()
@@ -410,11 +411,11 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				fmt.Println("response err is ", err)
 			}
 			obj.Cmd = "set"
-			c, ok := cMap.Get(obj.Id.ConnId)
-			if ok == false {
-				fmt.Println("get channel err", err)
-			}
-			c.(chan interface{}) <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
+			//c, ok := cMap.Get(obj.Id.ConnId)
+			//if ok == false {
+			//	fmt.Println("get channel err", err)
+			//}
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
 			fmt.Println("peek type err4 is", err)
