@@ -327,7 +327,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			default:
 				err = errors.New(cmd)
 				log.Warn("Unsupport response type(%s): %v", l.Name, err)
-				break
 			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
@@ -339,6 +338,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 
 		// Get Handler
 		// Exhaust all values to keep protocol aligned.
+		log.Debug("Process %s command...", cmd)
 		connId, _ := l.R.ReadBulkString()
 		reqId, _ := l.R.ReadBulkString()
 		chunkId, _ := l.R.ReadBulkString()
@@ -394,10 +394,11 @@ func setHandler(l *redeo.LambdaInstance, t time.Time) {
 	obj.Id.ReqId, _ = l.R.ReadBulkString()
 	chunkId, _ := l.R.ReadBulkString()
 	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
-	fmt.Println("lambda peek chunk id is ", obj.Id.ChunkId)
+	log.Debug("lambda peek chunk id is %d", obj.Id.ChunkId)
+
 	cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
 	if err := nanoLog(resp.LogProxy, "set", obj.Id.ReqId, obj.Id.ChunkId, t.UnixNano(), int64(time.Since(t)), int64(0)); err != nil {
-		fmt.Println("LogProxy err ", err)
+		log.Warn("LogProxy err %v", err)
 	}
 }
 
@@ -429,13 +430,13 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Body)
 			err := l.W.Flush()
 			if err != nil {
-				fmt.Println("flush pipeline err is ", err)
+				log.Error("Flush pipeline error: %v", err)
 			}
 		case "get": /*get or one argument cmd*/
 			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, "", a.Key)
 			err := l.W.Flush()
 			if err != nil {
-				fmt.Println("flush pipeline err is ", err)
+				log.Error("Flush pipeline error: %v", err)
 			}
 		}
 	}
@@ -450,7 +451,7 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 
 	_, err := client.Invoke(&lambda.InvokeInput{FunctionName: aws.String(l.Name)})
 	if err != nil {
-		fmt.Println("Error calling LambdaFunction", err)
+		log.Error("Error calling LambdaFunction: %v", err)
 	}
 
 	myPrint("Lambda store deactivated:", l.Name)
@@ -461,7 +462,7 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 
 func myPrint(a ...interface{}) {
 	if *isPrint {
-		fmt.Println(a)
+		log.Debug(a...)
 	}
 }
 
@@ -469,11 +470,11 @@ func collectDataFromLambda(l *redeo.LambdaInstance) {
 	strLen, err := l.R.ReadBulkString()
 	len := 0
 	if err != nil {
-		fmt.Println("Failed to read length of data from lambda", err)
+		log.Error("Failed to read length of data from lambda: %v", err)
 	} else {
 		len, err = strconv.Atoi(strLen)
 		if err != nil {
-			fmt.Println("convert strLen is err", err)
+			log.Error("Convert strLen err: %v", err)
 		}
 	}
 	for i := 0; i < len; i++ {
