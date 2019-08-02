@@ -12,7 +12,6 @@ import (
 	"github.com/wangaoone/redeo/resp"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -22,6 +21,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 )
 
 const MaxLambdaStores = 14
@@ -32,6 +32,9 @@ var (
 	isPrint       = flag.Bool("isPrint", false, "Enable log printing")
 	prefix        = flag.String("prefix", "log", "log file prefix")
 	dataCollected sync.WaitGroup
+	log           = &logger.ColorLogger{
+		Level: logger.LOG_LEVEL_INFO,
+	}
 )
 
 var (
@@ -130,19 +133,26 @@ func main() {
 	//defer profile.Start().Stop()
 	// init log
 	logCreate()
+	if *isPrint {
+		log.Level = logger.LOG_LEVEL_ALL
+	}
 
-	fmt.Println("======================================")
-	fmt.Println("replica:", *replica, "||", "isPrint:", *isPrint)
-	fmt.Println("======================================")
+	log.Info("======================================")
+	log.Info("replica: ", *replica, "||", "isPrint:", *isPrint)
+	log.Info("======================================")
 	clientLis, err := net.Listen("tcp", ":6378")
 	if err != nil {
-		fmt.Println("client facing listen", err)
+		log.Error("Failed to listen clients: %v", err)
+		os.Exit(1)
+		return
 	}
 	lambdaLis, err = net.Listen("tcp", ":6379")
 	if err != nil {
-		fmt.Println("lambda facing listen", err)
+		log.Error("Failed to listen lambdas: %v", err)
+		os.Exit(1)
+		return
 	}
-	fmt.Println("start listening client face port :6378，lambda face port :6379")
+	log.Info("Start listening to clients(port 6378) and lambdas(port 6379)")
 	// initial proxy and lambda server
 	srv := redeo.NewServer(nil)
 	lambdaSrv := redeo.NewServer(nil)
@@ -152,9 +162,9 @@ func main() {
 
 	err = ioutil.WriteFile(filePath, []byte(fmt.Sprintf("%d", os.Getpid())), 0660)
 	if err != nil {
-		fmt.Println(err)
+		log.Warn("Failed to write PID: %v", err)
 	}
-	fmt.Println("lambda store ready!")
+	log.Info("Proxy for lambda store is ready!")
 
 	// Log goroutine
 	//defer t.Stop()
@@ -163,10 +173,10 @@ func main() {
 		for {
 			select {
 			case <-sig:
-				log.Println("Receive signal, killing server...")
+				log.Info("Receive signal, killing server...")
 				t.Stop()
 				if err := nanolog.Flush(); err != nil {
-					fmt.Println("Failed to save data:", err)
+					log.Error("Failed to save data: %v", err)
 				}
 
 				// Collect data
@@ -174,33 +184,33 @@ func main() {
 					node.W.WriteCmdString("data")
 					err := node.W.Flush()
 					if err != nil {
-						fmt.Println("Failed to submit data request:", err)
+						log.Warn("Failed to submit data request: %v", err)
 						continue
 					}
 					dataCollected.Add(1)
 				}
-				log.Println("Waiting data from Lambda")
+				log.Info("Waiting data from Lambda")
 				dataCollected.Wait()
 				if err := nanolog.Flush(); err != nil {
-					fmt.Println("Failed to save data from lambdas:", err)
+					log.Error("Failed to save data from lambdas: %v", err)
 				}
 
 				err := os.Remove(filePath)
 				if err != nil {
-					fmt.Println("Failed to remove pid:", err)
+					log.Error("Failed to remove PID: %v", err)
 				}
 
 				lambdaLis.Close()
 				clientLis.Close()
 				close(done)
-				log.Println("Server closed")
+				log.Info("Server closed.")
 				// Collect data
 
 				return
 			case <-t.C:
 				if time.Since(timeStamp) >= 10*time.Second {
 					if err := nanolog.Flush(); err != nil {
-						fmt.Println("Failed to save data:", err)
+						log.Warn("Failed to save data: %v", err)
 					}
 				}
 			}
@@ -210,8 +220,12 @@ func main() {
 	// Start serving (blocking)
 	err = srv.MyServe(clientLis, cMap, group, nanoLog, done)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Failed to serve clients: %v", err)
+		os.Exit(1)
+		return
 	}
+
+	os.Exit(0)
 }
 
 // initial lambda group
@@ -285,18 +299,23 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		field0, err := l.R.PeekType()
 		if err != nil {
 			if err == io.EOF {
-				log.Println("Lambda store disconnected:", l.Name)
+				log.Warn("Lambda store disconnected: %s", l.Name)
 				l.Closed = true
 				return
 			} else {
-				fmt.Println("Failed to peek field0:", err)
+				log.Warn("Failed to peek response type(%s): %v", l.Name, err)
 			}
 			continue
 		}
 		t2 := time.Now()
 		switch field0 {
 		case resp.TypeBulk:
-			cmd, _ := l.R.ReadBulkString()
+			cmd, err := l.R.ReadBulkString()
+			if err != nil {
+				log.Warn("Error on read response type(%s): %v", l.Name, err)
+				break
+			}
+
 			switch cmd {
 			case "get":
 			case "set":
@@ -305,62 +324,65 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			case "data":
 				collectDataFromLambda(l)
 				err = errors.New("continue")
+			default:
+				err = errors.New(cmd)
+				log.Warn("Unsupport response type(%s): %v", l.Name, err)
+				break
 			}
 		case resp.TypeError:
 			err, _ := l.R.ReadError()
-			fmt.Println("peek type err1 is", err)
-		default:
-			panic("unexpected response type")
+			log.Warn("Error on peek response type: %v", err)
 		}
 		if err != nil {
 			continue
 		}
+
 		// Get Handler
-		// field 1 connId
+		// Exhaust all values to keep protocol aligned.
 		connId, _ := l.R.ReadBulkString()
-		obj.Id.ConnId, _ = strconv.Atoi(connId)
-		// field 1 for req id
-		abandon := false
 		reqId, _ := l.R.ReadBulkString()
-		obj.Id.ReqId = reqId
+		chunkId, _ := l.R.ReadBulkString()
 		counter, ok := redeo.ReqMap.Get(reqId)
 		if ok == false {
-			fmt.Println("No reqId found")
+			log.Warn("Request not found(%s): %s", l.Name, reqId)
+			// exhaust value field
+			l.R.ReadBulk(nil)
+			continue
 		}
+
+		obj.Id.ConnId, _ = strconv.Atoi(connId)
+		obj.Id.ReqId = reqId
+		obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+
+		abandon := false
 		reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
-		//myPrint("cmd is", counter.(*redeo.ClientReqCounter).Cmd, "atomic counter is", int(reqCounter), "dataShards int", counter.(*redeo.ClientReqCounter).DataShards)
+		// Check if chunks are enough? Shortcut response if YES.
 		if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
 			abandon = true
-		}
-		// field 3 for chunk id
-		chunkId, _ := l.R.ReadBulkString()
-		obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
-		fmt.Println("Lambda peek chunkId is", obj.Id.ChunkId)
-		// if abandon response, cmd must be GET
-		if abandon {
-			obj.Cmd = "get"
 			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
 			if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
-				fmt.Println("LogProxy err ", err)
+				log.Warn("LogProxy err %v", err)
 			}
 		}
-		// field 3 for obj body
+
+		// Read value
 		t9 := time.Now()
 		res, err := l.R.ReadBulk(nil)
-		if err != nil {
-			fmt.Println("response err is ", err)
-		}
-		if !abandon {
-			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
-		}
 		time9 := time.Since(t9)
-		// Skip log on abandon
+		if err != nil {
+			log.Warn("Failed to read value of response(%s): %v", l.Name, err)
+			// Abandon errant data
+			res = nil
+		}
+		// Skip on abandon
 		if abandon {
 			continue
 		}
+
+		cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
 		time0 := time.Since(t2)
 		if err := nanoLog(resp.LogProxy, "get", obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
-			fmt.Println("LogProxy err ", err)
+			log.Warn("LogProxy err %v", err)
 		}
 	}
 }
