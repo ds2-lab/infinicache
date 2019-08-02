@@ -8,7 +8,7 @@ zip Lambda2SmallJPG redeo_lambda
 
 echo "Creating lambda functions..."
 
-for i in {0..13}
+for i in {0..35}
 do
 	aws lambda create-function \
 	--function-name $prefix$name$i \
