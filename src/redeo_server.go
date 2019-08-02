@@ -397,7 +397,6 @@ func setHandler(l *redeo.LambdaInstance, t time.Time) {
 	obj.Id.ReqId, _ = l.R.ReadBulkString()
 	chunkId, _ := l.R.ReadBulkString()
 	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
-	log.Debug("lambda peek chunk id is %d", obj.Id.ChunkId)
 
 	cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
 	if err := nanoLog(resp.LogProxy, "set", obj.Id.ReqId, obj.Id.ChunkId, t.UnixNano(), int64(time.Since(t)), int64(0)); err != nil {
