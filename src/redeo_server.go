@@ -341,7 +341,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 
 		// Get Handler
 		// Exhaust all values to keep protocol aligned.
-		log.Debug("Process %s command...", cmd)
 		connId, _ := l.R.ReadBulkString()
 		reqId, _ := l.R.ReadBulkString()
 		chunkId, _ := l.R.ReadBulkString()
@@ -353,6 +352,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			continue
 		}
 
+		obj.Cmd = cmd
 		obj.Id.ConnId, _ = strconv.Atoi(connId)
 		obj.Id.ReqId = reqId
 		obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
@@ -360,9 +360,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		abandon := false
 		reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
 		// Check if chunks are enough? Shortcut response if YES.
-		if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards && counter.(*redeo.ClientReqCounter).Cmd == "get" {
+		if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards {
 			abandon = true
-			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: "get"}
+			cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: obj.Cmd}
 			if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time.Since(t2)), int64(0)); err != nil {
 				log.Warn("LogProxy err %v", err)
 			}
@@ -382,9 +382,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			continue
 		}
 
-		cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: "get"}
+		cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: obj.Cmd}
 		time0 := time.Since(t2)
-		if err := nanoLog(resp.LogProxy, "get", obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
+		if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
 			log.Warn("LogProxy err %v", err)
 		}
 	}
