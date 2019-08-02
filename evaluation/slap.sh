@@ -81,7 +81,7 @@ function perform(){
         cat /tmp/pidLog.txt
 #        set
         sleep 5s
-        bench $NUMBER $CON $KEYMIN $KEYMAX $SZ $DATA $PARITY 0 $PRESET
+        bench $((KEYMAX-KEYMIN+1)) 1 $KEYMIN $KEYMAX $SZ $DATA $PARITY 0 $PRESET
 #        while [ ! -f /var/run/pidLog.txt ]
 #        do
 #            sleep 1s
