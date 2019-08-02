@@ -312,10 +312,11 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 		var cmd string
 		switch field0 {
 		case resp.TypeError:
-			err, _ := l.R.ReadError()
+			strErr, _ := l.R.ReadError()
+			err = errors.New(strErr)
 			log.Warn("Error on peek response type: %v", err)
 		default:
-			cmd, err := l.R.ReadBulkString()
+			cmd, err = l.R.ReadBulkString()
 			if err != nil {
 				log.Warn("Error on read response type(%s): %v", l.Name, err)
 				break
