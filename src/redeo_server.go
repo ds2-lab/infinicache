@@ -138,7 +138,7 @@ func main() {
 	}
 
 	log.Info("======================================")
-	log.Info("replica: ", *replica, "||", "isPrint:", *isPrint)
+	log.Info("replica: %v || isPrint: %v", *replica, *isPrint)
 	log.Info("======================================")
 	clientLis, err := net.Listen("tcp", ":6378")
 	if err != nil {
@@ -234,14 +234,14 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 	if *replica == true {
 		for i := range group.Arr {
 			node := newLambdaInstance(LambdaStoreName)
-			myPrint("No.", i, "replication lambda store has registered")
+			log.Info("[No.%d replication lambda store has registered.]", i)
 			// register lambda instance to group
 			group.Arr[i] = node
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
-			myPrint("start a new conn, lambda store has connected", node.Cn.RemoteAddr())
+			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
 			// wrap writer and reader
 			node.W = resp.NewRequestWriter(node.Cn)
 			node.R = resp.NewResponseReader(node.Cn)
@@ -249,19 +249,19 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			go lambdaHandler(node)
 			// lambda facing peeking response type
 			go LambdaPeek(node)
-			myPrint("Node alive:[%b]", node.Alive)
+			log.Info("[%v]", node.Alive)
 		}
 	} else {
 		for i := range group.Arr {
 			node := newLambdaInstance("Node" + strconv.Itoa(i))
-			myPrint(node.Name, "lambda store has registered")
+			log.Info("[%s lambda store has registered]", node.Name)
 			// register lambda instance to group
 			group.Arr[i] = node
 			node.Alive = true
 			go lambdaTrigger(node)
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
-			myPrint("start a new conn, lambda store has connected", node.Cn.RemoteAddr())
+			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
 			// wrap writer and reader
 			node.W = resp.NewRequestWriter(node.Cn)
 			node.R = resp.NewResponseReader(node.Cn)
@@ -269,7 +269,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			go lambdaHandler(node)
 			// lambda facing peeking response type
 			go LambdaPeek(node)
-			myPrint("Node alive:[%b]", node.Alive)
+			log.Info("[%v]", node.Alive)
 		}
 	}
 	return group
@@ -408,13 +408,12 @@ func setHandler(l *redeo.LambdaInstance, t time.Time) {
 // lambda Handler
 // lambda handle incoming client request
 func lambdaHandler(l *redeo.LambdaInstance) {
-	myPrint("conn is", l.Cn)
 	for {
 		a := <-l.C /*blocking on lambda facing channel*/
 		// check lambda status first
 		l.AliveLock.Lock()
 		if l.Alive == false {
-			myPrint("Lambda store is not alive, need to activate:", l.Name)
+			log.Info("[Lambda store is not alive, need to activate: %s]", l.Name)
 			l.Alive = true
 			// trigger lambda
 			go lambdaTrigger(l)
@@ -457,14 +456,10 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 		log.Error("Error calling LambdaFunction: %v", err)
 	}
 
-	myPrint("Lambda store deactivated:", l.Name)
+	log.Info("[Lambda store deactivated: %s]", l.Name)
 	l.AliveLock.Lock()
 	l.Alive = false
 	l.AliveLock.Unlock()
-}
-
-func myPrint(msg string, args ...interface{}) {
-	log.Debug(msg, args...)
 }
 
 func collectDataFromLambda(l *redeo.LambdaInstance) {
