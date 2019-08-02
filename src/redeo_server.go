@@ -249,7 +249,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			go lambdaHandler(node)
 			// lambda facing peeking response type
 			go LambdaPeek(node)
-			myPrint(node.Alive)
+			myPrint("Node alive:[%b]", node.Alive)
 		}
 	} else {
 		for i := range group.Arr {
@@ -269,7 +269,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			go lambdaHandler(node)
 			// lambda facing peeking response type
 			go LambdaPeek(node)
-			myPrint(node.Alive)
+			myPrint("Node alive:[%b]", node.Alive)
 		}
 	}
 	return group
@@ -308,8 +308,13 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			continue
 		}
 		t2 := time.Now()
+
+		var cmd string
 		switch field0 {
-		case resp.TypeBulk:
+		case resp.TypeError:
+			err, _ := l.R.ReadError()
+			log.Warn("Error on peek response type: %v", err)
+		default:
 			cmd, err := l.R.ReadBulkString()
 			if err != nil {
 				log.Warn("Error on read response type(%s): %v", l.Name, err)
@@ -328,9 +333,6 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				err = errors.New(cmd)
 				log.Warn("Unsupport response type(%s): %v", l.Name, err)
 			}
-		case resp.TypeError:
-			err, _ := l.R.ReadError()
-			log.Warn("Error on peek response type: %v", err)
 		}
 		if err != nil {
 			continue
@@ -460,10 +462,8 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 	l.AliveLock.Unlock()
 }
 
-func myPrint(a ...interface{}) {
-	if *isPrint {
-		log.Debug(a...)
-	}
+func myPrint(msg string, args ...interface{}) {
+	log.Debug(msg, args...)
 }
 
 func collectDataFromLambda(l *redeo.LambdaInstance) {
