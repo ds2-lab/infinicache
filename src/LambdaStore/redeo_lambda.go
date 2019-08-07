@@ -108,6 +108,8 @@ func HandleRequest() {
 					log.Error("Error on get::flush(key %s): %v", key, err)
 					dataDeposited.Add(1)
 					dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
+					atomic.AddInt32(&active, -1)
+					resetTimer(timeOut)
 					return
 				}
 				d3 := time.Since(t3)
@@ -144,15 +146,16 @@ func HandleRequest() {
 				w.AppendBulkString(connId)
 				w.AppendBulkString(reqId)
 				w.AppendBulkString(chunkId)
-				fmt.Println("chunkId is ", chunkId)
 				if err := w.Flush(); err != nil {
 					log.Error("Error on set::flush(key %s): %v", key, err)
 					dataDeposited.Add(1)
 					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
+					atomic.AddInt32(&active, -1)
+					resetTimer(timeOut)
 					return
 				}
 
-				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length", key, connId, chunkId, len(val))
+				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
 				dataDeposited.Add(1)
 				dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 				atomic.AddInt32(&active, -1)
@@ -228,7 +231,8 @@ func HandleRequest() {
 }
 
 func getTimeout() time.Duration {
-	return time.Duration(int64(math.Ceil(float64(time.Now().Sub(start).Nanoseconds() + TICK_ERROR) / float64(TICK))) * TICK - TICK_ERROR)
+	now := time.Now().Sub(start).Nanoseconds()
+	return time.Duration(int64(math.Ceil(float64(now + TICK_ERROR) / float64(TICK))) * TICK - TICK_ERROR - now)
 }
 
 func resetTimer(timer *time.Timer) {
