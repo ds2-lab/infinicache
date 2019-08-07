@@ -241,7 +241,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 	if *replica == true {
 		for i := range group.Arr {
 			//node := newLambdaInstance(LambdaStoreName)
-			node := newLambdaInstance()
+			node := newLambdaInstance(LambdaStoreName)
 			log.Info("[No.%d replication lambda store has registered.]", i)
 			// register lambda instance to group
 			group.Arr[i] = node
@@ -265,7 +265,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			// register lambda instance to group
 			group.Arr[i] = node
 			node.Alive = true
-			go lambdaTrigger(node)
+			validateLambda(node)
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
 			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
@@ -429,6 +429,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		chunkId := strconv.FormatInt(a.Id.ChunkId, 10)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
+		atomic.AddInt32(&l.Busy, 1)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
 			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Body)
@@ -443,6 +444,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				log.Error("Flush pipeline error: %v", err)
 			}
 		}
+		atomic.AddInt32(&l.Busy, -1)
 	}
 }
 
@@ -475,6 +477,9 @@ func lambdaTriggerLocked(l *redeo.LambdaInstance) {
 	l.AliveLock.Lock()
 	l.Alive = false
 	l.AliveLock.Unlock()
+	if atomic.LoadInt32(&l.Busy) > 0 {
+		validateLambda(l)
+	}
 }
 
 func collectData(l *redeo.LambdaInstance) {
