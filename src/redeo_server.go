@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"io"
@@ -21,7 +22,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 )
 
 const MaxLambdaStores = 14
@@ -33,7 +33,7 @@ var (
 	prefix        = flag.String("prefix", "log", "log file prefix")
 	dataCollected sync.WaitGroup
 	log           = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_INFO,
+		Level: logger.LOG_LEVEL_ALL,
 	}
 )
 
@@ -264,7 +264,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 		}
 	} else {
 		for i := range group.Arr {
-			node := newLambdaInstance("Node" + strconv.Itoa(i))
+			node := newLambdaInstance("Proxy1Node" + strconv.Itoa(i))
 			log.Info("[%s lambda store has registered]", node.Name)
 			// register lambda instance to group
 			group.Arr[i] = node
@@ -393,6 +393,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			continue
 		}
 
+		log.Debug("GET peek complete, send to client channel", connId, obj.Id.ReqId, chunkId)
 		cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: obj.Cmd}
 		time0 := time.Since(t2)
 		if err := nanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, t2.UnixNano(), int64(time0), int64(time9)); err != nil {
@@ -402,6 +403,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 }
 
 func setHandler(l *redeo.LambdaInstance, t time.Time) {
+	log.Debug("In lambda set peek")
 	var obj redeo.Response
 	connId, _ := l.R.ReadBulkString()
 	obj.Id.ConnId, _ = strconv.Atoi(connId)
@@ -409,6 +411,7 @@ func setHandler(l *redeo.LambdaInstance, t time.Time) {
 	chunkId, _ := l.R.ReadBulkString()
 	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
 
+	log.Debug("SET peek complete, send to client channel, %s,%s,%s", connId, obj.Id.ReqId, chunkId)
 	cMap[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
 	if err := nanoLog(resp.LogProxy, "set", obj.Id.ReqId, obj.Id.ChunkId, t.UnixNano(), int64(time.Since(t)), int64(0)); err != nil {
 		log.Warn("LogProxy err %v", err)
@@ -459,6 +462,7 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
+	log.Debug("lambda %s being triggered", l.Name)
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 
 	_, err := client.Invoke(&lambda.InvokeInput{FunctionName: aws.String(l.Name)})
