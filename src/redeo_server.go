@@ -174,12 +174,18 @@ func main() {
 			select {
 			case <-sig:
 				log.Info("Receive signal, killing server...")
+				close(sig)
 				t.Stop()
 				if err := nanolog.Flush(); err != nil {
 					log.Error("Failed to save data: %v", err)
 				}
 
+				// Close server
+				log.Info("Closing server...")
+				srv.Close(clientLis)
+
 				// Collect data
+				log.Info("Collecting data...")
 				for _, node := range group.Arr {
 					node.W.WriteCmdString("data")
 					err := node.W.Flush()
@@ -193,18 +199,12 @@ func main() {
 				dataCollected.Wait()
 				if err := nanolog.Flush(); err != nil {
 					log.Error("Failed to save data from lambdas: %v", err)
-				}
-
-				err := os.Remove(filePath)
-				if err != nil {
-					log.Error("Failed to remove PID: %v", err)
+				} else {
+					log.Info("Data collected.")
 				}
 
 				lambdaLis.Close()
-				clientLis.Close()
 				close(done)
-				log.Info("Server closed.")
-				// Collect data
 
 				return
 			case <-t.C:
@@ -218,13 +218,24 @@ func main() {
 	}()
 
 	// Start serving (blocking)
-	err = srv.MyServe(clientLis, cMap, group, nanoLog, done)
+	err = srv.MyServe(clientLis, cMap, group, nanoLog)
 	if err != nil {
-		log.Error("Failed to serve clients: %v", err)
-		os.Exit(1)
-		return
+		select {
+		case <-sig:
+			// Normal close
+		default:
+			log.Error("Error on serve clients: %v", err)
+		}
+		srv.Release()
 	}
+	log.Info("Server closed.")
 
+	// Wait for data collection
+	<-done
+	err = os.Remove(filePath)
+	if err != nil {
+		log.Error("Failed to remove PID: %v", err)
+	}
 	os.Exit(0)
 }
 
