@@ -34,19 +34,20 @@ const OP_GET = "1"
 const OP_SET = "0"
 
 var (
-	server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
-	lambdaConn net.Conn
-	//lambdaConn, _ = net.Dial("tcp", "172.31.18.174:6379") // 10Gbps ec2 server Proxy1
+	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
+	server = "172.31.84.57:6379" // t2.micro ec2 server UbuntuProxy0 private ip under vpc
+	//lambdaConn net.Conn
 	srv     = redeo.NewServer(nil)
 	myMap   = make(map[string]*Chunk)
 	isFirst = true
 	log     = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
+	timeOut = time.NewTimer(15 * time.Second)
 )
 
 func HandleRequest() {
-	timeOut := time.Duration(300 * time.Second)
+	//timeOut := time.Duration(10 * time.Second)
 	done := make(chan struct{})
 	dataGatherer := make(chan *DataEntry, 10)
 	dataDepository := make([]*DataEntry, 0, 100)
@@ -59,6 +60,7 @@ func HandleRequest() {
 			log.Error("Failed to connect server %s: %v", server, connErr)
 			return
 		}
+		log.Info("conn is ", lambdaConn.RemoteAddr())
 
 		isFirst = false
 		go func() {
@@ -104,6 +106,9 @@ func HandleRequest() {
 
 				dt := time.Since(t)
 
+				timeOut.Reset(240 * time.Second)
+				log.Info("reset timeout",timeOut)
+				log.Info("conn is ", lambdaConn.RemoteAddr())
 				log.Debug("AppendBody duration is ", d2)
 				log.Debug("Flush duration is ", d3)
 				log.Debug("Total duration is", dt)
@@ -139,6 +144,8 @@ func HandleRequest() {
 					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
 					return
 				}
+				timeOut.Reset(240 * time.Second)
+				log.Info("reset timeout",timeOut)
 
 				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length", key, connId, chunkId, len(val))
 				dataDeposited.Add(1)
@@ -199,7 +206,7 @@ func HandleRequest() {
 	select {
 	case <-done:
 		return
-	case <-time.After(timeOut):
+	case <-timeOut.C:
 		log.Debug("Lambda timeout, going to return function")
 		return
 	}
