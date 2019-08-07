@@ -45,7 +45,7 @@ var (
 	myMap   = make(map[string]*Chunk)
 	isFirst = true
 	log     = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_WARN,
+		Level: logger.LOG_LEVEL_ALL,
 	}
 	start time.Time
 )
@@ -160,6 +160,7 @@ func HandleRequest() {
 				dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 				atomic.AddInt32(&active, -1)
 				resetTimer(timeOut)
+				//log.Debug()
 			})
 
 			srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {

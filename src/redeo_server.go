@@ -26,6 +26,7 @@ import (
 
 const MaxLambdaStores = 14
 const LambdaStoreName = "LambdaStore"
+const LambdaPrefix = "Proxy1Node"
 
 var (
 	replica       = flag.Bool("replica", true, "Enable lambda replica deployment")
@@ -187,13 +188,8 @@ func main() {
 				// Collect data
 				log.Info("Collecting data...")
 				for _, node := range group.Arr {
-					node.W.WriteCmdString("data")
-					err := node.W.Flush()
-					if err != nil {
-						log.Warn("Failed to submit data request: %v", err)
-						continue
-					}
 					dataCollected.Add(1)
+					go collectData(node)
 				}
 				log.Info("Waiting data from Lambda")
 				dataCollected.Wait()
@@ -244,12 +240,12 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 	group := redeo.Group{Arr: make([]*redeo.LambdaInstance, MaxLambdaStores), MemCounter: 0}
 	if *replica == true {
 		for i := range group.Arr {
-			node := newLambdaInstance(LambdaStoreName)
+			//node := newLambdaInstance(LambdaStoreName)
+			node := newLambdaInstance()
 			log.Info("[No.%d replication lambda store has registered.]", i)
 			// register lambda instance to group
 			group.Arr[i] = node
-			node.Alive = true
-			go lambdaTrigger(node)
+			validateLambda(node)
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
 			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
@@ -339,7 +335,7 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 				setHandler(l, t2)
 				err = errors.New("continue")
 			case "data":
-				collectDataFromLambda(l)
+				receiveData(l)
 				err = errors.New("continue")
 			default:
 				err = errors.New(cmd)
@@ -424,14 +420,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 	for {
 		a := <-l.C /*blocking on lambda facing channel*/
 		// check lambda status first
-		l.AliveLock.Lock()
-		if l.Alive == false {
-			log.Info("[Lambda store is not alive, need to activate: %s]", l.Name)
-			l.Alive = true
-			// trigger lambda
-			go lambdaTrigger(l)
-		}
-		l.AliveLock.Unlock()
+		validateLambda(l)
 		//*
 		// req from client
 		//*
@@ -457,7 +446,19 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 	}
 }
 
-func lambdaTrigger(l *redeo.LambdaInstance) {
+func validateLambda(l *redeo.LambdaInstance) {
+	if l.Alive == false {
+		l.AliveLock.Lock()
+		if l.Alive == false {
+			log.Info("[Lambda store is not alive, need to activate: %s]", l.Name)
+			l.Alive = true
+			go lambdaTriggerLocked(l)
+		}
+		l.AliveLock.Unlock()
+	}
+}
+
+func lambdaTriggerLocked(l *redeo.LambdaInstance) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -476,7 +477,18 @@ func lambdaTrigger(l *redeo.LambdaInstance) {
 	l.AliveLock.Unlock()
 }
 
-func collectDataFromLambda(l *redeo.LambdaInstance) {
+func collectData(l *redeo.LambdaInstance) {
+	// trigger lambda
+	validateLambda(l)
+	l.W.WriteCmdString("data")
+	err := l.W.Flush()
+	if err != nil {
+		log.Warn("Failed to submit data request: %v", err)
+		dataCollected.Done()
+	}
+}
+
+func receiveData(l *redeo.LambdaInstance) {
 	strLen, err := l.R.ReadBulkString()
 	len := 0
 	if err != nil {
