@@ -260,11 +260,10 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 		}
 	} else {
 		for i := range group.Arr {
-			node := newLambdaInstance("Proxy1Node" + strconv.Itoa(i))
+			node := newLambdaInstance("Node" + strconv.Itoa(i))
 			log.Info("[%s lambda store has registered]", node.Name)
 			// register lambda instance to group
 			group.Arr[i] = node
-			node.Alive = true
 			validateLambda(node)
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
@@ -330,6 +329,9 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 			}
 
 			switch cmd {
+			case "pong":
+				pongHandler(l)
+				err = errors.New("continue")
 			case "get":
 			case "set":
 				setHandler(l, t2)
@@ -398,8 +400,15 @@ func LambdaPeek(l *redeo.LambdaInstance) {
 	}
 }
 
+func pongHandler(l *redeo.LambdaInstance) {
+	log.Debug("In lambda PONG peek, %s", l.Name)
+	// pong peek lambdaId
+	_, _ = l.R.ReadBulkString()
+
+	l.ChanValidate <- atomic.CompareAndSwapInt32(&l.Validating, 1, 0)
+}
 func setHandler(l *redeo.LambdaInstance, t time.Time) {
-	log.Debug("In lambda set peek")
+	log.Debug("In lambda set peek, %s", l.Name)
 	var obj redeo.Response
 	connId, _ := l.R.ReadBulkString()
 	obj.Id.ConnId, _ = strconv.Atoi(connId)
@@ -420,7 +429,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 	for {
 		a := <-l.C /*blocking on lambda facing channel*/
 		// check lambda status first
-		validateLambda(l)
+		triggered := validateLambda(l)
 		//*
 		// req from client
 		//*
@@ -429,7 +438,7 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 		chunkId := strconv.FormatInt(a.Id.ChunkId, 10)
 		// get cmd argument
 		cmd := strings.ToLower(a.Cmd)
-		atomic.AddInt32(&l.Busy, 1)
+		log.Debug("trigger: %v (%s)", triggered, l.Name)
 		switch cmd {
 		case "set": /*set or two argument cmd*/
 			l.W.MyWriteCmd(a.Cmd, connId, a.Id.ReqId, chunkId, a.Key, a.Body)
@@ -444,20 +453,31 @@ func lambdaHandler(l *redeo.LambdaInstance) {
 				log.Error("Flush pipeline error: %v", err)
 			}
 		}
-		atomic.AddInt32(&l.Busy, -1)
 	}
 }
 
-func validateLambda(l *redeo.LambdaInstance) {
+func writePing(l *redeo.LambdaInstance) {
+	l.W.WriteCmdString("ping")
+	err := l.W.Flush()
+	if err != nil {
+		log.Error("Flush pipeline error: %v", err)
+	}
+}
+func validateLambda(l *redeo.LambdaInstance) bool {
 	if l.Alive == false {
 		l.AliveLock.Lock()
 		if l.Alive == false {
 			log.Info("[Lambda store is not alive, need to activate: %s]", l.Name)
 			l.Alive = true
+			l.AliveLock.Unlock()
 			go lambdaTriggerLocked(l)
+			writePing(l)
+			return true
+		} else {
+			l.AliveLock.Unlock()
 		}
-		l.AliveLock.Unlock()
 	}
+	return false
 }
 
 func lambdaTriggerLocked(l *redeo.LambdaInstance) {
@@ -477,7 +497,9 @@ func lambdaTriggerLocked(l *redeo.LambdaInstance) {
 	l.AliveLock.Lock()
 	l.Alive = false
 	l.AliveLock.Unlock()
-	if atomic.LoadInt32(&l.Busy) > 0 {
+
+	if atomic.LoadInt32(&l.Validating) > 0 {
+		time.Sleep(1 * time.Microsecond)
 		validateLambda(l)
 	}
 }

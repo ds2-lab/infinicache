@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"github.com/wangaoone/s3gof3r"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"sync"
@@ -35,16 +35,18 @@ type DataEntry struct {
 const OP_GET = "1"
 const OP_SET = "0"
 const TICK = int64(100 * time.Millisecond)
+const TICK_ERROR_EXTEND = int64(50 * time.Millisecond)
 const TICK_ERROR = int64(2 * time.Millisecond)
 
 var (
 	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
-	server = "172.31.84.57:6379" // t2.micro ec2 server UbuntuProxy0 private ip under vpc
+	//server = "172.31.84.57:6379" // t2.micro ec2 server UbuntuProxy0 private ip under vpc
+	server     = "52.87.169.1:6379" // t2.micro ec2 server UbuntuProxy0 public ip under vpc
 	lambdaConn net.Conn
-	srv     = redeo.NewServer(nil)
-	myMap   = make(map[string]*Chunk)
-	isFirst = true
-	log     = &logger.ColorLogger{
+	srv        = redeo.NewServer(nil)
+	myMap      = make(map[string]*Chunk)
+	isFirst    = true
+	log        = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_ALL,
 	}
 	start time.Time
@@ -53,7 +55,7 @@ var (
 func HandleRequest() {
 	var active int32
 	start = time.Now()
-	timeOut := time.NewTimer(getTimeout())
+	timeOut := time.NewTimer(getTimeout(TICK_ERROR))
 	done := make(chan struct{})
 	dataGatherer := make(chan *DataEntry, 10)
 	dataDepository := make([]*DataEntry, 0, 100)
@@ -198,9 +200,18 @@ func HandleRequest() {
 				close(done)
 			})
 
+			srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
+				atomic.AddInt32(&active, 1)
+				pong(w)
+				atomic.AddInt32(&active, -1)
+				resetTimerWithExtension(timeOut, TICK_ERROR_EXTEND)
+			})
+
 			srv.Serve_client(lambdaConn)
 		}()
 	}
+	// append PONG back to proxy on being triggered
+	pongHandler(lambdaConn)
 
 	// data gathering
 	go func() {
@@ -231,12 +242,30 @@ func HandleRequest() {
 	}
 }
 
-func getTimeout() time.Duration {
+func pongHandler(conn net.Conn) {
+	pongWriter := resp.NewResponseWriter(conn)
+	pong(pongWriter)
+}
+
+func pong(w resp.ResponseWriter) {
+	w.AppendBulkString("pong")
+	w.AppendBulkString("1")
+	if err := w.Flush(); err != nil {
+		log.Error("Error on PONG flush: %v", err)
+		return
+	}
+}
+
+func getTimeout(errExtend int64) time.Duration {
 	now := time.Now().Sub(start).Nanoseconds()
-	return time.Duration(int64(math.Ceil(float64(now + TICK_ERROR) / float64(TICK))) * TICK - TICK_ERROR - now)
+	return time.Duration(int64(math.Ceil(float64(now+errExtend)/float64(TICK)))*TICK - TICK_ERROR - now)
 }
 
 func resetTimer(timer *time.Timer) {
+	resetTimerWithExtension(timer, TICK_ERROR)
+}
+
+func resetTimerWithExtension(timer *time.Timer, errExtend int64) {
 	// Drain the timer to be accurate and safe to reset.
 	if !timer.Stop() {
 		select {
@@ -244,7 +273,7 @@ func resetTimer(timer *time.Timer) {
 		default:
 		}
 	}
-	timeout := getTimeout()
+	timeout := getTimeout(errExtend)
 	timer.Reset(timeout)
 	log.Debug("Timeout reset: %v", timeout)
 }
