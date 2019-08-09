@@ -254,6 +254,7 @@ func pong(w resp.ResponseWriter) {
 		log.Error("Error on PONG flush: %v", err)
 		return
 	}
+	log.Debug("Pong complete")
 }
 
 func getTimeout(errExtend int64) time.Duration {

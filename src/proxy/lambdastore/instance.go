@@ -76,14 +76,13 @@ func (ins *Instance) Validate() bool {
 		// Not validating. Validate...
 		ins.Validated = make(chan bool)
 
-		if ins.Alive == false && ins.tryTriggerLambda() {
-			return true
+		triggered := ins.Alive == false && ins.tryTriggerLambda()
+ 		if !triggered {
+			ins.Ping()
 		}
 
-		ins.Ping()
 		<-ins.Validated
-
-		return false
+		return triggered
 	default:
 		// Validating... Wait and return false
 		<-ins.Validated
