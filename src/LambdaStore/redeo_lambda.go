@@ -70,7 +70,7 @@ func HandleRequest() {
 			log.Error("Failed to connect server %s: %v", server, connErr)
 			return
 		}
-		log.Info("Connection to %v established.", lambdaConn.RemoteAddr())
+		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), time.Since(start))
 
 		isFirst = false
 		go func() {
@@ -236,7 +236,7 @@ func HandleRequest() {
 				resetTimer(timeOut)
 				break
 			}
-			log.Debug("Lambda timeout, going to return function")
+			log.Debug("Lambda timeout, return(%v).", time.Since(start))
 			return
 		}
 	}
@@ -254,7 +254,7 @@ func pong(w resp.ResponseWriter) {
 		log.Error("Error on PONG flush: %v", err)
 		return
 	}
-	log.Debug("Pong complete")
+	log.Debug("Pong complete(%v).", time.Since(start))
 }
 
 func getTimeout(errExtend int64) time.Duration {

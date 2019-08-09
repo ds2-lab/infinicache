@@ -487,5 +487,6 @@ func receiveData(l *lambdastore.Instance) {
 		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 		nanoLog(resp.LogLambda, "data", dat)
 	}
+	log.Debug("Data collected, %d in total (%s).", len, l.Name)
 	dataCollected.Done()
 }
