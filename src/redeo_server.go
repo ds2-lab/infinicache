@@ -244,7 +244,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			log.Info("[No.%d replication lambda store has registered.]", i)
 			// register lambda instance to group
 			group.Arr[i] = node
-			node.Validate()
+			go node.Validate()
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
 			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
@@ -264,7 +264,7 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 			log.Info("[%s lambda store has registered]", node.Name)
 			// register lambda instance to group
 			group.Arr[i] = node
-			node.Validate()
+			go node.Validate()
 			// start a new server to receive conn from lambda store
 			node.Cn = lambdaSrv.Accept(lambdaLis)
 			log.Info("[start a new conn, lambda store has connected: %v]", node.Cn.RemoteAddr())
