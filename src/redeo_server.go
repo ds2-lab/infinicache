@@ -283,10 +283,14 @@ func initial(lambdaSrv *redeo.Server) redeo.Group {
 
 // create new lambda instance
 func newLambdaInstance(name string) *redeo.LambdaInstance {
+	validated := make(chan bool)
+	close(validated)
+
 	return &redeo.LambdaInstance{
 		Name:  name,
 		Alive: false,
 		C:     make(chan *redeo.ServerReq, 1024*1024),
+		Validated: validated,	// Initialize with a closed channel.
 	}
 }
 
@@ -405,8 +409,14 @@ func pongHandler(l *redeo.LambdaInstance) {
 	// pong peek lambdaId
 	_, _ = l.R.ReadBulkString()
 
-	l.ChanValidate <- atomic.CompareAndSwapInt32(&l.Validating, 1, 0)
+	select {
+	case <-l.Validated:
+		// Validated
+	default:
+		close(l.Validated)
+	}
 }
+
 func setHandler(l *redeo.LambdaInstance, t time.Time) {
 	log.Debug("In lambda set peek, %s", l.Name)
 	var obj redeo.Response
@@ -463,44 +473,74 @@ func writePing(l *redeo.LambdaInstance) {
 		log.Error("Flush pipeline error: %v", err)
 	}
 }
+
 func validateLambda(l *redeo.LambdaInstance) bool {
-	if l.Alive == false {
-		l.AliveLock.Lock()
-		if l.Alive == false {
-			log.Info("[Lambda store is not alive, need to activate: %s]", l.Name)
-			l.Alive = true
-			l.AliveLock.Unlock()
-			go lambdaTriggerLocked(l)
-			writePing(l)
+	select {
+	case <-l.Validated:
+		// Not validating. Validate...
+		l.Validated = make(chan bool)
+
+		if l.Alive == false && tryTriggerLambda(l) {
 			return true
-		} else {
-			l.AliveLock.Unlock()
 		}
+
+		writePing(l)
+		<-l.Validated
+
+		return false
+	default:
+		// Validating... Wait and return false
+		<-l.Validated
+		return false
 	}
-	return false
 }
 
-func lambdaTriggerLocked(l *redeo.LambdaInstance) {
+func tryTriggerLambda(l *redeo.LambdaInstance) bool {
+	l.AliveLock.Lock()
+	defer l.AliveLock.Unlock()
+
+	if l.Alive == true {
+		return false
+	}
+
+	log.Info("[Lambda store is not alive, need to activate %s]", l.Name)
+	l.Alive = true
+	go triggerLambda(l)
+
+	return true
+}
+
+func triggerLambda(l *redeo.LambdaInstance) {
+	l.AliveLock.Lock()
+	defer l.AliveLock.Unlock()
+
+	triggerLambdaLocked(l)
+	for {
+		select {
+		case <-l.Validated:
+			l.Alive = false
+			return
+		default:
+		}
+
+		// Validating, retrigger.
+		log.Info("[Validating lambda store,  reactivate %s]", l.Name)
+		triggerLambdaLocked(l)
+	}
+}
+
+func triggerLambdaLocked(l *redeo.LambdaInstance) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-
-	log.Debug("lambda %s being triggered", l.Name)
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 
+	log.Debug("Lambda store %s being activated", l.Name)
 	_, err := client.Invoke(&lambda.InvokeInput{FunctionName: aws.String(l.Name)})
 	if err != nil {
-		log.Error("Error calling LambdaFunction: %v", err)
-	}
-
-	log.Info("[Lambda store deactivated: %s]", l.Name)
-	l.AliveLock.Lock()
-	l.Alive = false
-	l.AliveLock.Unlock()
-
-	if atomic.LoadInt32(&l.Validating) > 0 {
-		time.Sleep(1 * time.Microsecond)
-		validateLambda(l)
+		log.Error("Error on activating lambda store %s: %v", l.Name, err)
+	} else {
+		log.Info("[Lambda store %s is deactivated]", l.Name)
 	}
 }
 
