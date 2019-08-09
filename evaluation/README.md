@@ -3,10 +3,16 @@
 # deployment
 
 AMI: ubuntu-xenial-16.04
-install go as in: https://tecadmin.net/install-go-on-ubuntu/
-go version: 1.11.12
+Golang: 1.12
 
-export GOPATH=$HOME/go
+~~~
+sudo add-apt-repository ppa:longsleep/golang-backports
+sudo apt-get update
+sudo apt-get -y upgrade
+sudo apt-get install golang-go
+
+echo "export GOPATH=$HOME/go" >> $HOME/.bashrc
+. $HOME/.bashrc
 mkdir -p $HOME/go/src/github.com/wangaoone
 cd $HOME/go/src/github.com/wangaoone
 git clone https://github.com/wangaoone/LambdaObjectstore.git LambdaObjectstore
@@ -14,16 +20,16 @@ git clone https://github.com/wangaoone/redeo.git redeo
 git clone https://github.com/wangaoone/ecRedis.git ecRedis
 git clone https://github.com/wangaoone/redbench.git redbench
 
-cd ../LambdaObjectstore/
+cd LambdaObjectstore/
 git checkout config/[tianium]
 git pull
-cd ../src
+cd src
 go get
 
 cd $HOME/go/src/github.com/wangaoone/redbench
 go get
 
 sudo apt install awscli
-# sudo apt install python3-pip
-
 cd $HOME/go/src/github.com/wangaoone/LambdaObjectstore/evaluation
+make deploy
+~~~
