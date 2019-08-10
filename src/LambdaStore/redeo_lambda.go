@@ -55,16 +55,16 @@ var (
 	myMap      = make(map[string]*Chunk)
 	isFirst    = true
 	log        = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_ALL,
+		Level: logger.LOG_LEVEL_WARN,
 	}
 	dataGatherer = make(chan *DataEntry, 10)
 	dataDepository = make([]*DataEntry, 0, 100)
 	dataDeposited sync.WaitGroup
+	timeOut = NewLambdaTimer(0)
 
 	active  int32
 	start   time.Time
 	done    chan struct{}
-	timeOut *LambdaTimer
 )
 
 type LambdaTimer struct {
@@ -111,11 +111,10 @@ func HandleRequest() {
 	start = time.Now()
 	atomic.StoreInt32(&active, 0)
 	done = make(chan struct{})
-	timeOut = NewLambdaTimer(0)
 	var clear sync.WaitGroup
 
 	if isFirst == true {
-		timeOut.Reset()
+		timeOut.ResetWithExtension(TICK_ERROR)
 
 		log.Debug("Ready to connect %s", server)
 		var connErr error
@@ -163,7 +162,6 @@ func HandleRequest() {
 					timeOut.Reset()
 					break
 				}
-				timeOut.Stop()
 				log.Debug("Lambda timeout, return(%v).", time.Since(start))
 				Done()
 				return
@@ -174,7 +172,6 @@ func HandleRequest() {
 	clear.Wait()
 	log.Debug("All routing cleared at %v", time.Since(start))
 	done = nil
-	timeOut = nil
 }
 
 func Done() {
@@ -198,7 +195,7 @@ func pong(w resp.ResponseWriter) {
 		log.Error("Error on PONG flush: %v", err)
 		return
 	}
-	log.Debug("Pong complete(%v).", time.Since(start))
+	log.Debug("PONG(%v)", time.Since(start))
 }
 
 // func remoteGet(bucket string, key string) []byte {
@@ -273,9 +270,9 @@ func main() {
 		d3 := time.Since(t3)
 		dt := time.Since(t)
 
-		log.Debug("AppendBody duration is ", d2)
-		log.Debug("Flush duration is ", d3)
-		log.Debug("Total duration is", dt)
+		log.Debug("AppendBody duration is %v", d2)
+		log.Debug("Flush duration is %v", d3)
+		log.Debug("Total duration is %v", dt)
 		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
 		dataDeposited.Add(1)
 		dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
@@ -320,7 +317,7 @@ func main() {
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
 		timeOut.Stop()
 
-		log.Debug("in the data function")
+		log.Debug("In DATA handler")
 
 		// Wait for data depository.
 		dataDeposited.Wait()
@@ -357,8 +354,9 @@ func main() {
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
-		defer timeOut.ResetWithExtension(TICK_ERROR)
+		defer timeOut.ResetWithExtension(TICK_ERROR_EXTEND)
 
+		log.Debug("PING")
 		pong(w)
 	})
 
