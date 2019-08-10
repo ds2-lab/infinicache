@@ -49,17 +49,21 @@ var (
 	log        = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_ALL,
 	}
-	start time.Time
+	dataGatherer = make(chan *DataEntry, 10)
+	dataDepository = make([]*DataEntry, 0, 100)
+	dataDeposited sync.WaitGroup
+
+	active  int32
+	start   time.Time
+	done    chan struct{}
+	timeOut *time.Timer
 )
 
 func HandleRequest() {
-	var active int32
 	start = time.Now()
-	timeOut := time.NewTimer(getTimeout(TICK_ERROR))
-	done := make(chan struct{})
-	dataGatherer := make(chan *DataEntry, 10)
-	dataDepository := make([]*DataEntry, 0, 100)
-	var dataDeposited sync.WaitGroup
+	atomic.StoreInt32(&active, 0)
+	done = make(chan struct{})
+	timeOut = time.NewTimer(getTimeout(TICK_ERROR))
 
 	if isFirst == true {
 		log.Debug("Ready to connect %s", server)
@@ -74,139 +78,6 @@ func HandleRequest() {
 
 		isFirst = false
 		go func() {
-			// Define handlers
-			srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-				atomic.AddInt32(&active, 1)
-				t := time.Now()
-				log.Debug("In GET handler")
-
-				connId := c.Arg(0).String()
-				reqId := c.Arg(1).String()
-				key := c.Arg(3).String()
-
-				//val, err := myCache.Get(key)
-				//if err == false {
-				//	log.Debug("not found")
-				//}
-				chunk, found := myMap[key]
-				if found == false {
-					log.Debug("%s not found", key)
-					dataDeposited.Add(1)
-					dataGatherer <- &DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
-					return
-				}
-
-				// construct lambda store response
-				w.AppendBulkString("get")
-				w.AppendBulkString(connId)
-				w.AppendBulkString(reqId)
-				w.AppendBulkString(chunk.id)
-				t2 := time.Now()
-				w.AppendBulk(chunk.body)
-				d2 := time.Since(t2)
-
-				t3 := time.Now()
-				if err := w.Flush(); err != nil {
-					log.Error("Error on get::flush(key %s): %v", key, err)
-					dataDeposited.Add(1)
-					dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
-					atomic.AddInt32(&active, -1)
-					resetTimer(timeOut)
-					return
-				}
-				d3 := time.Since(t3)
-				dt := time.Since(t)
-
-				log.Debug("AppendBody duration is ", d2)
-				log.Debug("Flush duration is ", d3)
-				log.Debug("Total duration is", dt)
-				log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
-				dataDeposited.Add(1)
-				dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
-				atomic.AddInt32(&active, -1)
-				resetTimer(timeOut)
-			})
-
-			srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
-				atomic.AddInt32(&active, 1)
-				t := time.Now()
-				log.Debug("In SET handler")
-				//if c.ArgN() != 3 {
-				//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
-				//	return
-				//}
-
-				connId := c.Arg(0).String()
-				reqId := c.Arg(1).String()
-				chunkId := c.Arg(2).String()
-				key := c.Arg(3).String()
-				val := c.Arg(4).Bytes()
-				myMap[key] = &Chunk{chunkId, val}
-
-				// write Key, clientId, chunkId, body back to server
-				w.AppendBulkString("set")
-				w.AppendBulkString(connId)
-				w.AppendBulkString(reqId)
-				w.AppendBulkString(chunkId)
-				if err := w.Flush(); err != nil {
-					log.Error("Error on set::flush(key %s): %v", key, err)
-					dataDeposited.Add(1)
-					dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
-					atomic.AddInt32(&active, -1)
-					resetTimer(timeOut)
-					return
-				}
-
-				log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
-				dataDeposited.Add(1)
-				dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
-				atomic.AddInt32(&active, -1)
-				resetTimer(timeOut)
-				//log.Debug()
-			})
-
-			srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
-				log.Debug("in the data function")
-
-				timeOut.Stop()
-
-				dataDeposited.Wait()
-
-				w.AppendBulkString("data")
-				w.AppendBulkString(strconv.Itoa(len(dataDepository)))
-				for _, entry := range dataDepository {
-					format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d",
-						entry.op, entry.reqId, entry.chunkId, entry.status,
-						entry.duration, entry.durationAppend, entry.durationFlush)
-					w.AppendBulkString(format)
-
-					//w.AppendBulkString(entry.op)
-					//w.AppendBulkString(entry.status)
-					//w.AppendBulkString(entry.reqId)
-					//w.AppendBulkString(entry.chunkId)
-					//w.AppendBulkString(entry.durationAppend.String())
-					//w.AppendBulkString(entry.durationFlush.String())
-					//w.AppendBulkString(entry.duration.String())
-				}
-				if err := w.Flush(); err != nil {
-					log.Error("Error on data::flush: %v", err)
-					return
-				}
-				log.Debug("data complete")
-				lambdaConn.Close()
-				lambdaConn = nil
-				// No need to close server, it will serve the new connection next time.
-				isFirst = true
-				close(done)
-			})
-
-			srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
-				atomic.AddInt32(&active, 1)
-				pong(w)
-				atomic.AddInt32(&active, -1)
-				resetTimerWithExtension(timeOut, TICK_ERROR_EXTEND)
-			})
-
 			srv.Serve_client(lambdaConn)
 		}()
 	}
@@ -236,10 +107,15 @@ func HandleRequest() {
 				resetTimer(timeOut)
 				break
 			}
+			close(done)
+			timeOut.Stop()
 			log.Debug("Lambda timeout, return(%v).", time.Since(start))
 			return
 		}
 	}
+
+	done = nil
+	timeOut = nil
 }
 
 func pongHandler(conn net.Conn) {
@@ -283,7 +159,7 @@ func remoteGet(bucket string, key string) []byte {
 	log.Debug("get from remote storage")
 	k, err := s3gof3r.EnvKeys()
 	if err != nil {
-		log.Debug("%v", err)
+		log.Debug("EnvKeys error: %v", err)
 	}
 
 	s3 := s3gof3r.New("", k)
@@ -291,7 +167,7 @@ func remoteGet(bucket string, key string) []byte {
 
 	reader, _, err := b.GetReader(key, nil)
 	if err != nil {
-		log.Debug("%v", err)
+		log.Debug("GetReader error: %v", err)
 	}
 	obj := streamToByte(reader)
 	return obj
@@ -301,11 +177,145 @@ func streamToByte(stream io.Reader) []byte {
 	buf := new(bytes.Buffer)
 	_, err := buf.ReadFrom(stream)
 	if err != nil {
-		log.Debug("%v", err)
+		log.Debug("ReadFrom error: %v", err)
 	}
 	return buf.Bytes()
 }
 
 func main() {
+	// Define handlers
+	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
+		atomic.AddInt32(&active, 1)
+		t := time.Now()
+		log.Debug("In GET handler")
+
+		connId := c.Arg(0).String()
+		reqId := c.Arg(1).String()
+		key := c.Arg(3).String()
+
+		//val, err := myCache.Get(key)
+		//if err == false {
+		//	log.Debug("not found")
+		//}
+		chunk, found := myMap[key]
+		if found == false {
+			log.Debug("%s not found", key)
+			dataDeposited.Add(1)
+			dataGatherer <- &DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
+			return
+		}
+
+		// construct lambda store response
+		w.AppendBulkString("get")
+		w.AppendBulkString(connId)
+		w.AppendBulkString(reqId)
+		w.AppendBulkString(chunk.id)
+		t2 := time.Now()
+		w.AppendBulk(chunk.body)
+		d2 := time.Since(t2)
+
+		t3 := time.Now()
+		if err := w.Flush(); err != nil {
+			log.Error("Error on get::flush(key %s): %v", key, err)
+			dataDeposited.Add(1)
+			dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
+			atomic.AddInt32(&active, -1)
+			resetTimer(timeOut)
+			return
+		}
+		d3 := time.Since(t3)
+		dt := time.Since(t)
+
+		log.Debug("AppendBody duration is ", d2)
+		log.Debug("Flush duration is ", d3)
+		log.Debug("Total duration is", dt)
+		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
+		dataDeposited.Add(1)
+		dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
+		atomic.AddInt32(&active, -1)
+		resetTimer(timeOut)
+	})
+
+	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
+		atomic.AddInt32(&active, 1)
+		t := time.Now()
+		log.Debug("In SET handler")
+		//if c.ArgN() != 3 {
+		//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+		//	return
+		//}
+
+		connId := c.Arg(0).String()
+		reqId := c.Arg(1).String()
+		chunkId := c.Arg(2).String()
+		key := c.Arg(3).String()
+		val := c.Arg(4).Bytes()
+		myMap[key] = &Chunk{chunkId, val}
+
+		// write Key, clientId, chunkId, body back to server
+		w.AppendBulkString("set")
+		w.AppendBulkString(connId)
+		w.AppendBulkString(reqId)
+		w.AppendBulkString(chunkId)
+		if err := w.Flush(); err != nil {
+			log.Error("Error on set::flush(key %s): %v", key, err)
+			dataDeposited.Add(1)
+			dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
+			atomic.AddInt32(&active, -1)
+			resetTimer(timeOut)
+			return
+		}
+
+		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
+		dataDeposited.Add(1)
+		dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
+		atomic.AddInt32(&active, -1)
+		resetTimer(timeOut)
+		//log.Debug()
+	})
+
+	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
+		log.Debug("in the data function")
+
+		timeOut.Stop()
+
+		dataDeposited.Wait()
+
+		w.AppendBulkString("data")
+		w.AppendBulkString(strconv.Itoa(len(dataDepository)))
+		for _, entry := range dataDepository {
+			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d",
+				entry.op, entry.reqId, entry.chunkId, entry.status,
+				entry.duration, entry.durationAppend, entry.durationFlush)
+			w.AppendBulkString(format)
+
+			//w.AppendBulkString(entry.op)
+			//w.AppendBulkString(entry.status)
+			//w.AppendBulkString(entry.reqId)
+			//w.AppendBulkString(entry.chunkId)
+			//w.AppendBulkString(entry.durationAppend.String())
+			//w.AppendBulkString(entry.durationFlush.String())
+			//w.AppendBulkString(entry.duration.String())
+		}
+		if err := w.Flush(); err != nil {
+			log.Error("Error on data::flush: %v", err)
+			return
+		}
+		log.Debug("data complete")
+		lambdaConn.Close()
+		lambdaConn = nil
+		// No need to close server, it will serve the new connection next time.
+		dataDepository = dataDepository[:0]
+		isFirst = true
+		close(done)
+	})
+
+	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
+		atomic.AddInt32(&active, 1)
+		pong(w)
+		atomic.AddInt32(&active, -1)
+		resetTimerWithExtension(timeOut, TICK_ERROR_EXTEND)
+	})
+	
 	lambda.Start(HandleRequest)
 }
