@@ -63,7 +63,10 @@ func HandleRequest() {
 	start = time.Now()
 	atomic.StoreInt32(&active, 0)
 	done = make(chan struct{})
-	timeOut = time.NewTimer(getTimeout(TICK_ERROR))
+	timeOut = time.NewTimer(0)
+	var clear sync.WaitGroup
+
+	resetTimer(timeOut)
 
 	if isFirst == true {
 		log.Debug("Ready to connect %s", server)
@@ -85,7 +88,10 @@ func HandleRequest() {
 	pongHandler(lambdaConn)
 
 	// data gathering
-	go func() {
+	go func(clear *sync.WaitGroup) {
+		clear.Add(1)
+		defer clear.Done()
+
 		for {
 			select {
 			case <-done:
@@ -95,27 +101,39 @@ func HandleRequest() {
 				dataDeposited.Done()
 			}
 		}
-	}()
+	}(&clear)
 
 	// timeout control
-	for {
-		select {
-		case <-done:
-			return
-		case <-timeOut.C:
-			if atomic.LoadInt32(&active) > 0 {
-				resetTimer(timeOut)
-				break
+	func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-timeOut.C:
+				if atomic.LoadInt32(&active) > 0 {
+					resetTimer(timeOut)
+					break
+				}
+				timeOut.Stop()
+				log.Debug("Lambda timeout, return(%v).", time.Since(start))
+				Done()
+				return
 			}
-			close(done)
-			timeOut.Stop()
-			log.Debug("Lambda timeout, return(%v).", time.Since(start))
-			return
 		}
-	}
+	}()
 
+	clear.Wait()
 	done = nil
 	timeOut = nil
+}
+
+func Done() {
+	select {
+	case <-done:
+		// closed
+	default:
+		close(done)
+	}
 }
 
 func pongHandler(conn net.Conn) {
@@ -307,7 +325,7 @@ func main() {
 		// No need to close server, it will serve the new connection next time.
 		dataDepository = dataDepository[:0]
 		isFirst = true
-		close(done)
+		Done()
 	})
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
@@ -316,6 +334,6 @@ func main() {
 		atomic.AddInt32(&active, -1)
 		resetTimerWithExtension(timeOut, TICK_ERROR_EXTEND)
 	})
-	
+
 	lambda.Start(HandleRequest)
 }
