@@ -55,7 +55,7 @@ func (ins *Instance) C() chan *redeo.ServerReq {
 }
 
 func (ins *Instance) Ping() {
-	ins.chanReq <- &redeo.ServerReq{ Cmd: "ping" }
+	ins.cn.Ping()
 }
 
 func (ins *Instance) Validate() bool {

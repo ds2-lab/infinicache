@@ -73,16 +73,14 @@ func (conn *Connection) handleRequests() {
 		case <-conn.closed:
 			return
 		case req := <-conn.instance.C(): /*blocking on lambda facing channel*/
+			// check lambda status first
+			conn.instance.Validate()
+
 			// get arguments
 			connId := strconv.Itoa(req.Id.ConnId)
 			chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
+
 			cmd := strings.ToLower(req.Cmd)
-
-			if cmd != "ping" {
-				// check lambda status first
-				conn.instance.Validate()
-			}
-
 			isDataRequest = false
 			switch cmd {
 			case "set": /*set or two argument cmd*/
@@ -92,8 +90,6 @@ func (conn *Connection) handleRequests() {
 			case "data":
 				conn.w.WriteCmdString(req.Cmd)
 				isDataRequest = true
-			case "ping":
-				conn.w.WriteCmdString(req.Cmd)
 			}
 			err := conn.w.Flush()
 			if err != nil {
@@ -156,6 +152,14 @@ func (conn *Connection) ServeLambda() {
 				conn.log.Warn("Unsupport response type: %s", cmd)
 			}
 		}
+	}
+}
+
+func (conn *Connection) Ping() {
+	conn.w.WriteCmdString("ping")
+	err := conn.w.Flush()
+	if err != nil {
+		conn.log.Warn("Flush pipeline error(ping): %v", err)
 	}
 }
 
