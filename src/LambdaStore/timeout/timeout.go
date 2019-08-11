@@ -12,7 +12,7 @@ const TICK_1_ERROR_EXTEND = int64(10000 * time.Millisecond)
 const TICK_1_ERROR = int64(-1)
 // For Lambdas with 0.5vCPU(896M) and above.
 const TICK_5_ERROR_EXTEND = int64(1000 * time.Millisecond)
-const TICK_5_ERROR = int64(30 * time.Millisecond)
+const TICK_5_ERROR = int64(10 * time.Millisecond)
 // For Lambdas with 1vCPU(1792M) and above.
 const TICK_10_ERROR_EXTEND = int64(1000 * time.Millisecond)
 const TICK_10_ERROR = int64(2 * time.Millisecond)
@@ -25,6 +25,7 @@ var (
 type Timeout struct {
 	*time.Timer
 	Start         time.Time
+	Requests      int
 
 	lastExtension int64
 	log           logger.ILogger
@@ -40,6 +41,7 @@ func New(d time.Duration) *Timeout {
 
 func (t *Timeout) Restart() time.Time {
 	t.Start = time.Now()
+	t.Requests = 0
 	return t.Start
 }
 

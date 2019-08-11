@@ -197,8 +197,13 @@ func main() {
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
+		timeout.Requests++
+		extension := lambdaTimeout.TICK_ERROR
+		if timeout.Requests > 1 {
+			extension = lambdaTimeout.TICK
+		}
 		defer atomic.AddInt32(&active, -1)
-		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
+		defer timeout.ResetWithExtension(extension)
 
 		t := time.Now()
 		log.Debug("In GET handler")
@@ -248,8 +253,13 @@ func main() {
 
 	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
+		timeout.Requests++
+		extension := lambdaTimeout.TICK_ERROR
+		if timeout.Requests > 1 {
+			extension = lambdaTimeout.TICK
+		}
 		defer atomic.AddInt32(&active, -1)
-		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
+		defer timeout.ResetWithExtension(extension)
 
 		t := time.Now()
 		log.Debug("In SET handler")
@@ -322,8 +332,13 @@ func main() {
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
-		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 
+		if timeout.Requests == 0 {
+			// If no request comes, ignore. This prevents unexpected pings.
+			return
+		}
+
+		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 		log.Debug("PING")
 		pong(w)
 	})
