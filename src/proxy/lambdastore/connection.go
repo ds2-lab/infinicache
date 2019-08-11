@@ -1,4 +1,4 @@
-.r.package lambdastore
+package lambdastore
 
 import (
 	"errors"
@@ -36,7 +36,7 @@ func NewConnection(c net.Conn) *Connection {
 		// wrap writer and reader
 		w: resp.NewRequestWriter(c),
 		r: resp.NewResponseReader(c),
-		closed: make(chan struct{})
+		closed: make(chan struct{}),
 	}
 }
 
@@ -72,7 +72,7 @@ func (conn *Connection) handleRequests() {
 		select {
 		case <-conn.closed:
 			return
-		case req := <-conn.instance.C() /*blocking on lambda facing channel*/
+		case req := <-conn.instance.C(): /*blocking on lambda facing channel*/
 			// check lambda status first
 			conn.instance.Validate()
 
