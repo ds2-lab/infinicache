@@ -4,47 +4,27 @@ import (
 //	"bytes"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
+  "github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 //	"github.com/wangaoone/s3gof3r"
 //	"io"
-	"math"
 	"net"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
+	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
 )
-
-type Chunk struct {
-	id   string
-	body []byte
-}
-
-type DataEntry struct {
-	op             string
-	status         string
-	reqId          string
-	chunkId        string
-	durationAppend time.Duration
-	durationFlush  time.Duration
-	duration       time.Duration
-}
 
 const OP_GET = "1"
 const OP_SET = "0"
-const TICK = int64(100 * time.Millisecond)
-// TODO: Heterogeneous configuration based on lambda memory.
-// Below 1024M
-// const TICK_ERROR_EXTEND = int64(1000 * time.Millisecond)
-// const TICK_ERROR = int64(-1)
-// For 1024M
-const TICK_ERROR_EXTEND = int64(1000 * time.Millisecond)
-const TICK_ERROR = int64(10 * time.Millisecond)
-// For 3008M
-// const TICK_ERROR_EXTEND = int64(1000 * time.Millisecond)
-// const TICK_ERROR = int64(2 * time.Millisecond)
+const EXPECTED_GOMAXPROCS = 3
 
 var (
 	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
@@ -52,85 +32,72 @@ var (
 	server     = "52.87.169.1:6379" // t2.micro ec2 server UbuntuProxy0 public ip under vpc
 	lambdaConn net.Conn
 	srv        = redeo.NewServer(nil)
-	myMap      = make(map[string]*Chunk)
+	myMap      = make(map[string]*types.Chunk)
 	isFirst    = true
 	log        = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
-	dataGatherer = make(chan *DataEntry, 10)
-	dataDepository = make([]*DataEntry, 0, 100)
+	dataGatherer = make(chan *types.DataEntry, 10)
+	dataDepository = make([]*types.DataEntry, 0, 100)
 	dataDeposited sync.WaitGroup
-	timeOut = NewLambdaTimer(0)
+	timeout = lambdaTimeout.New(0)
 
 	active  int32
-	start   time.Time
 	done    chan struct{}
+	id      uint64
 )
 
-type LambdaTimer struct {
-	*time.Timer
-
-	lastExtension int64
+func init() {
+	goroutings := runtime.GOMAXPROCS(0)
+	if goroutings < EXPECTED_GOMAXPROCS {
+		log.Debug("Set GOMAXPROCS to %d (original %d)", EXPECTED_GOMAXPROCS, goroutings)
+		runtime.GOMAXPROCS(EXPECTED_GOMAXPROCS)
+	} else {
+		log.Debug("GOMAXPROCS %d", goroutings)
+	}
+	timeout.SetLogger(log)
+	adapt()
 }
 
-func NewLambdaTimer(d time.Duration) *LambdaTimer {
-	return &LambdaTimer{
-		Timer: time.NewTimer(d),
-		lastExtension: TICK_ERROR,
+func adapt() {
+	if lambdacontext.MemoryLimitInMB < 896 {
+		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_1_ERROR_EXTEND
+		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_1_ERROR
+	} else if lambdacontext.MemoryLimitInMB < 1792 {
+		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_5_ERROR_EXTEND
+		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_5_ERROR
+	} else {
+		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_10_ERROR_EXTEND
+		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_10_ERROR
 	}
 }
 
-func (t *LambdaTimer) Reset() {
-	// Drain the timer to be accurate and safe to reset.
-	if !t.Stop() {
-		select {
-		case <-t.C:
-		default:
-		}
-	}
-	timeout := t.getTimeout(t.lastExtension)
-	t.Timer.Reset(timeout)
-	log.Debug("Timeout reset: %v", timeout)
-}
-
-func (t *LambdaTimer) ResetWithExtension(ext int64) {
-	t.lastExtension = ext
-	t.Reset()
-}
-
-func (t *LambdaTimer) getTimeout(ext int64) time.Duration {
-	if ext < 0 {
-		return 0
-	}
-
-	now := time.Now().Sub(start).Nanoseconds()
-	return time.Duration(int64(math.Ceil(float64(now + ext) / float64(TICK)))*TICK - TICK_ERROR - now)
-}
-
-func HandleRequest() {
-	start = time.Now()
+func HandleRequest(input prototol.InputEvent) error {
+	timeout.Restart()
 	atomic.StoreInt32(&active, 0)
 	done = make(chan struct{})
 	var clear sync.WaitGroup
 
+	id = input.Id
+
 	if isFirst == true {
-		timeOut.ResetWithExtension(TICK_ERROR)
+		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
 		log.Debug("Ready to connect %s", server)
 		var connErr error
 		lambdaConn, connErr = net.Dial("tcp", server)
 		if connErr != nil {
 			log.Error("Failed to connect server %s: %v", server, connErr)
-			return
+			return connErr
 		}
-		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), time.Since(start))
+		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), timeout.Since())
 
 		isFirst = false
 		go func() {
 			srv.Serve_client(lambdaConn)
 		}()
 	} else {
-		timeOut.ResetWithExtension(TICK_ERROR_EXTEND)
+		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 	}
 	// append PONG back to proxy on being triggered
 	pongHandler(lambdaConn)
@@ -157,12 +124,12 @@ func HandleRequest() {
 			select {
 			case <-done:
 				return
-			case <-timeOut.C:
+			case <-timeout.C:
 				if atomic.LoadInt32(&active) > 0 {
-					timeOut.Reset()
+					timeout.Reset()
 					break
 				}
-				log.Debug("Lambda timeout, return(%v).", time.Since(start))
+				log.Debug("Lambda timeout, return(%v).", timeout.Since())
 				Done()
 				return
 			}
@@ -170,8 +137,9 @@ func HandleRequest() {
 	}()
 
 	clear.Wait()
-	log.Debug("All routing cleared at %v", time.Since(start))
+	log.Debug("All routing cleared at %v", timeout.Since())
 	done = nil
+	return nil
 }
 
 func Done() {
@@ -190,12 +158,12 @@ func pongHandler(conn net.Conn) {
 
 func pong(w resp.ResponseWriter) {
 	w.AppendBulkString("pong")
-	w.AppendBulkString("1")
+	w.AppendInt(int64(id))
 	if err := w.Flush(); err != nil {
 		log.Error("Error on PONG flush: %v", err)
 		return
 	}
-	log.Debug("PONG(%v)", time.Since(start))
+	log.Debug("PONG(%v)", timeout.Since())
 }
 
 // func remoteGet(bucket string, key string) []byte {
@@ -230,7 +198,7 @@ func main() {
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
-		defer timeOut.ResetWithExtension(TICK_ERROR)
+		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
 		t := time.Now()
 		log.Debug("In GET handler")
@@ -247,7 +215,7 @@ func main() {
 		if found == false {
 			log.Debug("%s not found", key)
 			dataDeposited.Add(1)
-			dataGatherer <- &DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
+			dataGatherer <- &types.DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
 			return
 		}
 
@@ -255,16 +223,16 @@ func main() {
 		w.AppendBulkString("get")
 		w.AppendBulkString(connId)
 		w.AppendBulkString(reqId)
-		w.AppendBulkString(chunk.id)
+		w.AppendBulkString(chunk.Id)
 		t2 := time.Now()
-		w.AppendBulk(chunk.body)
+		w.AppendBulk(chunk.Body)
 		d2 := time.Since(t2)
 
 		t3 := time.Now()
 		if err := w.Flush(); err != nil {
 			log.Error("Error on get::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
-			dataGatherer <- &DataEntry{OP_GET, "500", reqId, chunk.id, d2, 0, time.Since(t)}
+			dataGatherer <- &types.DataEntry{OP_GET, "500", reqId, chunk.Id, d2, 0, time.Since(t)}
 			return
 		}
 		d3 := time.Since(t3)
@@ -273,15 +241,15 @@ func main() {
 		log.Debug("AppendBody duration is %v", d2)
 		log.Debug("Flush duration is %v", d3)
 		log.Debug("Total duration is %v", dt)
-		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.id)
+		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
 		dataDeposited.Add(1)
-		dataGatherer <- &DataEntry{OP_GET, "200", reqId, chunk.id, d2, d3, dt}
+		dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt}
 	})
 
 	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
-		defer timeOut.ResetWithExtension(TICK_ERROR)
+		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
 		t := time.Now()
 		log.Debug("In SET handler")
@@ -295,7 +263,7 @@ func main() {
 		chunkId := c.Arg(2).String()
 		key := c.Arg(3).String()
 		val := c.Arg(4).Bytes()
-		myMap[key] = &Chunk{chunkId, val}
+		myMap[key] = &types.Chunk{chunkId, val}
 
 		// write Key, clientId, chunkId, body back to server
 		w.AppendBulkString("set")
@@ -305,17 +273,17 @@ func main() {
 		if err := w.Flush(); err != nil {
 			log.Error("Error on set::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
-			dataGatherer <- &DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
+			dataGatherer <- &types.DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
 			return
 		}
 
 		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
 		dataDeposited.Add(1)
-		dataGatherer <- &DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
+		dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 	})
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
-		timeOut.Stop()
+		timeout.Stop()
 
 		log.Debug("In DATA handler")
 
@@ -326,17 +294,17 @@ func main() {
 		w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 		for _, entry := range dataDepository {
 			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d",
-				entry.op, entry.reqId, entry.chunkId, entry.status,
-				entry.duration, entry.durationAppend, entry.durationFlush)
+				entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
+				entry.Duration, entry.DurationAppend, entry.DurationFlush)
 			w.AppendBulkString(format)
 
-			//w.AppendBulkString(entry.op)
-			//w.AppendBulkString(entry.status)
-			//w.AppendBulkString(entry.reqId)
-			//w.AppendBulkString(entry.chunkId)
-			//w.AppendBulkString(entry.durationAppend.String())
-			//w.AppendBulkString(entry.durationFlush.String())
-			//w.AppendBulkString(entry.duration.String())
+			//w.AppendBulkString(entry.Op)
+			//w.AppendBulkString(entry.Status)
+			//w.AppendBulkString(entry.ReqId)
+			//w.AppendBulkString(entry.ChunkId)
+			//w.AppendBulkString(entry.DurationAppend.String())
+			//w.AppendBulkString(entry.DurationFlush.String())
+			//w.AppendBulkString(entry.Duration.String())
 		}
 		if err := w.Flush(); err != nil {
 			log.Error("Error on data::flush: %v", err)
@@ -354,7 +322,7 @@ func main() {
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
-		defer timeOut.ResetWithExtension(TICK_ERROR_EXTEND)
+		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 
 		log.Debug("PING")
 		pong(w)
