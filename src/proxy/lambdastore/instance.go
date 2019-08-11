@@ -62,6 +62,7 @@ func (ins *Instance) Validate() bool {
 	select {
 	case <-ins.validated:
 		// Not validating. Validate...
+		ins.log.Info("Validating...")
 		ins.validated = make(chan bool)
 
 		triggered := ins.alive == false && ins.tryTriggerLambda()

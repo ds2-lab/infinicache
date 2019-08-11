@@ -1,4 +1,4 @@
-package lambdastore
+.r.package lambdastore
 
 import (
 	"errors"
@@ -20,10 +20,9 @@ type Connection struct {
 	instance     *Instance
 	log          logger.ILogger
 	cn           net.Conn
-
-	W            *resp.RequestWriter
-	R            resp.ResponseReader
-	Closed       bool
+	w            *resp.RequestWriter
+	r            resp.ResponseReader
+	closed       chan struct{}
 }
 
 func NewConnection(c net.Conn) *Connection {
@@ -35,45 +34,69 @@ func NewConnection(c net.Conn) *Connection {
 		},
 		cn: c,
 		// wrap writer and reader
-		W: resp.NewRequestWriter(c),
-		R: resp.NewResponseReader(c),
+		w: resp.NewRequestWriter(c),
+		r: resp.NewResponseReader(c),
+		closed: make(chan struct{})
 	}
 }
 
 func (conn *Connection) Close() {
-	// Don't use c.Close(), it will stuck and wait for lambda.
-	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
-	conn.cn.Close()
+	select {
+	case <-conn.closed:
+		// already closed
+		return
+	default:
+	}
+
+	if conn.cn != nil {
+		// Don't use c.Close(), it will stuck and wait for lambda.
+		conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
+		conn.cn.Close()
+	}
+	close(conn.closed)
+}
+
+func (conn *Connection) IsClosed() bool {
+	select {
+	case <-conn.closed:
+		return true
+	default:
+		return false
+	}
 }
 
 // Handle incoming client requests
 func (conn *Connection) handleRequests() {
 	var isDataRequest bool
 	for {
-		req := <-conn.instance.C() /*blocking on lambda facing channel*/
-		// check lambda status first
-		conn.instance.Validate()
+		select {
+		case <-conn.closed:
+			return
+		case req := <-conn.instance.C() /*blocking on lambda facing channel*/
+			// check lambda status first
+			conn.instance.Validate()
 
-		// get arguments
-		connId := strconv.Itoa(req.Id.ConnId)
-		chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
+			// get arguments
+			connId := strconv.Itoa(req.Id.ConnId)
+			chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
 
-		cmd := strings.ToLower(req.Cmd)
-		isDataRequest = false
-		switch cmd {
-		case "set": /*set or two argument cmd*/
-			conn.W.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, chunkId, req.Key, req.Body)
-		case "get": /*get or one argument cmd*/
-			conn.W.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, "", req.Key)
-		case "data":
-			conn.W.WriteCmdString(req.Cmd)
-			isDataRequest = true
-		}
-		err := conn.W.Flush()
-		if err != nil {
-			conn.log.Error("Flush pipeline error: %v", err)
-			if isDataRequest {
-				global.DataCollected.Done()
+			cmd := strings.ToLower(req.Cmd)
+			isDataRequest = false
+			switch cmd {
+			case "set": /*set or two argument cmd*/
+				conn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, chunkId, req.Key, req.Body)
+			case "get": /*get or one argument cmd*/
+				conn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, "", req.Key)
+			case "data":
+				conn.w.WriteCmdString(req.Cmd)
+				isDataRequest = true
+			}
+			err := conn.w.Flush()
+			if err != nil {
+				conn.log.Error("Flush pipeline error: %v", err)
+				if isDataRequest {
+					global.DataCollected.Done()
+				}
 			}
 		}
 	}
@@ -89,11 +112,12 @@ func (conn *Connection) handleRequests() {
 func (conn *Connection) ServeLambda() {
 	for {
 		// field 0 for cmd
-		field0, err := conn.R.PeekType()
+		field0, err := conn.r.PeekType()
 		if err != nil {
 			if err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
-				conn.Closed = true
+				conn.cn = nil
+				conn.Close()
 				return
 			} else {
 				conn.log.Warn("Failed to peek response type: %v", err)
@@ -105,11 +129,11 @@ func (conn *Connection) ServeLambda() {
 		var cmd string
 		switch field0 {
 		case resp.TypeError:
-			strErr, _ := conn.R.ReadError()
+			strErr, _ := conn.r.ReadError()
 			err = errors.New(strErr)
 			conn.log.Warn("Error on peek response type: %v", err)
 		default:
-			cmd, err = conn.R.ReadBulkString()
+			cmd, err = conn.r.ReadBulkString()
 			if err != nil {
 				conn.log.Warn("Error on read response type: %v", err)
 				break
@@ -135,7 +159,7 @@ func (conn *Connection) pongHandler() {
 	conn.log.Debug("PONG from lambda.")
 
 	// Read lambdaId
-	id, _ := conn.R.ReadInt()
+	id, _ := conn.r.ReadInt()
 
 	// Lock up lambda instance
 	instance := global.Stores.All[int(id)].(*Instance)
@@ -144,7 +168,7 @@ func (conn *Connection) pongHandler() {
 		conn.instance = instance
 		conn.log = instance.log
 		conn.log.Debug("PONG from lambda confirmed.")
-		if conn.instance.cn != nil && !conn.instance.cn.Closed {
+		if conn.instance.cn != nil && !conn.instance.cn.IsClosed() {
 			conn.instance.cn.Close()
 		}
 		conn.instance.cn = conn
@@ -157,6 +181,7 @@ func (conn *Connection) pongHandler() {
 	case <-conn.instance.validated:
 		// Validated
 	default:
+		conn.log.Info("Validated")
 		close(conn.instance.validated)
 	}
 }
@@ -165,14 +190,14 @@ func (conn *Connection) getHandler(start time.Time) {
 	conn.log.Debug("GET from lambda.")
 
 	// Exhaust all values to keep protocol aligned.
-	connId, _ := conn.R.ReadBulkString()
-	reqId, _ := conn.R.ReadBulkString()
-	chunkId, _ := conn.R.ReadBulkString()
+	connId, _ := conn.r.ReadBulkString()
+	reqId, _ := conn.r.ReadBulkString()
+	chunkId, _ := conn.r.ReadBulkString()
 	counter, ok := redeo.ReqMap.Get(reqId)
 	if ok == false {
 		conn.log.Warn("Request not found: %s", reqId)
 		// exhaust value field
-		conn.R.ReadBulk(nil)
+		conn.r.ReadBulk(nil)
 		return
 	}
 
@@ -195,7 +220,7 @@ func (conn *Connection) getHandler(start time.Time) {
 
 	// Read value
 	t9 := time.Now()
-	res, err := conn.R.ReadBulk(nil)
+	res, err := conn.r.ReadBulk(nil)
 	time9 := time.Since(t9)
 	if err != nil {
 		conn.log.Warn("Failed to read value of response: %v", err)
@@ -218,10 +243,10 @@ func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
 	var obj redeo.Response
-	connId, _ := conn.R.ReadBulkString()
+	connId, _ := conn.r.ReadBulkString()
 	obj.Id.ConnId, _ = strconv.Atoi(connId)
-	obj.Id.ReqId, _ = conn.R.ReadBulkString()
-	chunkId, _ := conn.R.ReadBulkString()
+	obj.Id.ReqId, _ = conn.r.ReadBulkString()
+	chunkId, _ := conn.r.ReadBulkString()
 	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
 
 	conn.log.Debug("SET peek complete, send to client channel, %s,%s,%s", connId, obj.Id.ReqId, chunkId)
@@ -234,7 +259,7 @@ func (conn *Connection) setHandler(start time.Time) {
 func (conn *Connection) receiveData() {
 	conn.log.Debug("DATA from lambda.")
 
-	strLen, err := conn.R.ReadBulkString()
+	strLen, err := conn.r.ReadBulkString()
 	len := 0
 	if err != nil {
 		conn.log.Error("Failed to read length of data from lambda: %v", err)
@@ -245,14 +270,14 @@ func (conn *Connection) receiveData() {
 		}
 	}
 	for i := 0; i < len; i++ {
-		//op, _ := conn.R.ReadBulkString()
-		//status, _ := conn.R.ReadBulkString()
-		//reqId, _ := conn.R.ReadBulkString()
-		//chunkId, _ := conn.R.ReadBulkString()
-		//dAppend, _ := conn.R.ReadBulkString()
-		//dFlush, _ := conn.R.ReadBulkString()
-		//dTotal, _ := conn.R.ReadBulkString()
-		dat, _ := conn.R.ReadBulkString()
+		//op, _ := conn.r.ReadBulkString()
+		//status, _ := conn.r.ReadBulkString()
+		//reqId, _ := conn.r.ReadBulkString()
+		//chunkId, _ := conn.r.ReadBulkString()
+		//dAppend, _ := conn.r.ReadBulkString()
+		//dFlush, _ := conn.r.ReadBulkString()
+		//dTotal, _ := conn.r.ReadBulkString()
+		dat, _ := conn.r.ReadBulkString()
 		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
 		global.NanoLog(resp.LogLambda, "data", dat)
 	}
