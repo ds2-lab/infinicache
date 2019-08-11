@@ -83,7 +83,7 @@ func HandleRequest(input prototol.InputEvent) error {
 	if isFirst == true {
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
-		log.Debug("Ready to connect %s", server)
+		log.Debug("Ready to connect %s, id %d", server, id)
 		var connErr error
 		lambdaConn, connErr = net.Dial("tcp", server)
 		if connErr != nil {

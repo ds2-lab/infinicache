@@ -56,6 +56,11 @@ func (logger *ColorLogger) Error(format string, args ...interface{}) {
 	logger.log("red", format, args...)
 }
 
+// Warn - no-op
+func (logger *ColorLogger) GetLevel() int {
+	return logger.Level
+}
+
 func (logger *ColorLogger) log(color, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if logger.Color && color != "" {

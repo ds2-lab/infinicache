@@ -18,4 +18,8 @@ func (logger *nilLogger) Warn(format string, args ...interface{}) {}
 // Warn - no-op
 func (logger *nilLogger) Error(format string, args ...interface{}) {}
 
+func (logger *nilLogger) GetLevel() int {
+	return LOG_LEVEL_NONE
+}
+
 var NilLogger = &nilLogger{}
