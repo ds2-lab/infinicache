@@ -77,7 +77,7 @@ func (t *Timeout) SetLogger(log logger.ILogger) {
 
 func (t *Timeout) getTimeout(ext int64) time.Duration {
 	if ext < 0 {
-		return 0
+		return 1 * time.Millisecond
 	}
 
 	now := time.Now().Sub(t.Start).Nanoseconds()

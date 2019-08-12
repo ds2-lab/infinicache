@@ -22,6 +22,7 @@ type Connection struct {
 	cn           net.Conn
 	w            *resp.RequestWriter
 	r            resp.ResponseReader
+	mu           sync.Mutex
 	closed       chan struct{}
 }
 
@@ -41,6 +42,9 @@ func NewConnection(c net.Conn) *Connection {
 }
 
 func (conn *Connection) Close() {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+
 	select {
 	case <-conn.closed:
 		// already closed
@@ -116,13 +120,12 @@ func (conn *Connection) ServeLambda() {
 		if err != nil {
 			if err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
-				conn.cn = nil
-				conn.Close()
-				return
 			} else {
 				conn.log.Warn("Failed to peek response type: %v", err)
 			}
-			continue
+			conn.cn = nil
+			conn.Close()
+			return
 		}
 		start := time.Now()
 

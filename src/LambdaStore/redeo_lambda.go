@@ -9,7 +9,7 @@ import (
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 //	"github.com/wangaoone/s3gof3r"
-//	"io"
+	"io"
 	"net"
 	"runtime"
 	"strconv"
@@ -43,6 +43,7 @@ var (
 	timeout = lambdaTimeout.New(0)
 
 	active  int32
+	mu      sync.RWMutex
 	done    chan struct{}
 	id      uint64
 )
@@ -80,8 +81,10 @@ func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
 		timeout.Restart()
 	}
 	atomic.StoreInt32(&active, 0)
-	done = make(chan struct{})
+	ResetDone()
 	var clear sync.WaitGroup
+
+	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
 
 	id = input.Id
 
@@ -99,7 +102,15 @@ func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
 
 		isFirst = false
 		go func() {
-			srv.Serve_client(lambdaConn)
+			err := srv.ServeForeignClient(lambdaConn)
+			if err != nil && err != io.EOF {
+				log.Info("Connection closed: %v", err)
+			} else {
+				log.Info("Connection closed.")
+			}
+			lambdaConn = nil
+			isFirst = true
+			Done()
 		}()
 	} else {
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
@@ -130,24 +141,72 @@ func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
 			case <-done:
 				return
 			case <-timeout.C:
+				mu.Lock()
+
 				if atomic.LoadInt32(&active) > 0 {
 					timeout.Reset()
+					mu.Unlock()
 					break
 				}
+				doneLocked()
+				mu.Unlock()
 				log.Debug("Lambda timeout, return(%v).", timeout.Since())
-				Done()
 				return
 			}
 		}
 	}()
 
 	clear.Wait()
-	log.Debug("All routing cleared at %v", timeout.Since())
-	done = nil
+	log.Debug("All routing cleared(%d) at %v", runtime.NumGoroutine(), timeout.Since())
+	ClearDone()
 	return nil
 }
 
+func ResetDone() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	resetDoneLocked()
+}
+
 func Done() {
+	mu.Lock()
+	defer mu.Unlock()
+
+  resetDoneLocked()
+	doneLocked()
+}
+
+func ClearDone() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	done = nil
+}
+
+func IsDone() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	if done == nil {
+		return true
+	}
+
+	select {
+	case <-done:
+		return true
+	default:
+		return false
+	}
+}
+
+func resetDoneLocked() {
+	if done == nil {
+		done = make(chan struct{})
+	}
+}
+
+func doneLocked() {
 	select {
 	case <-done:
 		// closed
@@ -207,8 +266,6 @@ func main() {
 		if timeout.Requests > 1 {
 			extension = lambdaTimeout.TICK
 		}
-		defer atomic.AddInt32(&active, -1)
-		defer timeout.ResetWithExtension(extension)
 
 		t := time.Now()
 		log.Debug("In GET handler")
@@ -243,28 +300,29 @@ func main() {
 			log.Error("Error on get::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_GET, "500", reqId, chunk.Id, d2, 0, time.Since(t)}
-			return
-		}
-		d3 := time.Since(t3)
-		dt := time.Since(t)
+		} else {
+			d3 := time.Since(t3)
+			dt := time.Since(t)
 
-		log.Debug("AppendBody duration is %v", d2)
-		log.Debug("Flush duration is %v", d3)
-		log.Debug("Total duration is %v", dt)
-		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
-		dataDeposited.Add(1)
-		dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt}
+			log.Debug("AppendBody duration is %v", d2)
+			log.Debug("Flush duration is %v", d3)
+			log.Debug("Total duration is %v", dt)
+			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
+			dataDeposited.Add(1)
+			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt}
+		}
+
+		timeout.ResetWithExtension(extension)
+		atomic.AddInt32(&active, -1)
 	})
 
 	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		timeout.Requests++
 		extension := lambdaTimeout.TICK_ERROR
-		if timeout.Requests > 1 {
-			extension = lambdaTimeout.TICK
-		}
-		defer atomic.AddInt32(&active, -1)
-		defer timeout.ResetWithExtension(extension)
+		// if timeout.Requests > 1 {
+		// 	extension = lambdaTimeout.TICK
+		// }
 
 		t := time.Now()
 		log.Debug("In SET handler")
@@ -289,12 +347,14 @@ func main() {
 			log.Error("Error on set::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
-			return
+		} else {
+			log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
+			dataDeposited.Add(1)
+			dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 		}
 
-		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
-		dataDeposited.Add(1)
-		dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
+		timeout.ResetWithExtension(extension)
+		atomic.AddInt32(&active, -1)
 	})
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
@@ -327,26 +387,25 @@ func main() {
 		}
 		log.Debug("data complete")
 		lambdaConn.Close()
-		lambdaConn = nil
 		// No need to close server, it will serve the new connection next time.
 		dataDepository = dataDepository[:0]
-		isFirst = true
-		Done()
 	})
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
-		defer atomic.AddInt32(&active, -1)
 
-		if timeout.Requests == 0 {
+		if timeout.Requests == 0 || IsDone() {
 			// If no request comes, ignore. This prevents unexpected pings.
+			atomic.AddInt32(&active, -1)
 			return
 		}
 
-		defer timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
+		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 		log.Debug("PING")
 		pong(w)
+		atomic.AddInt32(&active, -1)
 	})
 
+	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())
 	lambda.Start(HandleRequest)
 }
