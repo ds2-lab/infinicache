@@ -1,7 +1,7 @@
 package main
 
 import (
-//	"bytes"
+	"context"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
   "github.com/aws/aws-lambda-go/lambdacontext"
@@ -24,7 +24,7 @@ import (
 
 const OP_GET = "1"
 const OP_SET = "0"
-const EXPECTED_GOMAXPROCS = 3
+const EXPECTED_GOMAXPROCS = 2
 
 var (
 	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
@@ -72,8 +72,13 @@ func adapt() {
 	}
 }
 
-func HandleRequest(input prototol.InputEvent) error {
-	timeout.Restart()
+func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
+	if input.Timeout > 0 {
+		deadline, _ := ctx.Deadline()
+		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
+	} else {
+		timeout.Restart()
+	}
 	atomic.StoreInt32(&active, 0)
 	done = make(chan struct{})
 	var clear sync.WaitGroup

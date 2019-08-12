@@ -40,7 +40,11 @@ func New(d time.Duration) *Timeout {
 }
 
 func (t *Timeout) Restart() time.Time {
-	t.Start = time.Now()
+	return t.RestartWithCalibration(time.Now())
+}
+
+func (t *Timeout) RestartWithCalibration(start time.Time) time.Time {
+	t.Start = start
 	t.Requests = 0
 	return t.Start
 }
