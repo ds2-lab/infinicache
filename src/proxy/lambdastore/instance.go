@@ -86,7 +86,7 @@ func (ins *Instance) Validate() bool {
 
 func (ins *Instance) IsValidating() bool {
 	ins.mu.Lock()
-	defer ins.mu.Lock()
+	defer ins.mu.Unlock()
 
 	select {
 	case <-ins.validated:
