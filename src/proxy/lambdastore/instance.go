@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/wangaoone/LambdaObjectstore/src/types"
@@ -25,6 +27,8 @@ type Instance struct {
 	aliveLock    sync.Mutex
 	validated    chan bool
 	log          logger.ILogger
+	mu           sync.Mutex
+	closed       chan struct{}
 }
 
 // create new lambda instance
@@ -54,29 +58,95 @@ func (ins *Instance) C() chan *redeo.ServerReq {
 	return ins.chanReq
 }
 
-func (ins *Instance) Ping() {
-	ins.cn.Ping()
-}
-
 func (ins *Instance) Validate() bool {
+	ins.mu.Lock()
+
 	select {
 	case <-ins.validated:
 		// Not validating. Validate...
-		ins.log.Info("Validating...")
 		ins.validated = make(chan bool)
+		ins.mu.Unlock()
 
+		ins.log.Info("Validating...")
 		triggered := ins.alive == false && ins.tryTriggerLambda()
  		if !triggered {
-			ins.Ping()
+			ins.cn.Ping()
 		}
 
 		<-ins.validated
 		return triggered
 	default:
 		// Validating... Wait and return false
+		ins.mu.Unlock()
 		<-ins.validated
 		return false
 	}
+}
+
+func (ins *Instance) IsValidating() bool {
+	ins.mu.Lock()
+	defer ins.mu.Lock()
+
+	select {
+	case <-ins.validated:
+		return false
+	default:
+		return true
+	}
+}
+
+// Handle incoming client requests
+func (ins *Instance) HandleRequests() {
+	var isDataRequest bool
+	for {
+		select {
+		case <-ins.closed:
+			return
+		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
+			// check lambda status first
+			ins.Validate()
+
+			// get arguments
+			connId := strconv.Itoa(req.Id.ConnId)
+			chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
+
+			cmd := strings.ToLower(req.Cmd)
+			isDataRequest = false
+			switch cmd {
+			case "set": /*set or two argument cmd*/
+				ins.cn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, chunkId, req.Key, req.Body)
+			case "get": /*get or one argument cmd*/
+				ins.cn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, "", req.Key)
+			case "data":
+				ins.cn.w.WriteCmdString(req.Cmd)
+				isDataRequest = true
+			}
+			err := ins.cn.w.Flush()
+			if err != nil {
+				ins.log.Error("Flush pipeline error: %v", err)
+				if isDataRequest {
+					global.DataCollected.Done()
+				}
+			}
+		}
+	}
+}
+
+func (ins *Instance) Close() {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	select {
+	case <-ins.closed:
+		// already closed
+		return
+	default:
+	}
+
+	if ins.cn != nil {
+		ins.cn.Close()
+	}
+	close(ins.closed)
 }
 
 func (ins *Instance) tryTriggerLambda() bool {
@@ -100,11 +170,9 @@ func (ins *Instance) triggerLambda() {
 
 	ins.triggerLambdaLocked()
 	for {
-		select {
-		case <-ins.validated:
+		if !ins.IsValidating() {
 			ins.alive = false
 			return
-		default:
 		}
 
 		// Validating, retrigger.
@@ -132,5 +200,28 @@ func (ins *Instance) triggerLambdaLocked() {
 		ins.log.Error("Error on activating lambda store: %v", err)
 	} else {
 		ins.log.Info("[Lambda store is deactivated]")
+	}
+}
+
+func (ins *Instance) flagValidated(conn *Connection) {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	if ins.cn != conn {
+		// Set instance, order matters here.
+		conn.instance = ins
+		conn.log = ins.log
+		if ins.cn != nil {
+			ins.cn.Close()
+		}
+		ins.cn = conn
+	}
+
+	select {
+	case <-ins.validated:
+		// Validated
+	default:
+		ins.log.Info("Validated")
+		close(ins.validated)
 	}
 }

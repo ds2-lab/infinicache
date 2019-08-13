@@ -125,6 +125,7 @@ func main() {
 				}
 
 				prx.Close(lambdaLis)
+				prx.Release()
 				close(done)
 
 				return

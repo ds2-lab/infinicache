@@ -9,11 +9,19 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
+)
+
+var (
+	defaultConnectionLog = &logger.ColorLogger {
+		Prefix: fmt.Sprintf("Undesignated "),
+		Level: global.Log.GetLevel(),
+		Color: true,
+	}
 )
 
 type Connection struct {
@@ -28,11 +36,7 @@ type Connection struct {
 
 func NewConnection(c net.Conn) *Connection {
 	return &Connection{
-		log: &logger.ColorLogger{
-			Prefix: fmt.Sprintf("Undesignated "),
-			Level: global.Log.GetLevel(),
-			Color: true,
-		},
+		log: defaultConnectionLog,
 		cn: c,
 		// wrap writer and reader
 		w: resp.NewRequestWriter(c),
@@ -58,52 +62,6 @@ func (conn *Connection) Close() {
 		conn.cn.Close()
 	}
 	close(conn.closed)
-}
-
-func (conn *Connection) IsClosed() bool {
-	select {
-	case <-conn.closed:
-		return true
-	default:
-		return false
-	}
-}
-
-// Handle incoming client requests
-func (conn *Connection) handleRequests() {
-	var isDataRequest bool
-	for {
-		select {
-		case <-conn.closed:
-			return
-		case req := <-conn.instance.C(): /*blocking on lambda facing channel*/
-			// check lambda status first
-			conn.instance.Validate()
-
-			// get arguments
-			connId := strconv.Itoa(req.Id.ConnId)
-			chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
-
-			cmd := strings.ToLower(req.Cmd)
-			isDataRequest = false
-			switch cmd {
-			case "set": /*set or two argument cmd*/
-				conn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, chunkId, req.Key, req.Body)
-			case "get": /*get or one argument cmd*/
-				conn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, "", req.Key)
-			case "data":
-				conn.w.WriteCmdString(req.Cmd)
-				isDataRequest = true
-			}
-			err := conn.w.Flush()
-			if err != nil {
-				conn.log.Error("Flush pipeline error: %v", err)
-				if isDataRequest {
-					global.DataCollected.Done()
-				}
-			}
-		}
-	}
 }
 
 // blocking on lambda peek Type
@@ -167,6 +125,7 @@ func (conn *Connection) Ping() {
 }
 
 func (conn *Connection) pongHandler() {
+	undesignated := conn.instance == nil
 	conn.log.Debug("PONG from lambda.")
 
 	// Read lambdaId
@@ -174,26 +133,9 @@ func (conn *Connection) pongHandler() {
 
 	// Lock up lambda instance
 	instance := global.Stores.All[int(id)].(*Instance)
-	if instance.cn != conn {
-		// Set instance, order matters here.
-		conn.instance = instance
-		conn.log = instance.log
+	instance.flagValidated(conn)
+	if undesignated {
 		conn.log.Debug("PONG from lambda confirmed.")
-		if conn.instance.cn != nil && !conn.instance.cn.IsClosed() {
-			conn.instance.cn.Close()
-		}
-		conn.instance.cn = conn
-
-		// start handle requests from client.
-		go conn.handleRequests()
-	}
-
-	select {
-	case <-conn.instance.validated:
-		// Validated
-	default:
-		conn.log.Info("Validated")
-		close(conn.instance.validated)
 	}
 }
 

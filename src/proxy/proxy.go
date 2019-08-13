@@ -15,25 +15,26 @@ const LambdaPrefix = "Proxy1Node"
 
 type Proxy struct {
 	log logger.ILogger
+	group *redeo.Group
 }
 
 // initial lambda group
 func New(replica bool) *Proxy {
 	p := &Proxy{
-		log:       &logger.ColorLogger{
+		log: &logger.ColorLogger{
 			Prefix: "Proxy ",
 			Level: global.Log.GetLevel(),
 			Color: true,
 		},
+		group: &redeo.Group{
+			All: make([]redeo.LambdaInstance, NumLambdaClusters),
+			MemCounter: 0,
+		},
 	}
 
-	group := &redeo.Group{
-		All: make([]redeo.LambdaInstance, NumLambdaClusters),
-		MemCounter: 0,
-	}
-	global.Stores = group
+	global.Stores = p.group
 
-	for i := range group.All {
+	for i := range p.group.All {
 		name := LambdaPrefix
 		if replica {
 			p.log.Info("[Registering lambda store replica %d.]", i)
@@ -43,9 +44,13 @@ func New(replica bool) *Proxy {
 		}
 		node := lambdastore.NewInstance(name, uint64(i), replica)
 		// register lambda instance to group
-		group.All[i] = node
+		p.group.All[i] = node
 
+		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go node.Validate()
+
+		// Begin handle requests
+		go node.HandleRequests()
 	}
 
 	return p
@@ -65,4 +70,11 @@ func (p *Proxy) Serve(lis net.Listener) {
 
 func (p *Proxy) Close(lis net.Listener) {
 	lis.Close()
+}
+
+func (p *Proxy) Release() {
+	for _, node := range p.group.All {
+		node.(*lambdastore.Instance).Close()
+	}
+	global.Stores = nil
 }

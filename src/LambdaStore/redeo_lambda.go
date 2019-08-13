@@ -320,16 +320,12 @@ func main() {
 		atomic.AddInt32(&active, 1)
 		timeout.Requests++
 		extension := lambdaTimeout.TICK_ERROR
-		// if timeout.Requests > 1 {
-		// 	extension = lambdaTimeout.TICK
-		// }
+		if timeout.Requests > 1 {
+			extension = lambdaTimeout.TICK
+		}
 
 		t := time.Now()
 		log.Debug("In SET handler")
-		//if c.ArgN() != 3 {
-		//	w.AppendError(redeo.WrongNumberOfArgs(c.Name))
-		//	return
-		//}
 
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
