@@ -44,13 +44,14 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 		Id: id,
 		replica: replica,
 		alive: false,
-		chanReq:   make(chan *redeo.ServerReq, 1024*1024),
+		chanReq:   make(chan *redeo.ServerReq, 1024),
 		validated: validated,	// Initialize with a closed channel.
 		log:       &logger.ColorLogger{
 			Prefix: fmt.Sprintf("%s ", name),
 			Level: global.Log.GetLevel(),
 			Color: true,
 		},
+		closed:    make(chan struct{}),
 	}
 }
 
