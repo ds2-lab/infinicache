@@ -19,7 +19,6 @@ import (
 var (
 	defaultConnectionLog = &logger.ColorLogger {
 		Prefix: fmt.Sprintf("Undesignated "),
-		Level: global.Log.GetLevel(),
 		Color: true,
 	}
 )
@@ -35,7 +34,7 @@ type Connection struct {
 }
 
 func NewConnection(c net.Conn) *Connection {
-	return &Connection{
+	conn := &Connection{
 		log: defaultConnectionLog,
 		cn: c,
 		// wrap writer and reader
@@ -43,6 +42,8 @@ func NewConnection(c net.Conn) *Connection {
 		r: resp.NewResponseReader(c),
 		closed: make(chan struct{}),
 	}
+	defaultConnectionLog.Level = global.Log.GetLevel()
+	return conn
 }
 
 func (conn *Connection) Close() {
