@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-  "github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
-//	"github.com/wangaoone/s3gof3r"
+	"os/exec"
+	"strings"
+
+	//	"github.com/wangaoone/s3gof3r"
 	"io"
 	"net"
 	"runtime"
@@ -17,9 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
-	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
+	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
 const OP_GET = "1"
@@ -37,27 +40,37 @@ var (
 	log        = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
-	dataGatherer = make(chan *types.DataEntry, 10)
+	dataGatherer   = make(chan *types.DataEntry, 10)
 	dataDepository = make([]*types.DataEntry, 0, 100)
-	dataDeposited sync.WaitGroup
-	timeout = lambdaTimeout.New(0)
+	dataDeposited  sync.WaitGroup
+	timeout        = lambdaTimeout.New(0)
 
-	active  int32
-	mu      sync.RWMutex
-	done    chan struct{}
-	id      uint64
+	active   int32
+	mu       sync.RWMutex
+	done     chan struct{}
+	id       uint64
+	hostName string
 )
 
 func init() {
-	goroutings := runtime.GOMAXPROCS(0)
-	if goroutings < EXPECTED_GOMAXPROCS {
-		log.Debug("Set GOMAXPROCS to %d (original %d)", EXPECTED_GOMAXPROCS, goroutings)
+	goroutines := runtime.GOMAXPROCS(0)
+	if goroutines < EXPECTED_GOMAXPROCS {
+		log.Debug("Set GOMAXPROCS to %d (original %d)", EXPECTED_GOMAXPROCS, goroutines)
 		runtime.GOMAXPROCS(EXPECTED_GOMAXPROCS)
 	} else {
-		log.Debug("GOMAXPROCS %d", goroutings)
+		log.Debug("GOMAXPROCS %d", goroutines)
 	}
 	timeout.SetLogger(log)
 	adapt()
+
+	cmd := exec.Command("uname", "-a")
+	host, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Debug("cmd.Run() failed with %s\n", err)
+	}
+
+	hostName = strings.Split(string(host), " #")[0]
+	log.Debug("hostname is: %s", hostName)
 }
 
 func adapt() {
@@ -173,7 +186,7 @@ func Done() {
 	mu.Lock()
 	defer mu.Unlock()
 
-  resetDoneLocked()
+	resetDoneLocked()
 	doneLocked()
 }
 
@@ -364,9 +377,9 @@ func main() {
 		w.AppendBulkString("data")
 		w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 		for _, entry := range dataDepository {
-			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d",
+			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%s",
 				entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
-				entry.Duration, entry.DurationAppend, entry.DurationFlush)
+				entry.Duration, entry.DurationAppend, entry.DurationFlush,hostName)
 			w.AppendBulkString(format)
 
 			//w.AppendBulkString(entry.Op)
