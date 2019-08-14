@@ -329,22 +329,33 @@ func main() {
 		atomic.AddInt32(&active, -1)
 	})
 
-	srv.HandleFunc("set", func(w resp.ResponseWriter, c *resp.Command) {
+	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
 		atomic.AddInt32(&active, 1)
 		timeout.Requests++
 		extension := lambdaTimeout.TICK_ERROR
 		if timeout.Requests > 1 {
 			extension = lambdaTimeout.TICK
 		}
+		defer func() {
+			timeout.ResetWithExtension(extension)
+			atomic.AddInt32(&active, -1)
+		}()
 
 		t := time.Now()
 		log.Debug("In SET handler")
 
-		connId := c.Arg(0).String()
-		reqId := c.Arg(1).String()
-		chunkId := c.Arg(2).String()
-		key := c.Arg(3).String()
-		val := c.Arg(4).Bytes()
+		connId, _ := c.NextArg().String()
+		reqId, _ := c.NextArg().String()
+		chunkId, _ := c.NextArg().String()
+		key, _ := c.NextArg().String()
+		valReader, err := c.Next()
+		if err != nil {
+			log.Error("Error on get value reader: %v", err)
+		}
+		val, err := valReader.ReadAll()
+		if err != nil {
+			log.Error("Error on get value: %v", err)
+		}
 		myMap[key] = &types.Chunk{chunkId, val}
 
 		// write Key, clientId, chunkId, body back to server
@@ -361,9 +372,6 @@ func main() {
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 		}
-
-		timeout.ResetWithExtension(extension)
-		atomic.AddInt32(&active, -1)
 	})
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
