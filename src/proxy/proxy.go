@@ -100,6 +100,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		p.log.Error("Error on get value reader: %v", err)
 		return
 	}
+	bodyStream.(resp.Holdable).Hold()
 
 	// Start couting time.
 	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
