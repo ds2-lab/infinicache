@@ -44,6 +44,9 @@ var (
 	dataDepository = make([]*types.DataEntry, 0, 100)
 	dataDeposited  sync.WaitGroup
 	timeout        = lambdaTimeout.New(0)
+	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
+	// at the same time.
+	pongLimiter    = make(chan struct{}, 1)
 
 	active   int32
 	mu       sync.RWMutex
@@ -96,6 +99,7 @@ func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
 	atomic.StoreInt32(&active, 0)
 	ResetDone()
 	var clear sync.WaitGroup
+	issuePong()
 
 	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
 
@@ -228,12 +232,33 @@ func doneLocked() {
 	}
 }
 
+func issuePong() {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	select {
+	case pongLimiter <- struct{}{}:
+	default:
+		// if limiter is full, move on
+	}
+}
+
 func pongHandler(conn net.Conn) {
 	pongWriter := resp.NewResponseWriter(conn)
 	pong(pongWriter)
 }
 
 func pong(w resp.ResponseWriter) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	select {
+	case <-pongLimiter:
+		// Quota avaiable or abort.
+	default:
+		return
+	}
+
 	w.AppendBulkString("pong")
 	w.AppendInt(int64(id))
 	if err := w.Flush(); err != nil {
@@ -279,9 +304,14 @@ func main() {
 		if timeout.Requests > 1 {
 			extension = lambdaTimeout.TICK
 		}
+		defer func() {
+			timeout.ResetWithExtension(extension)
+			atomic.AddInt32(&active, -1)
+		}()
 
 		t := time.Now()
 		log.Debug("In GET handler")
+
 
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
@@ -300,33 +330,30 @@ func main() {
 		}
 
 		// construct lambda store response
-		w.AppendBulkString("get")
-		w.AppendBulkString(connId)
-		w.AppendBulkString(reqId)
-		w.AppendBulkString(chunk.Id)
-		t2 := time.Now()
-		w.AppendBulk(chunk.Body)
-		d2 := time.Since(t2)
-
+		response := &types.Response{
+			ResponseWriter: w,
+			Cmd: "get",
+			ConnId: connId,
+			ReqId: reqId,
+			ChunkId: chunk.Id,
+			Body: chunk.Body,
+		}
+		response.Prepare()
 		t3 := time.Now()
-		if err := w.Flush(); err != nil {
+		if err := response.Flush(); err != nil {
 			log.Error("Error on get::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "500", reqId, chunk.Id, d2, 0, time.Since(t)}
-		} else {
-			d3 := time.Since(t3)
-			dt := time.Since(t)
-
-			log.Debug("AppendBody duration is %v", d2)
-			log.Debug("Flush duration is %v", d3)
-			log.Debug("Total duration is %v", dt)
-			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
-			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt}
+			dataGatherer <- &types.DataEntry{OP_GET, "500", reqId, chunk.Id, 0, 0, time.Since(t)}
+			return
 		}
 
-		timeout.ResetWithExtension(extension)
-		atomic.AddInt32(&active, -1)
+		d3 := time.Since(t3)
+		dt := time.Since(t)
+		log.Debug("Flush duration is %v", d3)
+		log.Debug("Total duration is %v", dt)
+		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
+		dataDeposited.Add(1)
+		dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, 0, d3, dt}
 	})
 
 	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
@@ -351,27 +378,34 @@ func main() {
 		valReader, err := c.Next()
 		if err != nil {
 			log.Error("Error on get value reader: %v", err)
+			return
 		}
 		val, err := valReader.ReadAll()
 		if err != nil {
 			log.Error("Error on get value: %v", err)
+			return
 		}
 		myMap[key] = &types.Chunk{chunkId, val}
 
 		// write Key, clientId, chunkId, body back to server
-		w.AppendBulkString("set")
-		w.AppendBulkString(connId)
-		w.AppendBulkString(reqId)
-		w.AppendBulkString(chunkId)
-		if err := w.Flush(); err != nil {
+		response := &types.Response{
+			ResponseWriter: w,
+			Cmd: "set",
+			ConnId: connId,
+			ReqId: reqId,
+			ChunkId: chunkId,
+		}
+		response.Prepare()
+		if err := response.Flush(); err != nil {
 			log.Error("Error on set::flush(key %s): %v", key, err)
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
-		} else {
-			log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
-			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
+			return
 		}
+
+		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
+		dataDeposited.Add(1)
+		dataGatherer <- &types.DataEntry{OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t)}
 	})
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
@@ -411,7 +445,7 @@ func main() {
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 
-		if timeout.Requests == 0 || IsDone() {
+		if IsDone() {
 			// If no request comes, ignore. This prevents unexpected pings.
 			atomic.AddInt32(&active, -1)
 			return
@@ -419,6 +453,7 @@ func main() {
 
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
 		log.Debug("PING")
+		issuePong()
 		pong(w)
 		atomic.AddInt32(&active, -1)
 	})

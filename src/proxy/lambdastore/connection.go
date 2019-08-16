@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
-	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"io"
 	"net"
@@ -13,7 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 )
 
 var (
@@ -147,7 +148,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	connId, _ := conn.r.ReadBulkString()
 	reqId, _ := conn.r.ReadBulkString()
 	chunkId, _ := conn.r.ReadBulkString()
-	counter, ok := redeo.ReqMap.Get(reqId)
+	counter, ok := global.ReqMap.Get(reqId)
 	if ok == false {
 		conn.log.Warn("Request not found: %s", reqId)
 		// exhaust value field
@@ -155,40 +156,45 @@ func (conn *Connection) getHandler(start time.Time) {
 		return
 	}
 
-	var obj redeo.Response
-	obj.Cmd = "get"
-	obj.Id.ConnId, _ = strconv.Atoi(connId)
-	obj.Id.ReqId = reqId
-	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+	rsp := &types.Response{ Cmd: "get" }
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId = reqId
+	rsp.Id.ChunkId = chunkId
 
 	abandon := false
-	reqCounter := atomic.AddInt32(&(counter.(*redeo.ClientReqCounter).Counter), 1)
+	reqCounter := atomic.AddInt32(&(counter.(*types.ClientReqCounter).Counter), 1)
 	// Check if chunks are enough? Shortcut response if YES.
-	if int(reqCounter) > counter.(*redeo.ClientReqCounter).DataShards {
+	if int(reqCounter) > counter.(*types.ClientReqCounter).DataShards {
 		abandon = true
-		global.Clients[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Cmd: obj.Cmd}
-		if err := global.NanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
+		conn.instance.SetResponse(rsp)
+		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
 	}
 
 	// Read value
-	t9 := time.Now()
-	res, err := conn.r.ReadBulk(nil)
-	time9 := time.Since(t9)
+	// t9 := time.Now()
+	// bodyStream, err := conn.r.ReadBulk(nil)
+	// time9 := time.Since(t9)
+	// if err != nil {
+	// 	conn.log.Warn("Failed to read value of response: %v", err)
+	// 	// Abandon errant data
+	// 	res = nil
+	// }
+	var err error
+	rsp.BodyStream, err = conn.r.StreamBulk()
 	if err != nil {
-		conn.log.Warn("Failed to read value of response: %v", err)
-		// Abandon errant data
-		res = nil
+		conn.log.Warn("Failed to get body reader of response: %v", err)
 	}
+
 	// Skip on abandon
 	if abandon {
 		return
 	}
 
-	conn.log.Debug("GET peek complete, send to client channel", connId, obj.Id.ReqId, chunkId)
-	global.Clients[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: res, Cmd: obj.Cmd}
-	if err := global.NanoLog(resp.LogProxy, obj.Cmd, obj.Id.ReqId, obj.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(time9)); err != nil {
+	conn.log.Debug("GET peek complete, send to client channel %v", rsp.Id)
+	conn.instance.SetResponse(rsp)
+	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
 }
@@ -196,16 +202,15 @@ func (conn *Connection) getHandler(start time.Time) {
 func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
-	var obj redeo.Response
+	rsp := &types.Response{ Cmd: "set", Body: []byte{1} }
 	connId, _ := conn.r.ReadBulkString()
-	obj.Id.ConnId, _ = strconv.Atoi(connId)
-	obj.Id.ReqId, _ = conn.r.ReadBulkString()
-	chunkId, _ := conn.r.ReadBulkString()
-	obj.Id.ChunkId, _ = strconv.ParseInt(chunkId, 10, 64)
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
+	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
-	conn.log.Debug("SET peek complete, send to client channel, %s,%s,%s", connId, obj.Id.ReqId, chunkId)
-	global.Clients[obj.Id.ConnId] <- &redeo.Chunk{ChunkId: obj.Id.ChunkId, ReqId: obj.Id.ReqId, Body: []byte{1}, Cmd: "set"}
-	if err := global.NanoLog(resp.LogProxy, "set", obj.Id.ReqId, obj.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
+	conn.log.Debug("SET peek complete, send to client channel %v", rsp.Id)
+	conn.instance.SetResponse(rsp)
+	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
 }
@@ -233,7 +238,7 @@ func (conn *Connection) receiveData() {
 		//dTotal, _ := conn.r.ReadBulkString()
 		dat, _ := conn.r.ReadBulkString()
 		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
-		global.NanoLog(resp.LogLambda, "data", dat)
+		collector.Collect(collector.LogLambda, "data", dat)
 	}
 	conn.log.Info("Data collected, %d in total.", len)
 	global.DataCollected.Done()

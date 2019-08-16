@@ -7,12 +7,11 @@ import (
   "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
-	"github.com/wangaoone/redeo"
-	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/wangaoone/LambdaObjectstore/src/types"
+	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 )
 
@@ -22,7 +21,8 @@ type Instance struct {
 
 	replica      bool
 	cn           *Connection
-	chanReq      chan *redeo.ServerReq
+	chanReq      chan *types.Request
+	chanWait     chan *types.Request
 	alive        bool
 	aliveLock    sync.Mutex
 	validated    chan bool
@@ -44,7 +44,8 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 		Id: id,
 		replica: replica,
 		alive: false,
-		chanReq:   make(chan *redeo.ServerReq, 1024),
+		chanReq:   make(chan *types.Request, 1),
+		chanWait:   make(chan *types.Request, 10),
 		validated: validated,	// Initialize with a closed channel.
 		log:       &logger.ColorLogger{
 			Prefix: fmt.Sprintf("%s ", name),
@@ -55,7 +56,7 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 	}
 }
 
-func (ins *Instance) C() chan *redeo.ServerReq {
+func (ins *Instance) C() chan *types.Request {
 	return ins.chanReq
 }
 
@@ -107,28 +108,42 @@ func (ins *Instance) HandleRequests() {
 			// check lambda status first
 			ins.Validate()
 
-			// get arguments
-			connId := strconv.Itoa(req.Id.ConnId)
-			chunkId := strconv.FormatInt(req.Id.ChunkId, 10)
-
 			cmd := strings.ToLower(req.Cmd)
 			isDataRequest = false
 			switch cmd {
 			case "set": /*set or two argument cmd*/
-				ins.cn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, chunkId, req.Key, req.Body)
+				req.PrepareForSet(ins.cn.w)
 			case "get": /*get or one argument cmd*/
-				ins.cn.w.MyWriteCmd(req.Cmd, connId, req.Id.ReqId, "", req.Key)
+				req.PrepareForGet(ins.cn.w)
 			case "data":
-				ins.cn.w.WriteCmdString(req.Cmd)
+				req.PrepareForData(ins.cn.w)
 				isDataRequest = true
 			}
-			err := ins.cn.w.Flush()
-			if err != nil {
+			if err := req.Flush(); err != nil {
 				ins.log.Error("Flush pipeline error: %v", err)
 				if isDataRequest {
 					global.DataCollected.Done()
 				}
 			}
+			if !isDataRequest {
+				ins.chanWait <- req
+			}
+		}
+	}
+}
+
+func (ins *Instance) SetResponse(rsp *types.Response) {
+	for {
+		select {
+		case req := <-ins.chanWait:
+			if req.IsResponse(rsp) {
+				req.ChanResponse <- rsp
+				return
+			}
+			// Response is lost, skip.
+		default:
+			ins.log.Error("Unexpected response: %v", rsp)
+			return
 		}
 	}
 }
@@ -187,7 +202,7 @@ func (ins *Instance) triggerLambdaLocked() {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
-	event := &types.InputEvent {
+	event := &prototol.InputEvent {
 		Id: ins.Id,
 	}
 	payload, _ := json.Marshal(event)
