@@ -56,7 +56,7 @@ func (req *Request) Flush() error {
 	if req.BodyStream == nil {
 		return w.Flush()
 	} else {
-		return w.CopyBulk(req.BodyStream, req.BodyStream.N())
+		return w.CopyBulk(req.BodyStream, req.BodyStream.Len())
 	}
 }
 

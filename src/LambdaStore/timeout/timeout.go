@@ -9,7 +9,7 @@ import (
 const TICK = int64(100 * time.Millisecond)
 // For Lambdas below 0.5vCPU(896M).
 const TICK_1_ERROR_EXTEND = int64(10000 * time.Millisecond)
-const TICK_1_ERROR = int64(-1)
+const TICK_1_ERROR = int64(10 * time.Millisecond)
 // For Lambdas with 0.5vCPU(896M) and above.
 const TICK_5_ERROR_EXTEND = int64(1000 * time.Millisecond)
 const TICK_5_ERROR = int64(10 * time.Millisecond)

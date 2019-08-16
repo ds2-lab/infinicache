@@ -148,6 +148,20 @@ func (ins *Instance) SetResponse(rsp *types.Response) {
 	}
 }
 
+func (ins *Instance) SetErrorResponse(err error) {
+	for {
+		select {
+		case req := <-ins.chanWait:
+			req.ChanResponse <- err
+			return
+			// Response is lost, skip.
+		default:
+			ins.log.Error("Unexpected error response: %v", err)
+			return
+		}
+	}
+}
+
 func (ins *Instance) Close() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()

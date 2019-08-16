@@ -35,6 +35,6 @@ func (rsp *Response) Flush() error {
 	if rsp.BodyStream == nil {
 		return w.Flush()
 	} else {
-		return w.CopyBulk(rsp.BodyStream, rsp.BodyStream.N())
+		return w.CopyBulk(rsp.BodyStream, rsp.BodyStream.Len())
 	}
 }

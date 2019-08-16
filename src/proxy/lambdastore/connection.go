@@ -92,9 +92,14 @@ func (conn *Connection) ServeLambda() {
 		var cmd string
 		switch field0 {
 		case resp.TypeError:
-			strErr, _ := conn.r.ReadError()
-			err = errors.New(strErr)
-			conn.log.Warn("Error on peek response type: %v", err)
+			strErr, err := conn.r.ReadError()
+			if err != nil {
+				err = errors.New(fmt.Sprintf("Response error (Unknown): %v", err))
+			} else {
+				err = errors.New(fmt.Sprintf("Response error: %s", strErr))
+			}
+			conn.log.Warn("%v", err)
+			conn.instance.SetErrorResponse(err)
 		default:
 			cmd, err = conn.r.ReadBulkString()
 			if err != nil {

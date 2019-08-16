@@ -323,7 +323,11 @@ func main() {
 		//}
 		chunk, found := myMap[key]
 		if found == false {
-			log.Debug("%s not found", key)
+			log.Warn("%s not found", key)
+			w.AppendErrorf("%s not found", key)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush(error 404): %v", err)
+			}
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t)}
 			return
@@ -341,9 +345,7 @@ func main() {
 		response.Prepare()
 		t3 := time.Now()
 		if err := response.Flush(); err != nil {
-			log.Error("Error on get::flush(key %s): %v", key, err)
-			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "500", reqId, chunk.Id, 0, 0, time.Since(t)}
+			log.Error("Error on flush(get key %s): %v", key, err)
 			return
 		}
 
@@ -378,11 +380,19 @@ func main() {
 		valReader, err := c.Next()
 		if err != nil {
 			log.Error("Error on get value reader: %v", err)
+			w.AppendErrorf("Error on get value reader: %v", err)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush(error 500): %v", err)
+			}
 			return
 		}
 		val, err := valReader.ReadAll()
 		if err != nil {
 			log.Error("Error on get value: %v", err)
+			w.AppendErrorf("Error on get value: %v", err)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush(error 500): %v", err)
+			}
 			return
 		}
 		myMap[key] = &types.Chunk{chunkId, val}
@@ -397,9 +407,7 @@ func main() {
 		}
 		response.Prepare()
 		if err := response.Flush(); err != nil {
-			log.Error("Error on set::flush(key %s): %v", key, err)
-			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_SET, "500", reqId, chunkId, 0, 0, time.Since(t)}
+			log.Error("Error on set::flush(set key %s): %v", key, err)
 			return
 		}
 
