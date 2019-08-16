@@ -32,9 +32,11 @@ func (rsp *Response) Flush() error {
 	w := rsp.w
 	rsp.w = nil
 
-	if rsp.BodyStream == nil {
-		return w.Flush()
-	} else {
-		return w.CopyBulk(rsp.BodyStream, rsp.BodyStream.Len())
+	if rsp.BodyStream != nil {
+		if err := w.CopyBulk(rsp.BodyStream, rsp.BodyStream.Len()); err != nil {
+			return err
+		}
 	}
+
+	return w.Flush()
 }

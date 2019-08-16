@@ -27,9 +27,11 @@ func (r *Response) Prepare() {
 }
 
 func (r *Response) Flush() error {
-	if r.Body == nil {
-		return r.ResponseWriter.Flush()
-	} else {
-		return r.CopyBulk(bytes.NewReader(r.Body), int64(len(r.Body)))
+	if r.Body != nil {
+		if err := r.CopyBulk(bytes.NewReader(r.Body), int64(len(r.Body))); err != nil {
+			return err
+		}
 	}
+
+	return r.ResponseWriter.Flush()
 }

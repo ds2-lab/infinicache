@@ -46,19 +46,21 @@ func (req *Request) PrepareForData(w *resp.RequestWriter) {
 	req.w = w
 }
 
-func (req *Request) Flush() error {
+func (req *Request) Flush() (err error) {
 	if req.w == nil {
 		return errors.New("Writer for request not set.")
 	}
 	w := req.w
 	req.w = nil
 
-	if req.BodyStream == nil {
-		return w.Flush()
-	} else {
+	if req.BodyStream != nil {
 		defer req.BodyStream.(resp.Holdable).Unhold()
-		return w.CopyBulk(req.BodyStream, req.BodyStream.Len())
+		if err := w.CopyBulk(req.BodyStream, req.BodyStream.Len()); err != nil {
+			return err
+		}
 	}
+
+	return w.Flush()
 }
 
 func (req *Request) IsResponse(rsp *Response) bool {
