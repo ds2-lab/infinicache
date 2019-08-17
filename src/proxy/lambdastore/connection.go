@@ -157,7 +157,9 @@ func (conn *Connection) getHandler(start time.Time) {
 	if ok == false {
 		conn.log.Warn("Request not found: %s", reqId)
 		// exhaust value field
-		conn.r.ReadBulk(nil)
+		if err := conn.r.SkipBulk(); err != nil {
+			conn.log.Warn("Failed to skip bulk on request mismatch: %v", err)
+		}
 		return
 	}
 
@@ -186,16 +188,21 @@ func (conn *Connection) getHandler(start time.Time) {
 	// 	// Abandon errant data
 	// 	res = nil
 	// }
+	// Skip on abandon
+	if abandon {
+		if err := conn.r.SkipBulk(); err != nil {
+			conn.log.Warn("Failed to skip bulk on abandon: %v", err)
+		}
+		return
+	}
+
 	var err error
 	rsp.BodyStream, err = conn.r.StreamBulk()
 	if err != nil {
 		conn.log.Warn("Failed to get body reader of response: %v", err)
 	}
-
-	// Skip on abandon
-	if abandon {
-		return
-	}
+	rsp.BodyStream.(resp.Holdable).Hold()
+	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GET peek complete, send to client channel %v", rsp.Id)
 	conn.instance.SetResponse(rsp)

@@ -133,33 +133,23 @@ func (ins *Instance) HandleRequests() {
 }
 
 func (ins *Instance) SetResponse(rsp *types.Response) {
-	for {
-		select {
-		case req := <-ins.chanWait:
-			if req.IsResponse(rsp) {
-				req.ChanResponse <- rsp
-				return
-			}
-			// Response is lost, skip.
-		default:
-			ins.log.Error("Unexpected response: %v", rsp)
+	for req := range ins.chanWait {
+		if req.IsResponse(rsp) {
+			ins.log.Debug("response matched: %v", req.Id)
+			req.ChanResponse <- rsp
 			return
 		}
+		ins.log.Debug("passing req: %v", req)
 	}
+	ins.log.Error("Unexpected response: %v", rsp)
 }
 
 func (ins *Instance) SetErrorResponse(err error) {
-	for {
-		select {
-		case req := <-ins.chanWait:
-			req.ChanResponse <- err
-			return
-			// Response is lost, skip.
-		default:
-			ins.log.Error("Unexpected error response: %v", err)
-			return
-		}
+	for req := range ins.chanWait {
+		req.ChanResponse <- err
+		return
 	}
+	ins.log.Error("Unexpected error response: %v", err)
 }
 
 func (ins *Instance) Close() {

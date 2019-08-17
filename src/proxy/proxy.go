@@ -6,6 +6,7 @@ import (
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
@@ -113,7 +114,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	chunkKey := string(key) + chunkId
 	request := &types.Request{
 		Id: types.Id{ connId, reqId, chunkId },
-		Cmd: c.Name,
+		Cmd: strings.ToLower(c.Name),
 		Key: key,
 		BodyStream: bodyStream,
 		ChanResponse: client.Responses(),
@@ -158,7 +159,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	// Send request to lambda channel
 	p.group.All[lambdaDest.(int64)].C() <- &types.Request{
 		Id: types.Id{ connId, reqId, chunkId },
-		Cmd: c.Name,
+		Cmd: strings.ToLower(c.Name),
 		Key: key,
 		ChanResponse: client.Responses(),
 	}

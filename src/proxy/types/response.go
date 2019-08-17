@@ -23,6 +23,7 @@ func (rsp *Response) PrepareFor(w resp.ResponseWriter) {
 	if rsp.Body != nil {
 		w.AppendBulk(rsp.Body)
 	}
+	rsp.w = w
 }
 
 func (rsp *Response) Flush() error {
@@ -33,6 +34,7 @@ func (rsp *Response) Flush() error {
 	rsp.w = nil
 
 	if rsp.BodyStream != nil {
+		defer rsp.BodyStream.(resp.Holdable).Unhold()
 		if err := w.CopyBulk(rsp.BodyStream, rsp.BodyStream.Len()); err != nil {
 			return err
 		}
