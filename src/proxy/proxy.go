@@ -7,6 +7,7 @@ import (
 	"github.com/wangaoone/redeo/resp"
 	"net"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
@@ -23,6 +24,9 @@ type Proxy struct {
 	log       logger.ILogger
 	group     *types.Group
 	metaMap   *hashmap.HashMap
+
+	initialized int32
+	ready     chan struct{}
 }
 
 // initial lambda group
@@ -38,6 +42,7 @@ func New(replica bool) *Proxy {
 			MemCounter: 0,
 		},
 		metaMap: hashmap.New(1024),
+		ready: make(chan struct{}),
 	}
 
 	global.Stores = p.group
@@ -55,7 +60,13 @@ func New(replica bool) *Proxy {
 		p.group.All[i] = node
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
-		go node.Validate()
+		go func() {
+			node.Validate()
+			if atomic.AddInt32(&p.initialized, 1) == int32(len(p.group.All)) {
+				p.log.Info("[Proxy is ready]")
+				close(p.ready)
+			}
+		}()
 
 		// Begin handle requests
 		go node.HandleRequests()
@@ -74,6 +85,10 @@ func (p *Proxy) Serve(lis net.Listener) {
 		conn := lambdastore.NewConnection(cn)
 		go conn.ServeLambda()
 	}
+}
+
+func (p *Proxy) Ready() chan struct{} {
+	return p.ready
 }
 
 func (p *Proxy) Close(lis net.Listener) {

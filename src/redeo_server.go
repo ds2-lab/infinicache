@@ -78,12 +78,12 @@ func main() {
 
 	// initiate lambda store proxy
 	go prxy.Serve(lambdaLis)
+	<-prxy.Ready()
 
 	err = ioutil.WriteFile(filePath, []byte(fmt.Sprintf("%d", os.Getpid())), 0660)
 	if err != nil {
 		log.Warn("Failed to write PID: %v", err)
 	}
-	log.Info("Proxy for lambda store is ready!")
 
 	// Log goroutine
 	//defer t.Stop()
