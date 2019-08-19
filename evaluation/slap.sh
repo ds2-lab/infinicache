@@ -80,7 +80,7 @@ function perform(){
         done
         cat /tmp/pidLog.txt
 #        set
-        sleep 5s
+        sleep 1s
         bench $((KEYMAX-KEYMIN+1)) 1 $KEYMIN $KEYMAX $SZ $DATA $PARITY 0 $PRESET
 #        while [ ! -f /var/run/pidLog.txt ]
 #        do
@@ -101,7 +101,7 @@ SZSET=(10485760 20971520 41943040 62914020 83886080 104857600)
 DS=(4 5 10 10 10)
 PS=(2 1 1 2 4)
 C=(1)
-N=(3)
+N=(10)
 TIMEOUT=150
 if [ "$1" != "" ]; then
     TIMEOUT="$1"
