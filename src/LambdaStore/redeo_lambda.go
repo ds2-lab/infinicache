@@ -22,7 +22,7 @@ import (
 
 	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
-	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
+	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
 const OP_GET = "1"
@@ -46,13 +46,14 @@ var (
 	timeout        = lambdaTimeout.New(0)
 	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
 	// at the same time.
-	pongLimiter    = make(chan struct{}, 1)
+	pongLimiter = make(chan struct{}, 1)
 
-	active   int32
-	mu       sync.RWMutex
-	done     chan struct{}
-	id       uint64
-	hostName string
+	active      int32
+	mu          sync.RWMutex
+	done        chan struct{}
+	id          uint64
+	hostName    string
+	lambdaReqId string
 )
 
 func init() {
@@ -89,7 +90,12 @@ func adapt() {
 	}
 }
 
-func HandleRequest(ctx context.Context, input prototol.InputEvent) error {
+func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
+	lc, ok := lambdacontext.FromContext(ctx)
+	if ok == false {
+		log.Debug("not ok get lambda context")
+	}
+	lambdaReqId = lc.AwsRequestID
 	if input.Timeout > 0 {
 		deadline, _ := ctx.Deadline()
 		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
@@ -312,7 +318,6 @@ func main() {
 		t := time.Now()
 		log.Debug("In GET handler")
 
-
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
 		key := c.Arg(3).String()
@@ -336,11 +341,11 @@ func main() {
 		// construct lambda store response
 		response := &types.Response{
 			ResponseWriter: w,
-			Cmd: "get",
-			ConnId: connId,
-			ReqId: reqId,
-			ChunkId: chunk.Id,
-			Body: chunk.Body,
+			Cmd:            "get",
+			ConnId:         connId,
+			ReqId:          reqId,
+			ChunkId:        chunk.Id,
+			Body:           chunk.Body,
 		}
 		response.Prepare()
 		t3 := time.Now()
@@ -400,10 +405,10 @@ func main() {
 		// write Key, clientId, chunkId, body back to server
 		response := &types.Response{
 			ResponseWriter: w,
-			Cmd: "set",
-			ConnId: connId,
-			ReqId: reqId,
-			ChunkId: chunkId,
+			Cmd:            "set",
+			ConnId:         connId,
+			ReqId:          reqId,
+			ChunkId:        chunkId,
 		}
 		response.Prepare()
 		if err := response.Flush(); err != nil {
@@ -427,9 +432,9 @@ func main() {
 		w.AppendBulkString("data")
 		w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 		for _, entry := range dataDepository {
-			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%s",
+			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%s,%s,%s",
 				entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
-				entry.Duration, entry.DurationAppend, entry.DurationFlush,hostName)
+				entry.Duration, entry.DurationAppend, entry.DurationFlush, hostName, lambdacontext.FunctionName, lambdaReqId)
 			w.AppendBulkString(format)
 
 			//w.AppendBulkString(entry.Op)
