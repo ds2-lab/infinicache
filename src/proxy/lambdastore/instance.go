@@ -139,7 +139,7 @@ func (ins *Instance) SetResponse(rsp *types.Response) {
 			req.ChanResponse <- rsp
 			return
 		}
-		ins.log.Debug("passing req: %v", req)
+		ins.log.Debug("passing req: %v, got %v", req, rsp)
 	}
 	ins.log.Error("Unexpected response: %v", rsp)
 }

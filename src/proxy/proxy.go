@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"github.com/cornelk/hashmap"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
@@ -126,7 +127,6 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
 
 	// Check if the chunk key(key + chunkId) exists
-	chunkKey := string(key) + chunkId
 	request := &types.Request{
 		Id: types.Id{ connId, reqId, chunkId },
 		Cmd: strings.ToLower(c.Name),
@@ -134,16 +134,10 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		BodyStream: bodyStream,
 		ChanResponse: client.Responses(),
 	}
-	if lambdaDest, ok := p.metaMap.Get(chunkKey); !ok {
-		// Send chunk to the corresponding lambda instance in group
-		p.group.All[lambdaId].C() <- request
-		p.metaMap.Set(chunkKey, lambdaId)
-		// p.log.Debug("KEY is", key.String(), "IN SET, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
-	} else {
-		// Update the existed key on original lambda
-		p.group.All[lambdaDest.(int64)].C() <- request
-		// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
-	}
+	lambdaDest, _ := p.metaMap.GetOrInsert(fmt.Sprintf("%s@%s", chunkId, string(key)), lambdaId)
+	// Send chunk to the corresponding lambda instance in group
+	p.group.All[lambdaDest.(int64)].C() <- request
+	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
 
 func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
@@ -163,7 +157,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataShards), int(parityShards), 0})
 
 	// key is "key"+"chunkId"
-	lambdaDest, ok := p.metaMap.Get(key.String() + chunkId)
+	lambdaDest, ok := p.metaMap.Get(fmt.Sprintf("%s@%s", chunkId, string(key)))
 	// p.log.Debug("KEY is", key.String(), "IN GET, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaDestination)
 	if !ok {
 		p.log.Warn("KEY %s(%s) not found in lambda store, please set first.", key.String(), chunkId)
