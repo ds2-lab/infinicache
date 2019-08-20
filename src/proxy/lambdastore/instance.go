@@ -92,6 +92,10 @@ func (ins *Instance) IsValidating() bool {
 	select {
 	case <-ins.validated:
 		return false
+	case <-ins.closed:
+		// Check if instance closed
+		close(ins.validated)
+		return false
 	default:
 		return true
 	}
@@ -105,8 +109,14 @@ func (ins *Instance) HandleRequests() {
 		case <-ins.closed:
 			return
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
-			// check lambda status first
+			// Check lambda status first
 			ins.Validate()
+			select {
+			case <-ins.closed:
+				// Again, check if instance is closed.
+				return
+			default:
+			}
 
 			cmd := strings.ToLower(req.Cmd)
 			isDataRequest = false
