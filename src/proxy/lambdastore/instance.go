@@ -94,10 +94,6 @@ func (ins *Instance) IsValidating() bool {
 	select {
 	case <-ins.validated:
 		return false
-	case <-ins.closed:
-		// Check if instance closed
-		close(ins.validated)
-		return false
 	default:
 		return true
 	}
@@ -188,6 +184,7 @@ func (ins *Instance) Close() {
 		ins.cn.Close()
 	}
 	close(ins.closed)
+	ins.flagValidatedLocked(true)
 }
 
 func (ins *Instance) tryTriggerLambda() bool {
@@ -258,11 +255,17 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		ins.cn = conn
 	}
 
+	ins.flagValidatedLocked(false)
+}
+
+func (ins *Instance) flagValidatedLocked(onClose bool) {
 	select {
 	case <-ins.validated:
 		// Validated
 	default:
-		ins.log.Info("Validated")
+		if !onClose {
+			ins.log.Info("Validated")
+		}
 		close(ins.validated)
 	}
 }
