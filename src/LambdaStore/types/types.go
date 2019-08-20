@@ -19,4 +19,5 @@ type DataEntry struct {
 	DurationAppend time.Duration
 	DurationFlush  time.Duration
 	Duration       time.Duration
+	LambdaReqId    string
 }
