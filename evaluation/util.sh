@@ -53,5 +53,5 @@ function bench() {
     OP=$8
     FILE=$9
     go run $REDBENCH/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX \
-    -sz $SZ -d $D -p $P -op $OP -file $FILE -dec -i 500
+    -sz $SZ -d $D -p $P -op $OP -file $FILE -dec -i 1000
 }
