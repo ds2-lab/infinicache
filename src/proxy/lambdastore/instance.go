@@ -1,34 +1,36 @@
 package lambdastore
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
-  "github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 	"strings"
 	"sync"
+	"time"
 
-	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
+	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
 type Instance struct {
-	Name         string
-	Id           uint64
+	Name string
+	Id   uint64
 
-	replica      bool
-	cn           *Connection
-	chanReq      chan *types.Request
-	chanWait     chan *types.Request
-	alive        bool
-	aliveLock    sync.Mutex
-	validated    chan bool
-	log          logger.ILogger
-	mu           sync.Mutex
-	closed       chan struct{}
+	replica   bool
+	cn        *Connection
+	chanReq   chan *types.Request
+	chanWait  chan *types.Request
+	alive     bool
+	aliveLock sync.Mutex
+	validated chan bool
+	log       logger.ILogger
+	mu        sync.Mutex
+	closed    chan struct{}
 }
 
 // create new lambda instance
@@ -40,19 +42,19 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 	close(validated)
 
 	return &Instance{
-		Name: name,
-		Id: id,
-		replica: replica,
-		alive: false,
+		Name:      name,
+		Id:        id,
+		replica:   replica,
+		alive:     false,
 		chanReq:   make(chan *types.Request, 1),
-		chanWait:   make(chan *types.Request, 10),
-		validated: validated,	// Initialize with a closed channel.
-		log:       &logger.ColorLogger{
+		chanWait:  make(chan *types.Request, 10),
+		validated: validated, // Initialize with a closed channel.
+		log: &logger.ColorLogger{
 			Prefix: fmt.Sprintf("%s ", name),
-			Level: global.Log.GetLevel(),
-			Color: true,
+			Level:  global.Log.GetLevel(),
+			Color:  true,
 		},
-		closed:    make(chan struct{}),
+		closed: make(chan struct{}),
 	}
 }
 
@@ -71,7 +73,7 @@ func (ins *Instance) Validate() bool {
 
 		ins.log.Info("Validating...")
 		triggered := ins.alive == false && ins.tryTriggerLambda()
- 		if !triggered {
+		if !triggered {
 			ins.cn.Ping()
 		}
 
@@ -110,7 +112,11 @@ func (ins *Instance) HandleRequests() {
 			return
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
 			// Check lambda status first
+			validateStart := time.Now()
 			ins.Validate()
+			validateDuration := time.Since(validateStart)
+			ins.log.Debug("validateDuration is %v", validateDuration)
+
 			select {
 			case <-ins.closed:
 				// Again, check if instance is closed.
@@ -120,6 +126,11 @@ func (ins *Instance) HandleRequests() {
 
 			cmd := strings.ToLower(req.Cmd)
 			isDataRequest = false
+			if cmd != "data" {
+				if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
+					ins.log.Warn("Fail to record validate duration: %v", err)
+				}
+			}
 			switch cmd {
 			case "set": /*set or two argument cmd*/
 				req.PrepareForSet(ins.cn.w)
@@ -216,13 +227,13 @@ func (ins *Instance) triggerLambdaLocked() {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
-	event := &prototol.InputEvent {
+	event := &prototol.InputEvent{
 		Id: ins.Id,
 	}
 	payload, _ := json.Marshal(event)
 	input := &lambda.InvokeInput{
 		FunctionName: aws.String(ins.Name),
-		Payload: payload,
+		Payload:      payload,
 	}
 
 	_, err := client.Invoke(input)

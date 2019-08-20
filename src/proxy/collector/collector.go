@@ -11,19 +11,20 @@ import (
 )
 
 var (
-	LastActivity       = time.Now()
-	LogServer2Client   nanolog.Handle
+	LastActivity     = time.Now()
+	LogServer2Client nanolog.Handle
 	//LogServer        nanolog.Handle
 	//LogServerBufio   nanolog.Handle
-	LogProxy           nanolog.Handle = 10001
-	LogData            nanolog.Handle = 10002
-	LogStart           nanolog.Handle = 10003
-	LogLambda          nanolog.Handle = 10004
+	LogProxy    nanolog.Handle = 10001
+	LogData     nanolog.Handle = 10002
+	LogStart    nanolog.Handle = 10003
+	LogLambda   nanolog.Handle = 10004
+	LogValidate nanolog.Handle = 10005
 
-	logMu              sync.Mutex
-	ticker             *time.Ticker
-	stopped            bool
-	reqMap             = make(map[string]*dataEntry)
+	logMu   sync.Mutex
+	ticker  *time.Ticker
+	stopped bool
+	reqMap  = make(map[string]*dataEntry)
 )
 
 func init() {
@@ -35,7 +36,7 @@ func init() {
 	//"Sever PeekType chunkId time is %s, " +
 	//"Sever read field1 chunkId time is %s, " +
 	//	"Sever PeekType objBody time is %s, " +
-	LogData = nanolog.AddLogger("%s,%s,%s,%i64,%i64,%i64,%i64,%i64,%i64,%i64,%i64")
+	LogData = nanolog.AddLogger("%s,%s,%s,%i64,%i64,%i64,%i64,%i64,%i64,%i64,%i64,%i64")
 	//LogLambda = nanolog.AddLogger("%s,%s,%s,%s,%s,%s,%s,%s")
 	LogLambda = nanolog.AddLogger("%s,%s")
 }
@@ -58,7 +59,7 @@ func Create(prefix string) {
 		ticker = time.NewTicker(1 * time.Second)
 		for {
 			<-ticker.C
-			if stopped || time.Since(LastActivity) >= 10 * time.Second {
+			if stopped || time.Since(LastActivity) >= 10*time.Second {
 				if err := nanolog.Flush(); err != nil {
 					global.Log.Warn("Failed to save data: %v", err)
 				}
@@ -93,6 +94,7 @@ type dataEntry struct {
 	readBulk      int64
 	appendBulk    int64
 	flush         int64
+	validate      int64
 }
 
 func Collect(handle nanolog.Handle, args ...interface{}) error {
@@ -134,7 +136,15 @@ func Collect(handle nanolog.Handle, args ...interface{}) error {
 		return nanolog.Log(LogData, entry.cmd, entry.reqId, entry.chunkId,
 			entry.start, entry.duration,
 			entry.firstByte, entry.lambda2Server, entry.server2Client,
-			entry.readBulk, entry.appendBulk, entry.flush)
+			entry.readBulk, entry.appendBulk, entry.flush, entry.validate)
+	} else if handle == LogValidate {
+		key := fmt.Sprintf("%s-%s-%s", args[0], args[1], args[2])
+		logMu.Lock()
+		entry := reqMap[key]
+		logMu.Unlock()
+
+		entry.validate = args[3].(int64)
+		return nil
 	}
 
 	return nanolog.Log(handle, args...)
