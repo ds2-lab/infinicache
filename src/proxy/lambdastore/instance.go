@@ -6,8 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"strings"
 	"sync"
 	"time"
@@ -17,45 +17,50 @@ import (
 	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
-type Instance struct {
-	Name string
-	Id   uint64
+var (
+	Registry InstanceRegistry
+)
 
-	replica   bool
+type InstanceRegistry interface {
+	Instance(uint64) (*Instance, bool)
+}
+
+type Instance struct {
+	*Deployment
+
 	cn        *Connection
 	chanReq   chan *types.Request
 	chanWait  chan *types.Request
 	alive     bool
 	aliveLock sync.Mutex
 	validated chan bool
-	log       logger.ILogger
 	mu        sync.Mutex
 	closed    chan struct{}
 }
 
-// create new lambda instance
-func NewInstance(name string, id uint64, replica bool) *Instance {
-	if !replica {
-		name = fmt.Sprintf("%s%d", name, id)
+func NewInstanceFromDeployment(dp *Deployment) *Instance {
+	dp.log = &logger.ColorLogger{
+		Prefix: fmt.Sprintf("%s ", dp.name),
+		Level:  global.Log.GetLevel(),
+		Color:  true,
 	}
+
 	validated := make(chan bool)
 	close(validated)
 
 	return &Instance{
-		Name:      name,
-		Id:        id,
-		replica:   replica,
+		Deployment: dp,
 		alive:     false,
 		chanReq:   make(chan *types.Request, 1),
 		chanWait:  make(chan *types.Request, 10),
 		validated: validated, // Initialize with a closed channel.
-		log: &logger.ColorLogger{
-			Prefix: fmt.Sprintf("%s ", name),
-			Level:  global.Log.GetLevel(),
-			Color:  true,
-		},
 		closed: make(chan struct{}),
 	}
+}
+
+// create new lambda instance
+func NewInstance(name string, id uint64, replica bool) *Instance {
+	return NewInstanceFromDeployment(NewDeployment(name, id, replica))
 }
 
 func (ins *Instance) C() chan *types.Request {
@@ -169,15 +174,19 @@ func (ins *Instance) SetErrorResponse(err error) {
 	ins.log.Error("Unexpected error response: %v", err)
 }
 
+func (ins *Instance) Switch(to types.LambdaDeployment) *Instance {
+	temp := &Deployment{}
+	ins.Reset(to, temp)
+	to.Reset(temp, nil)
+	return ins
+}
+
 func (ins *Instance) Close() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
 
-	select {
-	case <-ins.closed:
-		// already closed
+	if ins.isClosedLocked() {
 		return
-	default:
 	}
 
 	if ins.cn != nil {
@@ -185,6 +194,23 @@ func (ins *Instance) Close() {
 	}
 	close(ins.closed)
 	ins.flagValidatedLocked(true)
+}
+
+func (ins *Instance) IsClosed() bool {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	return ins.isClosedLocked()
+}
+
+func (ins *Instance) isClosedLocked() bool {
+	select {
+	case <-ins.closed:
+		// already closed
+		return true
+	default:
+		return false
+	}
 }
 
 func (ins *Instance) tryTriggerLambda() bool {
@@ -225,11 +251,11 @@ func (ins *Instance) triggerLambdaLocked() {
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	event := &prototol.InputEvent{
-		Id: ins.Id,
+		Id: ins.Id(),
 	}
 	payload, _ := json.Marshal(event)
 	input := &lambda.InvokeInput{
-		FunctionName: aws.String(ins.Name),
+		FunctionName: aws.String(ins.Name()),
 		Payload:      payload,
 	}
 

@@ -12,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy"
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 )
@@ -100,18 +99,7 @@ func main() {
 
 		// Collect data
 		log.Info("Collecting data...")
-		for _, node := range global.Stores.All {
-			global.DataCollected.Add(1)
-			// send data command
-			node.C() <- &types.Request{ Cmd: "data" }
-		}
-		log.Info("Waiting data from Lambda")
-		global.DataCollected.Wait()
-		if err := collector.Flush(); err != nil {
-			log.Error("Failed to save data from lambdas: %v", err)
-		} else {
-			log.Info("Data collected.")
-		}
+		prxy.CollectData()
 
 		prxy.Close(lambdaLis)
 		prxy.Release()

@@ -139,7 +139,10 @@ func (conn *Connection) pongHandler() {
 	id, _ := conn.r.ReadInt()
 
 	// Lock up lambda instance
-	instance := global.Stores.All[int(id)].(*Instance)
+	instance, exists := Registry.Instance(uint64(id))
+	if !exists {
+		conn.log.Error("Failed to match lambda: %d", id)
+	}
 	instance.flagValidated(conn)
 	if undesignated {
 		conn.log.Debug("PONG from lambda confirmed.")

@@ -16,11 +16,8 @@ type Id struct {
 	ChunkId string
 }
 
-type Group struct {
-	All        []LambdaInstance
-	MemCounter uint64
-}
-
-type LambdaInstance interface {
-	C() chan *Request
+type LambdaDeployment interface {
+	Name() string
+	Id() uint64
+	Reset(new LambdaDeployment, old LambdaDeployment)
 }

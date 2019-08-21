@@ -17,13 +17,9 @@ import (
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 )
 
-const NumLambdaClusters = 14
-const LambdaStoreName = "LambdaStore"
-const LambdaPrefix = "Proxy1Node"
-
 type Proxy struct {
 	log       logger.ILogger
-	group     *types.Group
+	group     *Group
 	metaMap   *hashmap.HashMap
 
 	initialized int32
@@ -38,15 +34,10 @@ func New(replica bool) *Proxy {
 			Level: global.Log.GetLevel(),
 			Color: true,
 		},
-		group: &types.Group{
-			All: make([]types.LambdaInstance, NumLambdaClusters),
-			MemCounter: 0,
-		},
+		group: NewGroup(NumLambdaClusters),
 		metaMap: hashmap.New(1024),
 		ready: make(chan struct{}),
 	}
-
-	global.Stores = p.group
 
 	for i := range p.group.All {
 		name := LambdaPrefix
@@ -56,14 +47,12 @@ func New(replica bool) *Proxy {
 		} else {
 			p.log.Info("[Registering lambda store %s%d]", name, i)
 		}
-		node := lambdastore.NewInstance(name, uint64(i), replica)
-		// register lambda instance to group
-		p.group.All[i] = node
+		node := scheduler.GetForGroup(p.group, i)
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go func() {
 			node.Validate()
-			if atomic.AddInt32(&p.initialized, 1) == int32(len(p.group.All)) {
+			if atomic.AddInt32(&p.initialized, 1) == int32(p.group.Len()) {
 				p.log.Info("[Proxy is ready]")
 				close(p.ready)
 			}
@@ -97,10 +86,11 @@ func (p *Proxy) Close(lis net.Listener) {
 }
 
 func (p *Proxy) Release() {
-	for _, node := range p.group.All {
-		node.(*lambdastore.Instance).Close()
+	for i, node := range p.group.All {
+		scheduler.Recycle(node.LambdaDeployment)
+		p.group.All[i] = nil
 	}
-	global.Stores = nil
+	scheduler.Clear(p.group)
 }
 
 func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
@@ -134,9 +124,9 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		BodyStream: bodyStream,
 		ChanResponse: client.Responses(),
 	}
-	lambdaDest, _ := p.metaMap.GetOrInsert(fmt.Sprintf("%s@%s", chunkId, string(key)), lambdaId)
+	lambdaDest, _ := p.metaMap.GetOrInsert(fmt.Sprintf("%s@%s", chunkId, string(key)), int(lambdaId))
 	// Send chunk to the corresponding lambda instance in group
-	p.group.All[lambdaDest.(int64)].C() <- request
+	p.group.Instance(lambdaDest.(int)).C() <- request
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
 
@@ -166,7 +156,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		return
 	}
 	// Send request to lambda channel
-	p.group.All[lambdaDest.(int64)].C() <- &types.Request{
+	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id: types.Id{ connId, reqId, chunkId },
 		Cmd: strings.ToLower(c.Name),
 		Key: key,
@@ -200,5 +190,20 @@ func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
 		if err := collector.Collect(collector.LogServer2Client, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, int64(tgg.Sub(t)), int64(d1), int64(d2), tgg.UnixNano()); err != nil {
 			p.log.Warn("LogServer2Client err %v", err)
 		}
+	}
+}
+
+func (p *Proxy) CollectData() {
+	for i, _ := range p.group.All {
+		global.DataCollected.Add(1)
+		// send data command
+		p.group.Instance(i).C() <- &types.Request{ Cmd: "data" }
+	}
+	p.log.Info("Waiting data from Lambda")
+	global.DataCollected.Wait()
+	if err := collector.Flush(); err != nil {
+		p.log.Error("Failed to save data from lambdas: %v", err)
+	} else {
+		p.log.Info("Data collected.")
 	}
 }
