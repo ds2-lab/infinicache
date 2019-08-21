@@ -7,14 +7,14 @@ import (
 )
 
 type Request struct {
-	Id   Id
-	Cmd  string
-	Key  []byte
-	Body []byte
-	BodyStream resp.AllReadCloser
+	Id           Id
+	Cmd          string
+	Key          []byte
+	Body         []byte
+	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
 
-	w    *resp.RequestWriter
+	w *resp.RequestWriter
 }
 
 func (req *Request) PrepareForSet(w *resp.RequestWriter) {
@@ -40,11 +40,11 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 	req.w = w
 }
 
-func (req *Request) PrepareForData(w *resp.RequestWriter) {
-	w.WriteMultiBulkSize(1)
-	w.WriteBulkString(req.Cmd)
-	req.w = w
-}
+//func (req *Request) PrepareForData(w *resp.RequestWriter) {
+//	w.WriteMultiBulkSize(1)
+//	w.WriteBulkString(req.Cmd)
+//	req.w = w
+//}
 
 func (req *Request) Flush() (err error) {
 	if req.w == nil {

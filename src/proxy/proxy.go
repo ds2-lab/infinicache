@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/lambdastore"
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 )
 
 const NumLambdaClusters = 14
@@ -22,12 +22,12 @@ const LambdaStoreName = "LambdaStore"
 const LambdaPrefix = "Proxy1Node"
 
 type Proxy struct {
-	log       logger.ILogger
-	group     *types.Group
-	metaMap   *hashmap.HashMap
+	log     logger.ILogger
+	group   *types.Group
+	metaMap *hashmap.HashMap
 
 	initialized int32
-	ready     chan struct{}
+	ready       chan struct{}
 }
 
 // initial lambda group
@@ -35,15 +35,15 @@ func New(replica bool) *Proxy {
 	p := &Proxy{
 		log: &logger.ColorLogger{
 			Prefix: "Proxy ",
-			Level: global.Log.GetLevel(),
-			Color: true,
+			Level:  global.Log.GetLevel(),
+			Color:  true,
 		},
 		group: &types.Group{
-			All: make([]types.LambdaInstance, NumLambdaClusters),
+			All:        make([]types.LambdaInstance, NumLambdaClusters),
 			MemCounter: 0,
 		},
 		metaMap: hashmap.New(1024),
-		ready: make(chan struct{}),
+		ready:   make(chan struct{}),
 	}
 
 	global.Stores = p.group
@@ -103,6 +103,7 @@ func (p *Proxy) Release() {
 	global.Stores = nil
 }
 
+// from client
 func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	client := redeo.GetClient(c.Context())
 	connId := int(client.ID())
@@ -128,10 +129,10 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 
 	// Check if the chunk key(key + chunkId) exists
 	request := &types.Request{
-		Id: types.Id{ connId, reqId, chunkId },
-		Cmd: strings.ToLower(c.Name),
-		Key: key,
-		BodyStream: bodyStream,
+		Id:           types.Id{connId, reqId, chunkId},
+		Cmd:          strings.ToLower(c.Name),
+		Key:          key,
+		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
 	}
 	lambdaDest, _ := p.metaMap.GetOrInsert(fmt.Sprintf("%s@%s", chunkId, string(key)), lambdaId)
@@ -167,9 +168,9 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	}
 	// Send request to lambda channel
 	p.group.All[lambdaDest.(int64)].C() <- &types.Request{
-		Id: types.Id{ connId, reqId, chunkId },
-		Cmd: strings.ToLower(c.Name),
-		Key: key,
+		Id:           types.Id{connId, reqId, chunkId},
+		Cmd:          strings.ToLower(c.Name),
+		Key:          key,
 		ChanResponse: client.Responses(),
 	}
 }

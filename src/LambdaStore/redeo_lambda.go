@@ -471,6 +471,19 @@ func main() {
 		atomic.AddInt32(&active, -1)
 	})
 
+	srv.HandleFunc("initBackup", func(w resp.ResponseWriter, c *resp.Command) {
+		log.Debug("in backup handler")
+		w.AppendBulkString("backup")
+		if err := w.Flush(); err != nil {
+			log.Error("Error on data::flush(backup): %v", err)
+			return
+		}
+	})
+
+	srv.HandleFunc("backup", func(w resp.ResponseWriter, c *resp.Command) {
+		_ = c.Arg(0).String()
+	})
+
 	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())
 	lambda.Start(HandleRequest)
 }

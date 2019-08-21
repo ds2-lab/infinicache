@@ -1,8 +1,5 @@
 package types
 
-import (
-)
-
 type ClientReqCounter struct {
 	Cmd          string
 	DataShards   int
@@ -22,5 +19,5 @@ type Group struct {
 }
 
 type LambdaInstance interface {
-	C() chan *Request
+	C() chan interface{}
 }
