@@ -53,13 +53,13 @@ func main() {
 	log.Info("======================================")
 	log.Info("replica: %v || isPrint: %v", *replica, *isPrint)
 	log.Info("======================================")
-	clientLis, err := net.Listen("tcp", ":6378")
+	clientLis, err := net.Listen("tcp", fmt.Sprintf(":%d", global.BasePort))
 	if err != nil {
 		log.Error("Failed to listen clients: %v", err)
 		os.Exit(1)
 		return
 	}
-	lambdaLis, err = net.Listen("tcp", ":6379")
+	lambdaLis, err = net.Listen("tcp", fmt.Sprintf(":%d", global.BasePort + 1))
 	if err != nil {
 		log.Error("Failed to listen lambdas: %v", err)
 		os.Exit(1)

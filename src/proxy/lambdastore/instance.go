@@ -28,8 +28,8 @@ type InstanceRegistry interface {
 type Instance struct {
 	*Deployment
 
-	cn        *Connection
-	chanReq   chan *types.Request
+	cn      *Connection
+	chanReq   chan interface{}
 	chanWait  chan *types.Request
 	alive     bool
 	aliveLock sync.Mutex
@@ -50,8 +50,8 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 
 	return &Instance{
 		Deployment: dp,
-		alive:     false,
-		chanReq:   make(chan *types.Request, 1),
+		alive:   false,
+		chanReq:   make(chan interface{}, 1),
 		chanWait:  make(chan *types.Request, 10),
 		validated: validated, // Initialize with a closed channel.
 		closed: make(chan struct{}),
@@ -63,7 +63,7 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 	return NewInstanceFromDeployment(NewDeployment(name, id, replica))
 }
 
-func (ins *Instance) C() chan *types.Request {
+func (ins *Instance) C() chan interface{} {
 	return ins.chanReq
 }
 
@@ -105,6 +105,7 @@ func (ins *Instance) IsValidating() bool {
 }
 
 // Handle incoming client requests
+// lambda facing goroutine
 func (ins *Instance) HandleRequests() {
 	var isDataRequest bool
 	for {
@@ -125,32 +126,76 @@ func (ins *Instance) HandleRequests() {
 			default:
 			}
 
-			cmd := strings.ToLower(req.Cmd)
-			isDataRequest = false
-			if cmd != "data" {
+			//cmd := strings.ToLower(req.Cmd)
+			//isDataRequest = false
+			//if cmd != "data" {
+			//	if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
+			//		ins.log.Warn("Fail to record validate duration: %v", err)
+			//	}
+			//}
+			//switch cmd {
+			//case "set": /*set or two argument cmd*/
+			//	req.PrepareForSet(ins.cn.w)
+			//case "get": /*get or one argument cmd*/
+			//	req.PrepareForGet(ins.cn.w)
+			//case "data":
+			//	req.PrepareForData(ins.cn.w)
+			//	isDataRequest = true
+			//}
+			//if err := req.Flush(); err != nil {
+			//	ins.log.Error("Flush pipeline error: %v", err)
+			//	if isDataRequest {
+			//		global.DataCollected.Done()
+			//	}
+			//}
+			//if !isDataRequest {
+			//	ins.chanWait <- req
+			//}
+			switch req.(type) {
+			case types.Request:
+				isDataRequest = false
+				req := req.(types.Request)
+				cmd := strings.ToLower(req.Cmd)
+
 				if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
 					ins.log.Warn("Fail to record validate duration: %v", err)
 				}
-			}
-			switch cmd {
-			case "set": /*set or two argument cmd*/
-				req.PrepareForSet(ins.cn.w)
-			case "get": /*get or one argument cmd*/
-				req.PrepareForGet(ins.cn.w)
-			case "data":
-				req.PrepareForData(ins.cn.w)
-				isDataRequest = true
-			}
-			if err := req.Flush(); err != nil {
-				ins.log.Error("Flush pipeline error: %v", err)
-				if isDataRequest {
-					global.DataCollected.Done()
+
+				switch cmd {
+				case "set": /*set or two argument cmd*/
+					req.PrepareForSet(ins.cn.w)
+				case "get": /*get or one argument cmd*/
+					req.PrepareForGet(ins.cn.w)
 				}
-			}
-			if !isDataRequest {
-				ins.chanWait <- req
+
+				if err := req.Flush(); err != nil {
+					ins.log.Error("Flush pipeline error: %v", err)
+				}
+				ins.chanWait <- &req
+
+			case types.Control:
+				ctrl := req.(types.Control)
+				cmd := strings.ToLower(ctrl.Cmd)
+
+				switch cmd {
+				case "data":
+					ctrl.PrepareForData(ins.cn.w)
+					isDataRequest = true
+				case "backup":
+					ctrl.PrepareForBackup(ins.cn.w)
+
+				}
+
+				if err := ctrl.Flush(); err != nil {
+					ins.log.Error("Flush pipeline error: %v", err)
+					if isDataRequest {
+						global.DataCollected.Done()
+					}
+				}
+
 			}
 		}
+
 	}
 }
 
