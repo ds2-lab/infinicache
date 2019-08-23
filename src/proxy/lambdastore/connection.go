@@ -260,8 +260,8 @@ func (conn *Connection) receiveData() {
 
 func (conn *Connection) initBackupHandler() {
 	conn.log.Debug("backup from %v", conn.instance.Name)
-	// func launch Mproxy
-	// get addr if Mproxy
+	// func launch migrator
+	// get addr if migrator
 	conn.instance.chanReq <- &types.Control{Cmd: "backup", Body: "addr"}
 
 }

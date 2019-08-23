@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	lambdaService "github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -25,11 +29,16 @@ import (
 	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
-const OP_GET = "1"
-const OP_SET = "0"
-const EXPECTED_GOMAXPROCS = 2
+const (
+	OP_GET              = "1"
+	OP_SET              = "0"
+	EXPECTED_GOMAXPROCS = 2
+	LIFESPAN            = 60
+	STATUSCODE          = 202
+)
 
 var (
+	startTime = time.Now()
 	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
 	//server = "172.31.84.57:6379" // t2.micro ec2 server UbuntuProxy0 private ip under vpc
 	server     = "18.214.26.94:6379" // t2.micro ec2 server UbuntuProxy0 public ip under vpc
@@ -48,12 +57,16 @@ var (
 	// at the same time.
 	pongLimiter = make(chan struct{}, 1)
 
-	active      int32
-	mu          sync.RWMutex
-	done        chan struct{}
-	id          uint64
-	hostName    string
-	lambdaReqId string
+	active       int32
+	mu           sync.RWMutex
+	done         chan struct{}
+	id           uint64
+	hostName     string
+	lambdaReqId  string
+	addrMigrator string
+	srcConn      net.Conn
+	dstConn      net.Conn
+	migrateChan  = make(chan error, 1)
 )
 
 func init() {
@@ -90,12 +103,48 @@ func adapt() {
 	}
 }
 
-func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
+func getAwsReqId(ctx context.Context) string {
 	lc, ok := lambdacontext.FromContext(ctx)
 	if ok == false {
-		log.Debug("not ok get lambda context")
+		log.Debug("get lambda context failed %v", ok)
 	}
-	lambdaReqId = lc.AwsRequestID
+	return lc.AwsRequestID
+}
+
+func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
+	// get lambda invoke reqId
+	lambdaReqId = getAwsReqId(ctx)
+
+	// get duration time from first invoke
+	invokeAge := time.Since(startTime).Minutes()
+	if invokeAge >= LIFESPAN {
+		err := initBackup(lambdaConn)
+		if err != nil {
+			log.Error("init backup err %v", err)
+			return err
+		}
+		log.Debug("initBackup success")
+	}
+
+	// migration triggered lambda
+	if input.Cmd != "migrate" {
+		var connErr error
+		// dial to migrator
+		dstConn, connErr = net.Dial("tcp", input.MigratorAddr)
+		if connErr != nil {
+			log.Error("Failed to connect migrator %s: %v", input.MigratorAddr, connErr)
+			return connErr
+		}
+		// dial to proxy
+		lambdaConn, connErr = net.Dial("tcp", server)
+		if connErr != nil {
+			log.Error("Failed to connect server %s: %v", server, connErr)
+			return connErr
+		}
+		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), timeout.Since())
+
+	}
+
 	if input.Timeout > 0 {
 		deadline, _ := ctx.Deadline()
 		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
@@ -471,19 +520,69 @@ func main() {
 		atomic.AddInt32(&active, -1)
 	})
 
-	srv.HandleFunc("initBackup", func(w resp.ResponseWriter, c *resp.Command) {
-		log.Debug("in backup handler")
-		w.AppendBulkString("backup")
-		if err := w.Flush(); err != nil {
-			log.Error("Error on data::flush(backup): %v", err)
-			return
-		}
-	})
-
 	srv.HandleFunc("backup", func(w resp.ResponseWriter, c *resp.Command) {
-		_ = c.Arg(0).String()
+		var err error
+		// addr:port
+		addrMigrator = c.Arg(0).String()
+
+		// dial to migrator
+		srcConn, err = net.Dial("tcp", addrMigrator)
+		if err != nil {
+			log.Error("connect to migrator failed", err)
+			migrateChan <- err
+		}
+
+		//trigger migrate lambda
+		status, err := trigger(addrMigrator, "functionName")
+		if err != nil {
+			log.Error("trigger dst lambda err %v", err)
+			migrateChan <- err
+		}
+		if status == STATUSCODE {
+			log.Debug("async invoke lambda success %d", status)
+		}
+		migrateChan <- nil
+
 	})
 
 	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())
 	lambda.Start(HandleRequest)
+}
+
+func trigger(addr string, name string) (int64, error) {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	event := &protocol.InputEvent{
+		MigratorAddr: addr,
+		Cmd:          "migrate",
+	}
+	payload, _ := json.Marshal(event)
+	input := &lambdaService.InvokeInput{
+		FunctionName:   aws.String(name),
+		Payload:        payload,
+		InvocationType: aws.String("Event"), /* async invoke*/
+	}
+
+	res, err := client.Invoke(input)
+	if err != nil {
+		log.Error("Error calling migration lambda %s, %v", name, err)
+		migrateChan <- err
+	}
+	return *res.StatusCode, err
+}
+
+func initBackup(conn net.Conn) error {
+	initBackupWriter := resp.NewResponseWriter(conn)
+	// init backup cmd
+	initBackupWriter.AppendBulkString("initBackup")
+
+	if err := initBackupWriter.Flush(); err != nil {
+		log.Error("Error on initBackup::flush(backup): %v", err)
+		return err
+	}
+
+	return <-migrateChan
 }
