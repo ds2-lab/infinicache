@@ -135,13 +135,14 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		}
 
 		// Send hello
-		if err := migrClient.Send("mhello"); err != nil {
+		if _, err := migrClient.Send("mhello"); err != nil {
 			log.Error("Failed to hello source on migrator: %v", err)
 			return nil
 		}
+		// TODO: Receive key list and do migration
 
-		// Serve
-		go migrClient.Start(srv)
+		// Migration destination take charge, so no serve on this side.
+		// go migrClient.Start(srv)
 	}
 
 	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
@@ -377,10 +378,7 @@ func main() {
 		if timeout.Requests > 1 {
 			extension = lambdaTimeout.TICK
 		}
-		defer func() {
-			timeout.ResetWithExtension(extension)
-			atomic.AddInt32(&active, -1)
-		}()
+		var respError *types.ResponseError
 
 		t := time.Now()
 		log.Debug("In GET handler")
@@ -389,45 +387,93 @@ func main() {
 		reqId := c.Arg(1).String()
 		key := c.Arg(3).String()
 
+		defer func() {
+			if respError != nil {
+				log.Warn("%v", respError)
+				w.AppendErrorf("%v", respError)
+				if err := w.Flush(); err != nil {
+					log.Error("Error on flush(error 404): %v", err)
+				}
+				dataDeposited.Add(1)
+				dataGatherer <- &types.DataEntry{OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
+			}
+			timeout.ResetWithExtension(extension)
+			atomic.AddInt32(&active, -1)
+		}()
+
 		//val, err := myCache.Get(key)
 		//if err == false {
 		//	log.Debug("not found")
 		//}
 		chunk, found := myMap[key]
-		if found == false {
-			log.Warn("%s not found", key)
-			w.AppendErrorf("%s not found", key)
-			if err := w.Flush(); err != nil {
-				log.Error("Error on flush(error 404): %v", err)
+		if found {
+			// construct lambda store response
+			response := &types.Response{
+				ResponseWriter: w,
+				Cmd:            c.Name,
+				ConnId:         connId,
+				ReqId:          reqId,
+				ChunkId:        chunk.Id,
+				Body:           chunk.Body,
 			}
+			response.Prepare()
+
+			t3 := time.Now()
+			if err := response.Flush(); err != nil {
+				log.Error("Error on flush(get key %s): %v", key, err)
+				return
+			}
+			d3 := time.Since(t3)
+
+			dt := time.Since(t)
+			log.Debug("Streaming duration is %v", d3)
+			log.Debug("Total duration is %v", dt)
+			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
 			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "404", reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
-			return
-		}
+			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, 0, d3, dt, lambdaReqId}
+		} else if migrClient == nil {
+			// Not found
+			respError = types.NewResponseError(404, "%s not found", key)
+		} else {
+			// Migration in process.
+			t2 := time.Now()
+			reader, err := migrClient.Send(c.Name, connId, reqId, key)
+			if err != nil {
+				respError = types.NewResponseError(500, err)
+				return
+			}
 
-		// construct lambda store response
-		response := &types.Response{
-			ResponseWriter: w,
-			Cmd:            "get",
-			ConnId:         connId,
-			ReqId:          reqId,
-			ChunkId:        chunk.Id,
-			Body:           chunk.Body,
-		}
-		response.Prepare()
-		t3 := time.Now()
-		if err := response.Flush(); err != nil {
-			log.Error("Error on flush(get key %s): %v", key, err)
-			return
-		}
+			// Wait and read response
+			response := &types.Response{ ResponseWriter: w }
+			err = response.PrepareByResponse(reader)
+			if err != nil {
+				respError = types.NewResponseError(500, err)
+				return
+			}
+			d2 := time.Since(t2)
 
-		d3 := time.Since(t3)
-		dt := time.Since(t)
-		log.Debug("Flush duration is %v", d3)
-		log.Debug("Total duration is %v", dt)
-		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
-		dataDeposited.Add(1)
-		dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, 0, d3, dt, lambdaReqId}
+			// Intercept stream
+			response.BodyStream = migrator.NewInterceptReader(response.BodyStream)
+
+			// Streaming
+			t3 := time.Now()
+			if err := response.Flush(); err != nil {
+				log.Error("Error on flush(get key %s): %v", key, err)
+				return
+			}
+			d3 := time.Since(t3)
+
+			// Get intercepted result
+			myMap[key] = &types.Chunk{ chunk.Id, response.BodyStream.(*migrator.InterceptReader).Intercepted() }
+
+			dt := time.Since(t)
+			log.Debug("Migration duration is %v", d2)
+			log.Debug("Streaming duration is %v", d3)
+			log.Debug("Total duration is %v", dt)
+			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
+			dataDeposited.Add(1)
+			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt, lambdaReqId}
+		}
 	})
 
 	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {

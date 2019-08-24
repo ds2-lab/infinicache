@@ -24,6 +24,8 @@ type Client struct {
 	cn           net.Conn
 	ready        chan error
 	mu           sync.Mutex
+	w            *resp.RequestWriter
+	r            resp.ResponseReader
 }
 
 func NewClient() *Client {
@@ -71,11 +73,19 @@ func (cli *Client) TriggerDestination(dest string, args interface{}) (err error)
 	return
 }
 
-func (cli *Client) Send(cmd string, args ...string) error {
-	writer := resp.NewRequestWriter(cli.cn)
+func (cli *Client) Send(cmd string, args ...string) (resp.ResponseReader, error) {
+	if cli.w == nil && cli.r == nil {
+		cli.w = resp.NewRequestWriter(cli.cn)
+		cli.r = resp.NewResponseReader(cli.cn)
+	}
+
 	// init backup cmd
-	writer.WriteCmdString(cmd, args...)
-	return writer.Flush()
+	cli.w.WriteCmdString(cmd, args...)
+	if err := cli.w.Flush(); err != nil {
+		return nil, err
+	}
+
+	return cli.r, nil
 }
 
 func (cli *Client) Start(srv *redeo.Server) {
