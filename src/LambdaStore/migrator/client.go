@@ -62,7 +62,7 @@ func (cli *Client) TriggerDestination(dest string, args interface{}) (err error)
 	}
 
 	res, err := client.Invoke(input)
-	if err == nil && *res.StatusCode != 200 {
+	if err == nil && *res.StatusCode >= 300 {
 		err = errors.New(fmt.Sprintf("Unexpected http code on triggering destination of migration: %d", *res.StatusCode))
 	}
 	if err != nil {
