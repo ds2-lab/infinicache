@@ -183,7 +183,6 @@ func (ins *Instance) HandleRequests() {
 					isDataRequest = true
 				case "backup":
 					ctrl.PrepareForBackup(ins.cn.w)
-
 				}
 
 				if err := ctrl.Flush(); err != nil {
@@ -192,7 +191,6 @@ func (ins *Instance) HandleRequests() {
 						global.DataCollected.Done()
 					}
 				}
-
 			}
 		}
 

@@ -2,8 +2,8 @@ package types
 
 // Input
 type InputEvent struct {
+	Cmd          string `json:"cmd"`
 	Id           uint64 `json:"id"`
 	Timeout      int    `json:"timeout"`
-	MigratorAddr string `json:"addr"`
-	Cmd          string `json:"cmd"`
+	Addr         string `json:"addr"`
 }

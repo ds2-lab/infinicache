@@ -29,6 +29,7 @@ type Timeout struct {
 
 	lastExtension int64
 	log           logger.ILogger
+	disabled      bool
 }
 
 func New(d time.Duration) *Timeout {
@@ -44,6 +45,7 @@ func (t *Timeout) Restart() time.Time {
 }
 
 func (t *Timeout) RestartWithCalibration(start time.Time) time.Time {
+	t.Enable()
 	t.Start = start
 	t.Requests = 0
 	return t.Start
@@ -54,6 +56,9 @@ func (t *Timeout) Since() time.Duration {
 }
 
 func (t *Timeout) Reset() {
+	if t.disabled {
+		return
+	}
 	// Drain the timer to be accurate and safe to reset.
 	if !t.Stop() {
 		select {
@@ -73,6 +78,14 @@ func (t *Timeout) ResetWithExtension(ext int64) {
 
 func (t *Timeout) SetLogger(log logger.ILogger) {
 	t.log = log
+}
+
+func (t *Timeout) Disable() {
+	t.disabled = true
+}
+
+func (t *Timeout) Enable() {
+	t.disabled = false
 }
 
 func (t *Timeout) getTimeout(ext int64) time.Duration {

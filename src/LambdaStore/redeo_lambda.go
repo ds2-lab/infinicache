@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	lambdaService "github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -24,9 +20,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
-	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
 )
 
 const (
@@ -63,10 +60,7 @@ var (
 	id           uint64
 	hostName     string
 	lambdaReqId  string
-	addrMigrator string
-	srcConn      net.Conn
-	dstConn      net.Conn
-	migrateChan  = make(chan error, 1)
+	migrClient   *migrator.Client
 )
 
 func init() {
@@ -112,39 +106,6 @@ func getAwsReqId(ctx context.Context) string {
 }
 
 func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
-	// get lambda invoke reqId
-	lambdaReqId = getAwsReqId(ctx)
-
-	// get duration time from first invoke
-	invokeAge := time.Since(startTime).Minutes()
-	if invokeAge >= LIFESPAN {
-		err := initBackup(lambdaConn)
-		if err != nil {
-			log.Error("init backup err %v", err)
-			return err
-		}
-		log.Debug("initBackup success")
-	}
-
-	// migration triggered lambda
-	if input.Cmd != "migrate" {
-		var connErr error
-		// dial to migrator
-		dstConn, connErr = net.Dial("tcp", input.MigratorAddr)
-		if connErr != nil {
-			log.Error("Failed to connect migrator %s: %v", input.MigratorAddr, connErr)
-			return connErr
-		}
-		// dial to proxy
-		lambdaConn, connErr = net.Dial("tcp", server)
-		if connErr != nil {
-			log.Error("Failed to connect server %s: %v", server, connErr)
-			return connErr
-		}
-		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), timeout.Since())
-
-	}
-
 	if input.Timeout > 0 {
 		deadline, _ := ctx.Deadline()
 		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
@@ -156,8 +117,34 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	var clear sync.WaitGroup
 	issuePong()
 
-	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
+	// get lambda invoke reqId
+	lambdaReqId = getAwsReqId(ctx)
 
+	// migration triggered lambda
+	if input.Cmd == "migrate" {
+		if len(input.Addr) == 0 {
+			log.Error("No migrator set.")
+			return nil
+		}
+
+		// connect to migrator
+		migrClient = migrator.NewClient()
+ 		if err := migrClient.Connect(input.Addr); err != nil {
+			log.Error("Failed to connect migrator %s: %v", input.Addr, err)
+			return nil
+		}
+
+		// Send hello
+		if err := migrClient.Send("mhello"); err != nil {
+			log.Error("Failed to hello source on migrator: %v", err)
+			return nil
+		}
+
+		// Serve
+		go migrClient.Start(srv)
+	}
+
+	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
 	id = input.Id
 
 	if isFirst == true {
@@ -214,8 +201,27 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 				return
 			case <-timeout.C:
 				mu.Lock()
+				// Time to migarate
+				if time.Since(startTime).Minutes() >= LIFESPAN {
+					// Disable timer so Reset will not work.
+					timeout.Disable()
+					mu.Unlock()
 
-				if atomic.LoadInt32(&active) > 0 {
+					// Initiate migration
+					migrClient = migrator.NewClient()
+					log.Info("Initiate migration.")
+					initiator := func() error { return initBackupHandler(lambdaConn) }
+					for err := migrClient.Initiate(initiator); err != nil; {
+						log.Warn("Fail to initiaiate migration: %v", err)
+						log.Warn("Retry migration")
+
+						err = migrClient.Initiate(initiator)
+					}
+
+					// No more timeout, just wait for done
+					log.Debug("Migration initiated.")
+					break
+				} else if atomic.LoadInt32(&active) > 0 {
 					timeout.Reset()
 					mu.Unlock()
 					break
@@ -244,6 +250,11 @@ func ResetDone() {
 func Done() {
 	mu.Lock()
 	defer mu.Unlock()
+
+	// Migrating? Wait it is over
+	if migrClient != nil {
+		return
+	}
 
 	resetDoneLocked()
 	doneLocked()
@@ -299,8 +310,8 @@ func issuePong() {
 }
 
 func pongHandler(conn net.Conn) {
-	pongWriter := resp.NewResponseWriter(conn)
-	pong(pongWriter)
+	writer := resp.NewResponseWriter(conn)
+	pong(writer)
 }
 
 func pong(w resp.ResponseWriter) {
@@ -321,6 +332,13 @@ func pong(w resp.ResponseWriter) {
 		return
 	}
 	log.Debug("PONG(%v)", timeout.Since())
+}
+
+func initBackupHandler(conn net.Conn) error {
+	writer := resp.NewResponseWriter(conn)
+	// init backup cmd
+	writer.AppendBulkString("initBackup")
+	return writer.Flush()
 }
 
 // func remoteGet(bucket string, key string) []byte {
@@ -521,68 +539,56 @@ func main() {
 	})
 
 	srv.HandleFunc("backup", func(w resp.ResponseWriter, c *resp.Command) {
-		var err error
+		log.Debug("In BACKUP handler")
+
 		// addr:port
-		addrMigrator = c.Arg(0).String()
+		addr := c.Arg(0).String()
+		deployment := c.Arg(1).String()
+		newId, _ := c.Arg(2).Int()
+
+		if migrClient == nil {
+			log.Error("Migration is not initiated.")
+			return
+		}
 
 		// dial to migrator
-		srcConn, err = net.Dial("tcp", addrMigrator)
-		if err != nil {
-			log.Error("connect to migrator failed", err)
-			migrateChan <- err
+		if err := migrClient.Connect(addr); err != nil {
+			return
 		}
 
-		//trigger migrate lambda
-		status, err := trigger(addrMigrator, "functionName")
-		if err != nil {
-			log.Error("trigger dst lambda err %v", err)
-			migrateChan <- err
+		if err := migrClient.TriggerDestination(deployment, &protocol.InputEvent{
+			Cmd: "migrate",
+			Id: uint64(newId),
+			Addr: addr,
+		}); err != nil {
+			return
 		}
-		if status == STATUSCODE {
-			log.Debug("async invoke lambda success %d", status)
-		}
-		migrateChan <- nil
 
+		// Now, we serve migration connection
+		go func() {
+			migrClient.Start(srv)
+			// Migration ends or is interrupted.
+
+			// Should be ready if migration ended.
+			if migrClient.IsReady() {
+				// Reset client and end lambda
+				migrClient = nil
+				Done()
+			}
+		}()
+	})
+
+	srv.HandleFunc("mhello", func(w resp.ResponseWriter, c *resp.Command) {
+		if migrClient == nil {
+			log.Error("Migration is not initiated.")
+			return
+		}
+
+		migrClient.SetReady()
+
+		// TODO: Gather and send key list.
 	})
 
 	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())
 	lambda.Start(HandleRequest)
-}
-
-func trigger(addr string, name string) (int64, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-
-	client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
-	event := &protocol.InputEvent{
-		MigratorAddr: addr,
-		Cmd:          "migrate",
-	}
-	payload, _ := json.Marshal(event)
-	input := &lambdaService.InvokeInput{
-		FunctionName:   aws.String(name),
-		Payload:        payload,
-		InvocationType: aws.String("Event"), /* async invoke*/
-	}
-
-	res, err := client.Invoke(input)
-	if err != nil {
-		log.Error("Error calling migration lambda %s, %v", name, err)
-		migrateChan <- err
-	}
-	return *res.StatusCode, err
-}
-
-func initBackup(conn net.Conn) error {
-	initBackupWriter := resp.NewResponseWriter(conn)
-	// init backup cmd
-	initBackupWriter.AppendBulkString("initBackup")
-
-	if err := initBackupWriter.Flush(); err != nil {
-		log.Error("Error on initBackup::flush(backup): %v", err)
-		return err
-	}
-
-	return <-migrateChan
 }
