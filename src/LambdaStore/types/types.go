@@ -3,14 +3,37 @@ package types
 import (
 	"errors"
 	"fmt"
+	"github.com/wangaoone/redeo/resp"
 	"strconv"
 	"time"
 )
 
+var (
+	ErrNotFound = errors.New("Key not found")
+)
+
+type Storage interface {
+	Get(string) (string, resp.AllReadCloser, error)
+	Set(string, string, []byte)
+	Len() int
+	Keys()  <-chan string
+}
+
 // For storage
 type Chunk struct {
-	Id   string
-	Body []byte
+	Key      string
+	Id       string
+	Body     []byte
+	Accessed time.Time
+}
+
+func NewChunk(id string, body []byte) *Chunk {
+	return &Chunk{ Id: id, Body: body, Accessed: time.Now() }
+}
+
+func (c *Chunk) Access() []byte {
+	c.Accessed = time.Now()
+	return c.Body
 }
 
 // For data collection

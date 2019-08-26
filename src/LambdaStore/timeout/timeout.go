@@ -55,17 +55,22 @@ func (t *Timeout) Since() time.Duration {
 	return time.Since(t.Start)
 }
 
-func (t *Timeout) Reset() {
-	if t.disabled {
-		return
-	}
+func (t *Timeout) Stop() {
 	// Drain the timer to be accurate and safe to reset.
-	if !t.Stop() {
+	if !t.Timer.Stop() {
 		select {
 		case <-t.C:
 		default:
 		}
 	}
+}
+
+func (t *Timeout) Reset() {
+	if t.disabled {
+		return
+	}
+
+	t.Stop()
 	timeout := t.getTimeout(t.lastExtension)
 	t.Timer.Reset(timeout)
 	t.log.Debug("Timeout reset: %v", timeout)

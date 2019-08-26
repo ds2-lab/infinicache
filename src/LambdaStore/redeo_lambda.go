@@ -24,6 +24,7 @@ import (
 	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/storage"
 )
 
 const (
@@ -41,7 +42,7 @@ var (
 	server     = "18.214.26.94:6379" // t2.micro ec2 server UbuntuProxy0 public ip under vpc
 	lambdaConn net.Conn
 	srv        = redeo.NewServer(nil)
-	myMap      = make(map[string]*types.Chunk)
+	store      types.Storage = storage.New()
 	isFirst    = true
 	log        = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
@@ -135,14 +136,25 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		}
 
 		// Send hello
-		if _, err := migrClient.Send("mhello"); err != nil {
+		reader, err := migrClient.Send("mhello")
+		if err != nil {
 			log.Error("Failed to hello source on migrator: %v", err)
 			return nil
 		}
-		// TODO: Receive key list and do migration
 
-		// Migration destination take charge, so no serve on this side.
-		// go migrClient.Start(srv)
+		// Apply store adapter to coordinate migration and normal requests
+		store = migrClient.GetStoreAdapter(store)
+
+		// Reader will be avaiable after connecting and source being replaced
+		go func() {
+			atomic.AddInt32(&active, 1)
+			defer atomic.AddInt32(&active, -1)
+
+			migrClient.Migrate(reader, store)
+			store = store.(*migrator.StorageAdapter).Restore()
+			migrClient.Close()
+			migrClient = nil
+		}()
 	}
 
 	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
@@ -170,7 +182,13 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			}
 			lambdaConn = nil
 			isFirst = true
-			Done()
+
+			// Flag destination is ready or we are done.
+			if migrClient != nil {
+				migrClient.SetReady()
+			} else {
+				Done()
+			}
 		}()
 	} else {
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
@@ -202,8 +220,12 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 				return
 			case <-timeout.C:
 				mu.Lock()
-				// Time to migarate
-				if time.Since(startTime).Minutes() >= LIFESPAN {
+				if atomic.LoadInt32(&active) > 0 {
+					timeout.Reset()
+					mu.Unlock()
+					break
+				} else if time.Since(startTime).Minutes() >= LIFESPAN {
+					// Time to migarate
 					// Disable timer so Reset will not work.
 					timeout.Disable()
 					mu.Unlock()
@@ -221,10 +243,6 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 					// No more timeout, just wait for done
 					log.Debug("Migration initiated.")
-					break
-				} else if atomic.LoadInt32(&active) > 0 {
-					timeout.Reset()
-					mu.Unlock()
 					break
 				}
 				doneLocked()
@@ -389,10 +407,10 @@ func main() {
 
 		defer func() {
 			if respError != nil {
-				log.Warn("%v", respError)
-				w.AppendErrorf("%v", respError)
+				log.Warn("Failed to get %s: %v", key, respError)
+				w.AppendErrorf("Failed to get %s: %v", key, respError)
 				if err := w.Flush(); err != nil {
-					log.Error("Error on flush(error 404): %v", err)
+					log.Error("Error on flush: %v", err)
 				}
 				dataDeposited.Add(1)
 				dataGatherer <- &types.DataEntry{OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
@@ -405,16 +423,19 @@ func main() {
 		//if err == false {
 		//	log.Debug("not found")
 		//}
-		chunk, found := myMap[key]
-		if found {
+		t2 := time.Now()
+		chunkId, stream, err := store.Get(key)
+		d2 := time.Since(t2)
+
+		if err == nil {
 			// construct lambda store response
 			response := &types.Response{
 				ResponseWriter: w,
 				Cmd:            c.Name,
 				ConnId:         connId,
 				ReqId:          reqId,
-				ChunkId:        chunk.Id,
-				Body:           chunk.Body,
+				ChunkId:        chunkId,
+				BodyStream:      stream,
 			}
 			response.Prepare()
 
@@ -428,51 +449,14 @@ func main() {
 			dt := time.Since(t)
 			log.Debug("Streaming duration is %v", d3)
 			log.Debug("Total duration is %v", dt)
-			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
+			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunkId)
 			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, 0, d3, dt, lambdaReqId}
-		} else if migrClient == nil {
+			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunkId, d2, d3, dt, lambdaReqId}
+		} else if err == types.ErrNotFound {
 			// Not found
-			respError = types.NewResponseError(404, "%s not found", key)
+			respError = types.NewResponseError(404, err)
 		} else {
-			// Migration in process.
-			t2 := time.Now()
-			reader, err := migrClient.Send(c.Name, connId, reqId, key)
-			if err != nil {
-				respError = types.NewResponseError(500, err)
-				return
-			}
-
-			// Wait and read response
-			response := &types.Response{ ResponseWriter: w }
-			err = response.PrepareByResponse(reader)
-			if err != nil {
-				respError = types.NewResponseError(500, err)
-				return
-			}
-			d2 := time.Since(t2)
-
-			// Intercept stream
-			response.BodyStream = migrator.NewInterceptReader(response.BodyStream)
-
-			// Streaming
-			t3 := time.Now()
-			if err := response.Flush(); err != nil {
-				log.Error("Error on flush(get key %s): %v", key, err)
-				return
-			}
-			d3 := time.Since(t3)
-
-			// Get intercepted result
-			myMap[key] = &types.Chunk{ chunk.Id, response.BodyStream.(*migrator.InterceptReader).Intercepted() }
-
-			dt := time.Since(t)
-			log.Debug("Migration duration is %v", d2)
-			log.Debug("Streaming duration is %v", d3)
-			log.Debug("Total duration is %v", dt)
-			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunk.Id)
-			dataDeposited.Add(1)
-			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunk.Id, d2, d3, dt, lambdaReqId}
+			respError = types.NewResponseError(500, err)
 		}
 	})
 
@@ -513,7 +497,7 @@ func main() {
 			}
 			return
 		}
-		myMap[key] = &types.Chunk{chunkId, val}
+		store.Set(key, chunkId, val)
 
 		// write Key, clientId, chunkId, body back to server
 		response := &types.Response{
@@ -585,7 +569,13 @@ func main() {
 	})
 
 	srv.HandleFunc("backup", func(w resp.ResponseWriter, c *resp.Command) {
+		atomic.AddInt32(&active, 1)
+		defer atomic.AddInt32(&active, -1)
+
 		log.Debug("In BACKUP handler")
+
+		timeout.Disable()
+		timeout.Stop()
 
 		// addr:port
 		addr := c.Arg(0).String()
@@ -593,8 +583,8 @@ func main() {
 		newId, _ := c.Arg(2).Int()
 
 		if migrClient == nil {
-			log.Error("Migration is not initiated.")
-			return
+			// Migration initiated by proxy
+			migrClient = migrator.NewClient()
 		}
 
 		// dial to migrator
@@ -630,9 +620,21 @@ func main() {
 			return
 		}
 
-		migrClient.SetReady()
+		// Wait for ready, which means connection to proxy is closed and we are safe to proceed.
+		<-migrClient.Ready()
 
-		// TODO: Gather and send key list.
+		// TODO: Transfer data
+
+		// Send key list by access time
+		w.AppendBulkString("mhello")
+		w.AppendBulkString(strconv.Itoa(store.Len()))
+		for key := range store.Keys() {
+			w.AppendBulkString(key)
+		}
+		if err := w.Flush(); err != nil {
+			log.Error("Error on mhello::flush: %v", err)
+			return
+		}
 	})
 
 	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())

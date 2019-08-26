@@ -8,7 +8,7 @@ type InterceptReader struct {
 	resp.AllReadCloser
 
 	buf []byte
-	r int64
+	r   int64
 }
 
 func NewInterceptReader(reader resp.AllReadCloser) *InterceptReader {

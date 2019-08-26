@@ -12,7 +12,10 @@ import (
 	"github.com/wangaoone/redeo/resp"
 	"io"
 	"net"
+	"strconv"
 	"sync"
+
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 )
 
 var log = &logger.ColorLogger{
@@ -95,6 +98,7 @@ func (cli *Client) Start(srv *redeo.Server) {
 	} else {
 		log.Info("Migration Connection closed.")
 	}
+	cli.cn.Close()
 }
 
 func (cli *Client) SetError(err error) {
@@ -121,4 +125,45 @@ func (cli *Client) IsReady() bool {
 	default:
 		return false
 	}
+}
+
+func (cli *Client) GetStoreAdapter(store types.Storage) types.Storage {
+	return newStorageAdapter(cli, store)
+}
+
+func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
+	reader.ReadBulkString() // skip command
+	strLen, err := reader.ReadBulkString()
+	len := 0
+	if err != nil {
+		log.Error("Failed to read length of data from lambda: %v", err)
+	} else {
+		len, err = strconv.Atoi(strLen)
+		if err != nil {
+			log.Error("Convert strLen err: %v", err)
+		}
+	}
+
+	keys := make([]string, len)
+	for i := 0; i < len; i++ {
+		keys[i], _ = reader.ReadBulkString()
+	}
+
+	// Start migration
+	log.Debug("Start migrating %d keys", len)
+	for _, key := range keys {
+		err := store.(*StorageAdapter).Migrate(key)
+		if err == ErrSkip {
+			log.Debug("Migrating key %s: %v", key, err)
+		} else if err != nil {
+			log.Warn("Migrating key %s: %v", key, err)
+		} else {
+			log.Debug("Migrating key %s: success", key)
+		}
+	}
+	log.Debug("End migration")
+}
+
+func (cli *Client) Close() {
+	cli.cn.Close()
 }
