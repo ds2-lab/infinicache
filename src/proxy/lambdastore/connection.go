@@ -116,8 +116,8 @@ func (conn *Connection) ServeLambda() {
 				conn.setHandler(start)
 			case "data":
 				conn.receiveData()
-			case "initBackup":
-				go conn.initBackupHandler()
+			case "initMigrate":
+				go conn.initMigrateHandler()
 			default:
 				conn.log.Warn("Unsupported response type: %s", cmd)
 			}
@@ -261,26 +261,8 @@ func (conn *Connection) receiveData() {
 	global.DataCollected.Done()
 }
 
-func (conn *Connection) initBackupHandler() {
-	conn.log.Debug("Request to initiate backup")
-	// func launch Mproxy
-	// get addr if Mproxy
-	dply, err := global.Migrator.GetDestination(conn.instance.Id())
-	if err != nil {
-		conn.log.Error("Failed to find a backup destination: %v", err)
-		return
-	}
+func (conn *Connection) initMigrateHandler() {
+	conn.log.Debug("Request to initiate migration")
 
-	addr, err := global.Migrator.StartMigrator(conn.instance.Id())
-	if err != nil {
-		conn.log.Error("Failed to start a migrator for backup: %v", err)
-		return
-	}
-
-	conn.instance.chanReq <- &types.Control{
-		Cmd: "backup",
-		Addr: addr,
-		Deployment: dply.Name(),
-		Id: dply.Id(),
-	}
+	conn.instance.Migrate()
 }

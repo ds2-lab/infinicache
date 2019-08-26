@@ -224,6 +224,30 @@ func (ins *Instance) Switch(to types.LambdaDeployment) *Instance {
 	return ins
 }
 
+func (ins *Instance) Migrate() error {
+	// func launch Mproxy
+	// get addr if Mproxy
+	dply, err := global.Migrator.GetDestination(ins.Id())
+	if err != nil {
+		ins.log.Error("Failed to find a backup destination: %v", err)
+		return err
+	}
+
+	addr, err := global.Migrator.StartMigrator(ins.Id())
+	if err != nil {
+		ins.log.Error("Failed to start a migrator for backup: %v", err)
+		return err
+	}
+
+	ins.chanReq <- &types.Control{
+		Cmd: "migrate",
+		Addr: addr,
+		Deployment: dply.Name(),
+		Id: dply.Id(),
+	}
+	return nil
+}
+
 func (ins *Instance) Close() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()

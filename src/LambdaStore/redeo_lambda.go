@@ -233,7 +233,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 					// Initiate migration
 					migrClient = migrator.NewClient()
 					log.Info("Initiate migration.")
-					initiator := func() error { return initBackupHandler(lambdaConn) }
+					initiator := func() error { return initMigrateHandler(lambdaConn) }
 					for err := migrClient.Initiate(initiator); err != nil; {
 						log.Warn("Fail to initiaiate migration: %v", err)
 						log.Warn("Retry migration")
@@ -353,10 +353,10 @@ func pong(w resp.ResponseWriter) {
 	log.Debug("PONG(%v)", timeout.Since())
 }
 
-func initBackupHandler(conn net.Conn) error {
+func initMigrateHandler(conn net.Conn) error {
 	writer := resp.NewResponseWriter(conn)
 	// init backup cmd
-	writer.AppendBulkString("initBackup")
+	writer.AppendBulkString("initMigrate")
 	return writer.Flush()
 }
 
@@ -568,7 +568,7 @@ func main() {
 		atomic.AddInt32(&active, -1)
 	})
 
-	srv.HandleFunc("backup", func(w resp.ResponseWriter, c *resp.Command) {
+	srv.HandleFunc("migrate", func(w resp.ResponseWriter, c *resp.Command) {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
 
