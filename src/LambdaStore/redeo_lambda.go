@@ -36,10 +36,8 @@ const (
 )
 
 var (
-	startTime = time.Now()
-	//server     = "184.73.144.223:6379" // 10Gbps ec2 server UbuntuProxy0
-	//server = "172.31.84.57:6379" // t2.micro ec2 server UbuntuProxy0 private ip under vpc
-	server     = "18.214.26.94:6379" // t2.micro ec2 server UbuntuProxy0 public ip under vpc
+	startTime  = time.Now()
+	server     string // Passed from proxy dynamically.
 	lambdaConn net.Conn
 	srv        = redeo.NewServer(nil)
 	store      types.Storage = storage.New()
@@ -163,6 +161,12 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	if isFirst == true {
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
+		if len(input.Proxy) == 0 {
+			log.Error("No proxy set.")
+			return nil
+		}
+
+		server = input.Proxy
 		log.Debug("Ready to connect %s, id %d", server, id)
 		var connErr error
 		lambdaConn, connErr = net.Dial("tcp", server)
@@ -595,6 +599,7 @@ func main() {
 		if err := migrClient.TriggerDestination(deployment, &protocol.InputEvent{
 			Cmd: "migrate",
 			Id: uint64(newId),
+			Proxy: server,
 			Addr: addr,
 		}); err != nil {
 			return

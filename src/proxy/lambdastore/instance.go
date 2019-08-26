@@ -238,6 +238,10 @@ func (ins *Instance) Migrate() error {
 		ins.log.Error("Failed to start a migrator for backup: %v", err)
 		return err
 	}
+	// expand local address
+	if addr[0] == ':' {
+		addr = global.ServerIp + addr
+	}
 
 	ins.chanReq <- &types.Control{
 		Cmd: "migrate",
@@ -319,6 +323,7 @@ func (ins *Instance) triggerLambdaLocked() {
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	event := &prototol.InputEvent{
 		Id: ins.Id(),
+		Proxy: fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort + 1),
 	}
 	payload, _ := json.Marshal(event)
 	input := &lambda.InvokeInput{

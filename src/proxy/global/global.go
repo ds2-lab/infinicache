@@ -16,4 +16,14 @@ var (
 	Migrator        types.MigrationScheduler
 	BasePort        = 6378
 	BaseMigratorPort = 6380
+	ServerIp        string
 )
+
+func init() {
+	ip, err := GetPrivateIp()
+	if err != nil {
+		panic(err)
+	}
+
+	ServerIp = ip
+}
