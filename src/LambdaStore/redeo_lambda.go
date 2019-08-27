@@ -228,7 +228,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 					timeout.Reset()
 					mu.Unlock()
 					break
-				} else if time.Since(startTime).Minutes() >= LIFESPAN {
+				} else if time.Since(startTime).Minutes() >= LIFESPAN && store.Len() > 0 {
+					// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
 					// Time to migarate
 					// Disable timer so Reset will not work.
 					timeout.Disable()

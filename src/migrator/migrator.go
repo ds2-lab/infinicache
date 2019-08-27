@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"net"
+	"time"
 )
 
 // ErrServerClosed is returned by the Server after a call to Shutdown or Close.
 var ErrServerClosed = errors.New("migrator: Server closed")
+var ListenTimeout = 10 * time.Second
 
 type Server struct {
 	Addr    string // TCP address to listen on
@@ -31,7 +33,7 @@ func New(port int, debug bool) *Server {
 	srv.log = &logger.ColorLogger{
 		Verbose: srv.Verbose,
 		Level:   srv.getLoggerLevel(),
-		Prefix:  fmt.Sprintf("Migrator %s ", port),
+		Prefix:  fmt.Sprintf("Migrator %d ", port),
 		Color:   true,
 	}
 
@@ -55,12 +57,15 @@ func (srv *Server) Listen() (err error) {
 		return
 	}
 
+	// Set timeout
+	srv.listener.SetDeadline(time.Now().Add(ListenTimeout))
+
 	srv.log.Info("Start listening on %v", srv.Addr)
 	return
 }
 
 func (srv *Server) Serve() {
-	defer srv.listener.Close()
+	defer srv.Close()
 
 	lConn, err := srv.listener.AcceptTCP()
 	if err != nil {
@@ -78,10 +83,20 @@ func (srv *Server) Serve() {
 	}
 	srv.log.Debug("Destination lambda connected: %v", rConn.RemoteAddr())
 
+	srv.listener.Close()
+	srv.listener = nil
+
 	fConn := newForwardConnection(lConn, rConn)
 	fConn.Debug = srv.Debug
 	//fConn.Nagles = true
 	fConn.log = srv.log
 
 	fConn.forward()
+}
+
+func (srv *Server) Close() {
+	if srv.listener != nil {
+		srv.listener.Close()
+		srv.listener = nil
+	}
 }

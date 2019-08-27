@@ -107,7 +107,7 @@ func (ins *Instance) IsValidating() bool {
 // Handle incoming client requests
 // lambda facing goroutine
 func (ins *Instance) HandleRequests() {
-	var isDataRequest bool
+	For:
 	for {
 		select {
 		case <-ins.closed:
@@ -126,34 +126,8 @@ func (ins *Instance) HandleRequests() {
 			default:
 			}
 
-			//cmd := strings.ToLower(req.Cmd)
-			//isDataRequest = false
-			//if cmd != "data" {
-			//	if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
-			//		ins.log.Warn("Fail to record validate duration: %v", err)
-			//	}
-			//}
-			//switch cmd {
-			//case "set": /*set or two argument cmd*/
-			//	req.PrepareForSet(ins.cn.w)
-			//case "get": /*get or one argument cmd*/
-			//	req.PrepareForGet(ins.cn.w)
-			//case "data":
-			//	req.PrepareForData(ins.cn.w)
-			//	isDataRequest = true
-			//}
-			//if err := req.Flush(); err != nil {
-			//	ins.log.Error("Flush pipeline error: %v", err)
-			//	if isDataRequest {
-			//		global.DataCollected.Done()
-			//	}
-			//}
-			//if !isDataRequest {
-			//	ins.chanWait <- req
-			//}
 			switch req.(type) {
 			case types.Request:
-				isDataRequest = false
 				req := req.(types.Request)
 				cmd := strings.ToLower(req.Cmd)
 
@@ -166,6 +140,9 @@ func (ins *Instance) HandleRequests() {
 					req.PrepareForSet(ins.cn.w)
 				case "get": /*get or one argument cmd*/
 					req.PrepareForGet(ins.cn.w)
+				default:
+					ins.log.Error("Unexpected request command: %s", cmd)
+					continue For
 				}
 
 				if err := req.Flush(); err != nil {
@@ -176,6 +153,7 @@ func (ins *Instance) HandleRequests() {
 			case types.Control:
 				ctrl := req.(types.Control)
 				cmd := strings.ToLower(ctrl.Cmd)
+				isDataRequest := false
 
 				switch cmd {
 				case "data":
@@ -183,6 +161,9 @@ func (ins *Instance) HandleRequests() {
 					isDataRequest = true
 				case "backup":
 					ctrl.PrepareForBackup(ins.cn.w)
+				default:
+					ins.log.Error("Unexpected control command: %s", cmd)
+					continue For
 				}
 
 				if err := ctrl.Flush(); err != nil {
@@ -193,7 +174,6 @@ func (ins *Instance) HandleRequests() {
 				}
 			}
 		}
-
 	}
 }
 
