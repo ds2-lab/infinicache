@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"reflect"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
@@ -127,8 +128,8 @@ func (ins *Instance) HandleRequests() {
 			}
 
 			switch req.(type) {
-			case types.Request:
-				req := req.(types.Request)
+			case *types.Request:
+				req := req.(*types.Request)
 				cmd := strings.ToLower(req.Cmd)
 
 				if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
@@ -148,10 +149,10 @@ func (ins *Instance) HandleRequests() {
 				if err := req.Flush(); err != nil {
 					ins.log.Error("Flush pipeline error: %v", err)
 				}
-				ins.chanWait <- &req
+				ins.chanWait <- req
 
-			case types.Control:
-				ctrl := req.(types.Control)
+			case *types.Control:
+				ctrl := req.(*types.Control)
 				cmd := strings.ToLower(ctrl.Cmd)
 				isDataRequest := false
 
@@ -159,7 +160,7 @@ func (ins *Instance) HandleRequests() {
 				case "data":
 					ctrl.PrepareForData(ins.cn.w)
 					isDataRequest = true
-				case "backup":
+				case "migrate":
 					ctrl.PrepareForBackup(ins.cn.w)
 				default:
 					ins.log.Error("Unexpected control command: %s", cmd)
@@ -172,6 +173,9 @@ func (ins *Instance) HandleRequests() {
 						global.DataCollected.Done()
 					}
 				}
+
+			default:
+				ins.log.Error("Unexpected request type: %v", reflect.TypeOf(req))
 			}
 		}
 	}

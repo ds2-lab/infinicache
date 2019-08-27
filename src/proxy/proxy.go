@@ -198,7 +198,7 @@ func (p *Proxy) CollectData() {
 	for i, _ := range p.group.All {
 		global.DataCollected.Add(1)
 		// send data command
-		p.group.Instance(i).C() <- &types.Request{ Cmd: "data" }
+		p.group.Instance(i).C() <- &types.Control{ Cmd: "data" }
 	}
 	p.log.Info("Waiting data from Lambda")
 	global.DataCollected.Wait()
