@@ -34,7 +34,6 @@ func (rsp *Response) Flush() error {
 	rsp.w = nil
 
 	if rsp.BodyStream != nil {
-		defer rsp.BodyStream.(resp.Holdable).Unhold()
 		if err := w.CopyBulk(rsp.BodyStream, rsp.BodyStream.Len()); err != nil {
 			return err
 		}
