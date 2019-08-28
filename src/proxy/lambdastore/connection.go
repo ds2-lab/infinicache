@@ -74,14 +74,15 @@ func (conn *Connection) Close() {
 // field 2 : chunk id
 // field 3 : obj val
 func (conn *Connection) ServeLambda() {
+	log := conn.log // Keep a log reference for accuracy on switching instance.
 	for {
 		// field 0 for cmd
 		field0, err := conn.r.PeekType()
 		if err != nil {
 			if err == io.EOF {
-				conn.log.Warn("Lambda store disconnected.")
+				log.Warn("Lambda store disconnected.")
 			} else {
-				conn.log.Warn("Failed to peek response type: %v", err)
+				log.Warn("Failed to peek response type: %v", err)
 			}
 			conn.cn = nil
 			conn.Close()

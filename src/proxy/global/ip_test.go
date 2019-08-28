@@ -1,15 +1,21 @@
-package global
+package global_test
 
 import (
-	// "testing"
+	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 )
+
+func TestStorage(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Global")
+}
 
 var _ = Describe("IP", func() {
 	It("should find private ip", func() {
-		_, err := GetPrivateIp()
+		_, err := global.GetPrivateIp()
 		Expect(err).To(BeNil())
 	})
 })

@@ -37,12 +37,13 @@ func (s *Storage) Len() int {
 
 func (s *Storage) Keys() <-chan string {
 	// Gather and send key list. We expected num of keys to be small
-	all := make([]*types.Chunk, len(s.repo))
+	all := make([]*types.Chunk, 0, len(s.repo))
 	for _, chunk := range s.repo {
 		all = append(all, chunk)
 	}
+
 	sort.Slice(all, func(i, j int) bool {
-		return all[i].Accessed.UnixNano() > all[j].Accessed.UnixNano() 
+		return all[i].Accessed.UnixNano() > all[j].Accessed.UnixNano()
 	})
 
 	ch := make(chan string)
