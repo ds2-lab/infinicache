@@ -73,6 +73,7 @@ func (srv *Server) Serve() {
 		srv.LastError = err
 		return
 	}
+	defer lConn.Close()
 	srv.log.Debug("Source lambda connected: %v", lConn.RemoteAddr())
 
 	rConn, err := srv.listener.AcceptTCP()
@@ -81,6 +82,7 @@ func (srv *Server) Serve() {
 		srv.LastError = err
 		return
 	}
+	defer rConn.Close()
 	srv.log.Debug("Destination lambda connected: %v", rConn.RemoteAddr())
 
 	srv.listener.Close()

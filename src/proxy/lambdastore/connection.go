@@ -58,12 +58,12 @@ func (conn *Connection) Close() {
 	default:
 	}
 
+	close(conn.closed)
 	if conn.cn != nil {
 		// Don't use c.Close(), it will stuck and wait for lambda.
 		conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
 		conn.cn.Close()
 	}
-	close(conn.closed)
 }
 
 // blocking on lambda peek Type
@@ -74,17 +74,20 @@ func (conn *Connection) Close() {
 // field 2 : chunk id
 // field 3 : obj val
 func (conn *Connection) ServeLambda() {
-	log := conn.log // Keep a log reference for accuracy on switching instance.
 	for {
 		// field 0 for cmd
 		field0, err := conn.r.PeekType()
 		if err != nil {
-			if err == io.EOF {
-				log.Warn("Lambda store disconnected.")
-			} else {
-				log.Warn("Failed to peek response type: %v", err)
+			select {
+			case <-conn.closed:
+				return
+			default:
 			}
-			conn.cn = nil
+			if err == io.EOF {
+				conn.log.Warn("Lambda store disconnected.")
+			} else {
+				conn.log.Warn("Failed to peek response type: %v", err)
+			}
 			conn.Close()
 			return
 		}
@@ -123,8 +126,6 @@ func (conn *Connection) ServeLambda() {
 				conn.log.Warn("Unsupported response type: %s", cmd)
 			}
 		}
-
-		log = conn.log // update log reference
 	}
 }
 

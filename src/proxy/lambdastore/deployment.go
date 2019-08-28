@@ -43,6 +43,11 @@ func (d *Deployment) Reset(new types.LambdaDeployment, old types.LambdaDeploymen
 	d.id = new.Id()
 	switch d.log.(type) {
 	case *logger.ColorLogger:
-		d.log.(*logger.ColorLogger).Prefix = fmt.Sprintf("%s ", d.name)
+		log := d.log.(*logger.ColorLogger)
+		d.log = &logger.ColorLogger{
+			Prefix: fmt.Sprintf("%s ", d.name),
+			Level:  log.GetLevel(),
+			Color:  log.Color,
+		}
 	}
 }
