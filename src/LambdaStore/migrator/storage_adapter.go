@@ -124,7 +124,7 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 		return
 	}
 
-	reader, err := a.migrator.Send("get", "migrator", "", cmd.key)
+	reader, err := a.migrator.Send("get", "migrator", "migrate", "", cmd.key)
 	if err != nil {
 		cmd.err<- err
 		return
@@ -163,7 +163,7 @@ func (a *StorageAdapter) migrateHandler(cmd *storageAdapterCommand) {
 		return
 	}
 
-	reader, err := a.migrator.Send("get", "migrator", "", cmd.key)
+	reader, err := a.migrator.Send("get", "migrator", "migrate", "", cmd.key)
 	if err != nil {
 		cmd.err<- err
 		return
