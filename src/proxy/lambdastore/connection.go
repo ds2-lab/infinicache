@@ -123,6 +123,8 @@ func (conn *Connection) ServeLambda() {
 				conn.log.Warn("Unsupported response type: %s", cmd)
 			}
 		}
+
+		log = conn.log // update log reference
 	}
 }
 
