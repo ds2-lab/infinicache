@@ -613,6 +613,9 @@ func main() {
 
 			// Should be ready if migration ended.
 			if migrClient.IsReady() {
+				// FIXME: Reset startTime for reusing.
+				// This is essential for debugging, and useful if deployment pool is not large enough.
+				startTime  = time.Now()
 				// Reset client and end lambda
 				migrClient = nil
 				Done()

@@ -10,7 +10,7 @@ import (
 
 // ErrServerClosed is returned by the Server after a call to Shutdown or Close.
 var ErrServerClosed = errors.New("migrator: Server closed")
-var ListenTimeout = 10 * time.Second
+var ListenTimeout = 30 * time.Second
 
 type Server struct {
 	Addr    string // TCP address to listen on

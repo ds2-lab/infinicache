@@ -14,13 +14,17 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 )
 
-var log = &logger.ColorLogger{
-	Level: logger.LOG_LEVEL_WARN,
-}
+var (
+	log = &logger.ColorLogger{
+		Level: logger.LOG_LEVEL_WARN,
+	}
+	MigrationTimeout = 30 * time.Second
+)
 
 type Client struct {
 	addr         string
@@ -50,7 +54,11 @@ func (cli *Client) Connect(addr string) (err error) {
 	cli.cn, err = net.Dial("tcp", addr)
 	if err != nil {
 		cli.ready <- err
+		return
 	}
+
+	// FIXME: Time out not working.
+	cli.cn.SetDeadline(time.Now().Add(MigrationTimeout))
 	return
 }
 
@@ -95,6 +103,7 @@ func (cli *Client) Start(srv *redeo.Server) {
 	err := srv.ServeForeignClient(cli.cn)
 	if err != nil && err != io.EOF {
 		log.Warn("Migration connection closed: %v", err)
+		cli.ready <- err
 	} else {
 		log.Info("Migration Connection closed.")
 	}

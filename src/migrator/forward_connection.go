@@ -155,10 +155,10 @@ func (fconn *forwardConnection) trace(islocal bool, bytes []byte, len int) {
 	}
 
 	if islocal {
-		fconn.log.Debug(">>> %d bytes sent", len)
+		fconn.log.Trace(">>> %d bytes sent", len)
 		fconn.log.Trace(fconn.traceFormat, bytes)
 	} else {
-		fconn.log.Debug("<<< %d bytes recieved", len)
+		fconn.log.Trace("<<< %d bytes recieved", len)
 		fconn.log.Trace(fconn.traceFormat, bytes)
 	}
 }
