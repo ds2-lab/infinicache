@@ -118,14 +118,15 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
 
 	// Check if the chunk key(key + chunkId) exists
+	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
 	request := &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
-		Key:          key,
+		Key:          []byte(chunkKey),
 		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
 	}
-	lambdaDest, _ := p.metaMap.GetOrInsert(fmt.Sprintf("%s@%s", chunkId, string(key)), int(lambdaId))
+	lambdaDest, _ := p.metaMap.GetOrInsert(chunkKey, int(lambdaId))
 	// Send chunk to the corresponding lambda instance in group
 	p.group.Instance(lambdaDest.(int)).C() <- request
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
@@ -148,11 +149,12 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataShards), int(parityShards), 0})
 
 	// key is "key"+"chunkId"
-	lambdaDest, ok := p.metaMap.Get(fmt.Sprintf("%s@%s", chunkId, string(key)))
+	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
+	lambdaDest, ok := p.metaMap.Get(chunkKey)
 	// p.log.Debug("KEY is", key.String(), "IN GET, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaDestination)
 	if !ok {
-		p.log.Warn("KEY %s(%s) not found in lambda store, please set first.", key.String(), chunkId)
-		w.AppendErrorf("KEY %s(%s) not found in lambda store, please set first.", key.String(), chunkId)
+		p.log.Warn("KEY %s not found in lambda store, please set first.", chunkKey)
+		w.AppendErrorf("KEY %s not found in lambda store, please set first.", chunkKey)
 		w.Flush()
 		return
 	}
@@ -160,7 +162,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
-		Key:          key,
+		Key:          []byte(chunkKey),
 		ChanResponse: client.Responses(),
 	}
 }
