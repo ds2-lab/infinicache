@@ -19,7 +19,7 @@ func (ctrl *Control) PrepareForData(w *resp.RequestWriter) {
 	ctrl.w = w
 }
 
-func (ctrl *Control) PrepareForBackup(w *resp.RequestWriter) {
+func (ctrl *Control) PrepareForMigrate(w *resp.RequestWriter) {
 	w.WriteCmdString(ctrl.Cmd, ctrl.Addr, ctrl.Deployment, strconv.FormatUint(ctrl.Id, 10))
 	ctrl.w = w
 }

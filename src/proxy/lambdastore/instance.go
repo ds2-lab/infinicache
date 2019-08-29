@@ -161,7 +161,7 @@ func (ins *Instance) HandleRequests() {
 					ctrl.PrepareForData(ins.cn.w)
 					isDataRequest = true
 				case "migrate":
-					ctrl.PrepareForBackup(ins.cn.w)
+					ctrl.PrepareForMigrate(ins.cn.w)
 				default:
 					ins.log.Error("Unexpected control command: %s", cmd)
 					continue For
@@ -213,13 +213,13 @@ func (ins *Instance) Migrate() error {
 	// get addr if Mproxy
 	dply, err := global.Migrator.GetDestination(ins.Id())
 	if err != nil {
-		ins.log.Error("Failed to find a backup destination: %v", err)
+		ins.log.Error("Failed to find a migration destination: %v", err)
 		return err
 	}
 
 	addr, err := global.Migrator.StartMigrator(ins.Id())
 	if err != nil {
-		ins.log.Error("Failed to start a migrator for backup: %v", err)
+		ins.log.Error("Failed to start a migrator: %v", err)
 		return err
 	}
 	// expand local address
