@@ -18,9 +18,9 @@ import (
 )
 
 type Proxy struct {
-	log       logger.ILogger
-	group     *Group
-	metaMap   *hashmap.HashMap
+	log     logger.ILogger
+	group   *Group
+	metaMap *hashmap.HashMap
 
 	initialized int32
 	ready       chan struct{}
@@ -34,7 +34,7 @@ func New(replica bool) *Proxy {
 			Level:  global.Log.GetLevel(),
 			Color:  true,
 		},
-		group: NewGroup(NumLambdaClusters),
+		group:   NewGroup(NumLambdaClusters),
 		metaMap: hashmap.New(1024),
 		ready:   make(chan struct{}),
 	}
@@ -158,9 +158,9 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	}
 	// Send request to lambda channel
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
-		Id: types.Id{ connId, reqId, chunkId },
-		Cmd: strings.ToLower(c.Name),
-		Key: key,
+		Id:           types.Id{connId, reqId, chunkId},
+		Cmd:          strings.ToLower(c.Name),
+		Key:          key,
 		ChanResponse: client.Responses(),
 	}
 }
@@ -198,7 +198,7 @@ func (p *Proxy) CollectData() {
 	for i, _ := range p.group.All {
 		global.DataCollected.Add(1)
 		// send data command
-		p.group.Instance(i).C() <- &types.Control{ Cmd: "data" }
+		p.group.Instance(i).C() <- &types.Request{Cmd: "data"}
 	}
 	p.log.Info("Waiting data from Lambda")
 	global.DataCollected.Wait()

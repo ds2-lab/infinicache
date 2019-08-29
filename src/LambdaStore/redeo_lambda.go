@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -20,11 +23,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
-	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
-	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/storage"
+	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
+	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
 const (
@@ -39,10 +42,10 @@ var (
 	startTime  *time.Time
 	server     string // Passed from proxy dynamically.
 	lambdaConn net.Conn
-	srv        = redeo.NewServer(nil)
+	srv                      = redeo.NewServer(nil)
 	store      types.Storage = storage.New()
-	isFirst    = true
-	log        = &logger.ColorLogger{
+	isFirst                  = true
+	log                      = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
 	dataGatherer   = make(chan *types.DataEntry, 10)
@@ -53,13 +56,13 @@ var (
 	// at the same time.
 	pongLimiter = make(chan struct{}, 1)
 
-	active       int32
-	mu           sync.RWMutex
-	done         chan struct{}
-	id           uint64
-	hostName     string
-	lambdaReqId  string
-	migrClient   *migrator.Client
+	active      int32
+	mu          sync.RWMutex
+	done        chan struct{}
+	id          uint64
+	hostName    string
+	lambdaReqId string
+	migrClient  *migrator.Client
 )
 
 func init() {
@@ -138,7 +141,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 		// connect to migrator
 		migrClient = migrator.NewClient()
- 		if err := migrClient.Connect(input.Addr); err != nil {
+		if err := migrClient.Connect(input.Addr); err != nil {
 			log.Error("Failed to connect migrator %s: %v", input.Addr, err)
 			return nil
 		}
@@ -402,6 +405,34 @@ func initMigrateHandler(conn net.Conn) error {
 // 	return buf.Bytes()
 // }
 
+func remotePut(bucket string, k string, f string) {
+	// The session the S3 Uploader will use
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Config:            aws.Config{Region: aws.String("us-east-1")},
+	}))
+
+	// Create an uploader with the session and default options
+	uploader := s3manager.NewUploader(sess)
+
+	// Upload input parameters
+	file := strings.NewReader(f)
+
+	key := fmt.Sprintf("%s-%s", k, lambdacontext.FunctionName)
+
+	upParams := &s3manager.UploadInput{
+		Bucket: &bucket,
+		Key:    &key,
+		Body:   file,
+	}
+	// Perform an upload.
+	result, err := uploader.Upload(upParams)
+	if err != nil {
+		log.Error("err is ", err)
+	}
+	log.Debug("upload to S3 res: ", result.Location)
+}
+
 func main() {
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
@@ -450,7 +481,7 @@ func main() {
 				ConnId:         connId,
 				ReqId:          reqId,
 				ChunkId:        chunkId,
-				BodyStream:      stream,
+				BodyStream:     stream,
 			}
 			response.Prepare()
 
@@ -535,19 +566,21 @@ func main() {
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
 		timeout.Stop()
-
+		prefix := c.Arg(0).String()
 		log.Debug("In DATA handler")
 
 		// Wait for data depository.
 		dataDeposited.Wait()
 
-		w.AppendBulkString("data")
-		w.AppendBulkString(strconv.Itoa(len(dataDepository)))
+		//w.AppendBulkString("data")
+		//w.AppendBulkString(strconv.Itoa(len(dataDepository)))
+		d := ""
 		for _, entry := range dataDepository {
-			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%s,%s,%s",
+			format := fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%s,%s,%s\n",
 				entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
 				entry.Duration, entry.DurationAppend, entry.DurationFlush, hostName, lambdacontext.FunctionName, entry.LambdaReqId)
-			w.AppendBulkString(format)
+			d = fmt.Sprint(d, format)
+			//w.AppendBulkString(format)
 
 			//w.AppendBulkString(entry.Op)
 			//w.AppendBulkString(entry.Status)
@@ -557,6 +590,9 @@ func main() {
 			//w.AppendBulkString(entry.DurationFlush.String())
 			//w.AppendBulkString(entry.Duration.String())
 		}
+		remotePut("ao.test.data", prefix, d)
+		w.AppendBulkString("data")
+		w.AppendBulkString("OK")
 		if err := w.Flush(); err != nil {
 			log.Error("Error on data::flush: %v", err)
 			return
@@ -608,10 +644,10 @@ func main() {
 		}
 
 		if err := migrClient.TriggerDestination(deployment, &protocol.InputEvent{
-			Cmd: "migrate",
-			Id: uint64(newId),
+			Cmd:   "migrate",
+			Id:    uint64(newId),
 			Proxy: server,
-			Addr: addr,
+			Addr:  addr,
 		}); err != nil {
 			return
 		}
@@ -628,6 +664,7 @@ func main() {
 				startTime = nil
 				// Reset client and end lambda
 				migrClient = nil
+				// Todo: put data to s3
 				Done()
 			}
 		}()

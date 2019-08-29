@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy"
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 )
 
 var (
@@ -23,8 +23,8 @@ var (
 	log           = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
-	lambdaLis    net.Listener
-	filePath     = "/tmp/pidLog.txt"
+	lambdaLis net.Listener
+	filePath  = "/tmp/pidLog.txt"
 )
 
 func init() {
@@ -42,8 +42,10 @@ func main() {
 	// CPU profiling by default
 	//defer profile.Start().Stop()
 
+	global.Prefix = *prefix
+
 	// Initialize collector
-	collector.Create(*prefix)
+	collector.Create(global.Prefix)
 
 	// Initialize log
 	if *isPrint {
@@ -59,7 +61,7 @@ func main() {
 		os.Exit(1)
 		return
 	}
-	lambdaLis, err = net.Listen("tcp", fmt.Sprintf(":%d", global.BasePort + 1))
+	lambdaLis, err = net.Listen("tcp", fmt.Sprintf(":%d", global.BasePort+1))
 	if err != nil {
 		log.Error("Failed to listen lambdas: %v", err)
 		os.Exit(1)

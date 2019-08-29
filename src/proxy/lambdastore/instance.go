@@ -6,8 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
 	"strings"
 	"sync"
 	"time"
@@ -29,7 +29,7 @@ type InstanceRegistry interface {
 type Instance struct {
 	*Deployment
 
-	cn      *Connection
+	cn        *Connection
 	chanReq   chan interface{}
 	chanWait  chan *types.Request
 	alive     bool
@@ -51,11 +51,11 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 
 	return &Instance{
 		Deployment: dp,
-		alive:   false,
-		chanReq:   make(chan interface{}, 1),
-		chanWait:  make(chan *types.Request, 10),
-		validated: validated, // Initialize with a closed channel.
-		closed: make(chan struct{}),
+		alive:      false,
+		chanReq:    make(chan interface{}, 1),
+		chanWait:   make(chan *types.Request, 10),
+		validated:  validated, // Initialize with a closed channel.
+		closed:     make(chan struct{}),
 	}
 }
 
@@ -229,10 +229,10 @@ func (ins *Instance) Migrate() error {
 
 	ins.log.Info("Initiating migration to %s...", dply.Name())
 	ins.chanReq <- &types.Control{
-		Cmd: "migrate",
-		Addr: addr,
+		Cmd:        "migrate",
+		Addr:       addr,
 		Deployment: dply.Name(),
-		Id: dply.Id(),
+		Id:         dply.Id(),
 	}
 	return nil
 }
@@ -307,8 +307,9 @@ func (ins *Instance) triggerLambdaLocked() {
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	event := &prototol.InputEvent{
-		Id: ins.Id(),
-		Proxy: fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort + 1),
+		Id:     ins.Id(),
+		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
+		Prefix: global.Prefix,
 	}
 	payload, _ := json.Marshal(event)
 	input := &lambda.InvokeInput{

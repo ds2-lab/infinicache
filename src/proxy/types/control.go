@@ -7,11 +7,11 @@ import (
 )
 
 type Control struct {
-	Cmd  string
-	Addr string
+	Cmd        string
+	Addr       string
 	Deployment string
-	Id   uint64
-	w    *resp.RequestWriter
+	Id         uint64
+	w          *resp.RequestWriter
 }
 
 func (ctrl *Control) PrepareForData(w *resp.RequestWriter) {
