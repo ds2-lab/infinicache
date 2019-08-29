@@ -242,29 +242,12 @@ func (conn *Connection) setHandler(start time.Time) {
 func (conn *Connection) receiveData() {
 	conn.log.Debug("DATA from lambda.")
 
-	strLen, err := conn.r.ReadBulkString()
-	len := 0
+	_, err := conn.r.ReadBulkString()
+	ok, err := conn.r.ReadBulkString()
 	if err != nil {
 		conn.log.Error("Failed to read length of data from lambda: %v", err)
-	} else {
-		len, err = strconv.Atoi(strLen)
-		if err != nil {
-			conn.log.Error("Convert strLen err: %v", err)
-		}
 	}
-	for i := 0; i < len; i++ {
-		//op, _ := conn.r.ReadBulkString()
-		//status, _ := conn.r.ReadBulkString()
-		//reqId, _ := conn.r.ReadBulkString()
-		//chunkId, _ := conn.r.ReadBulkString()
-		//dAppend, _ := conn.r.ReadBulkString()
-		//dFlush, _ := conn.r.ReadBulkString()
-		//dTotal, _ := conn.r.ReadBulkString()
-		dat, _ := conn.r.ReadBulkString()
-		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
-		collector.Collect(collector.LogLambda, "data", dat)
-	}
-	conn.log.Info("Data collected, %d in total.", len)
+	conn.log.Debug("collect DATA from lambda", ok)
 	global.DataCollected.Done()
 }
 
