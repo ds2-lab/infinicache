@@ -141,7 +141,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		}
 
 		// Apply store adapter to coordinate migration and normal requests
-		store = migrClient.GetStoreAdapter(store)
+		adapter := migrClient.GetStoreAdapter(store)
+		store = adapter
 
 		// Reader will be avaiable after connecting and source being replaced
 		go func() {
@@ -149,9 +150,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			defer atomic.AddInt32(&active, -1)
 
 			migrClient.Migrate(reader, store)
-			store = store.(*migrator.StorageAdapter).Restore()
-			migrClient.Close()
 			migrClient = nil
+			store = adapter.Restore()
 		}()
 	}
 
@@ -608,7 +608,7 @@ func main() {
 
 		// Now, we serve migration connection
 		go func() {
-			migrClient.Start(srv)
+			migrClient.WaitForMigration(srv)
 			// Migration ends or is interrupted.
 
 			// Should be ready if migration ended.

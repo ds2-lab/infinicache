@@ -24,6 +24,7 @@ var (
 		Level: logger.LOG_LEVEL_WARN,
 	}
 	MigrationTimeout = 30 * time.Second
+	ErrClosedPrematurely = errors.New("Client closed before ready.")
 )
 
 type Client struct {
@@ -99,15 +100,58 @@ func (cli *Client) Send(cmd string, args ...string) (resp.ResponseReader, error)
 	return cli.r, nil
 }
 
-func (cli *Client) Start(srv *redeo.Server) {
+func (cli *Client) WaitForMigration(srv *redeo.Server) {
+	defer cli.Close()
+
 	err := srv.ServeForeignClient(cli.cn)
-	if err != nil && err != io.EOF {
+	if err == nil {
+		return
+	} else if !cli.IsReady() || err != io.EOF {
+		if err == io.EOF {
+			err = ErrClosedPrematurely
+		}
 		log.Warn("Migration connection closed: %v", err)
 		cli.ready <- err
 	} else {
 		log.Info("Migration Connection closed.")
 	}
-	cli.cn.Close()
+}
+
+func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
+	defer cli.Close()
+
+	reader.ReadBulkString() // skip command
+	strLen, err := reader.ReadBulkString()
+	len := 0
+	if err != nil {
+		log.Error("Failed to read length of data from lambda: %v", err)
+		return
+	} else {
+		len, err = strconv.Atoi(strLen)
+		if err != nil {
+			log.Error("Convert strLen err: %v", err)
+			return
+		}
+	}
+
+	keys := make([]string, len)
+	for i := 0; i < len; i++ {
+		keys[i], _ = reader.ReadBulkString()
+	}
+
+	// Start migration
+	log.Debug("Start migrating %d keys", len)
+	for _, key := range keys {
+		err := store.(*StorageAdapter).Migrate(key)
+		if err == ErrSkip {
+			log.Debug("Migrating key %s: %v", key, err)
+		} else if err != nil {
+			log.Warn("Migrating key %s: %v", key, err)
+		} else {
+			log.Debug("Migrating key %s: success", key)
+		}
+	}
+	log.Debug("End migration")
 }
 
 func (cli *Client) SetError(err error) {
@@ -136,41 +180,8 @@ func (cli *Client) IsReady() bool {
 	}
 }
 
-func (cli *Client) GetStoreAdapter(store types.Storage) types.Storage {
+func (cli *Client) GetStoreAdapter(store types.Storage) *StorageAdapter {
 	return newStorageAdapter(cli, store)
-}
-
-func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
-	reader.ReadBulkString() // skip command
-	strLen, err := reader.ReadBulkString()
-	len := 0
-	if err != nil {
-		log.Error("Failed to read length of data from lambda: %v", err)
-	} else {
-		len, err = strconv.Atoi(strLen)
-		if err != nil {
-			log.Error("Convert strLen err: %v", err)
-		}
-	}
-
-	keys := make([]string, len)
-	for i := 0; i < len; i++ {
-		keys[i], _ = reader.ReadBulkString()
-	}
-
-	// Start migration
-	log.Debug("Start migrating %d keys", len)
-	for _, key := range keys {
-		err := store.(*StorageAdapter).Migrate(key)
-		if err == ErrSkip {
-			log.Debug("Migrating key %s: %v", key, err)
-		} else if err != nil {
-			log.Warn("Migrating key %s: %v", key, err)
-		} else {
-			log.Debug("Migrating key %s: success", key)
-		}
-	}
-	log.Debug("End migration")
 }
 
 func (cli *Client) Close() {
