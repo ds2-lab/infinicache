@@ -18,8 +18,16 @@ import (
 	prototol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
+const (
+	INSTANCE_DEAD = 0
+	INSTANCE_ALIVE = 1
+	INSTANCE_MAYBE = 2
+)
+
 var (
 	Registry InstanceRegistry
+	TimeoutNever = make(<-chan time.Time)
+	WarmTimout = 1 * time.Minute
 )
 
 type InstanceRegistry interface {
@@ -32,11 +40,12 @@ type Instance struct {
 	cn        *Connection
 	chanReq   chan interface{}
 	chanWait  chan *types.Request
-	alive     bool
+	alive     int
 	aliveLock sync.Mutex
 	validated chan bool
 	mu        sync.Mutex
 	closed    chan struct{}
+	coolTimer *time.Timer
 }
 
 func NewInstanceFromDeployment(dp *Deployment) *Instance {
@@ -51,11 +60,12 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 
 	return &Instance{
 		Deployment: dp,
-		alive:      false,
+		alive:      INSTANCE_DEAD,
 		chanReq:    make(chan interface{}, 1),
 		chanWait:   make(chan *types.Request, 10),
 		validated:  validated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
+		coolTimer:  time.NewTimer(WarmTimout),
 	}
 }
 
@@ -77,14 +87,34 @@ func (ins *Instance) Validate() bool {
 		ins.validated = make(chan bool)
 		ins.mu.Unlock()
 
-		ins.log.Info("Validating...")
-		triggered := ins.alive == false && ins.tryTriggerLambda()
-		if !triggered {
-			ins.cn.Ping()
+		ins.log.Debug("Validating...")
+		triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda()
+		if triggered {
+			<-ins.validated
+			return triggered
 		}
 
-		<-ins.validated
-		return triggered
+		// ping is issued to ensure alive
+		ins.cn.Ping()
+
+		// If we are not sure instance status, set a short timeout and trigger after timeout.
+		var timeout <-chan time.Time
+		if ins.alive == INSTANCE_MAYBE {
+			timer := time.NewTimer(10 * time.Millisecond) // average triggering cost.
+			timeout = timer.C
+		} else {
+			timeout = TimeoutNever
+		}
+
+		select{
+		case <-timeout:
+			// Set status to dead and revalidate.
+			ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
+			ins.alive = INSTANCE_DEAD
+			return ins.Validate()
+		case <-ins.validated:
+			return triggered
+		}
 	default:
 		// Validating... Wait and return false
 		ins.mu.Unlock()
@@ -126,6 +156,8 @@ func (ins *Instance) HandleRequests() {
 				return
 			default:
 			}
+
+			ins.warm()
 
 			switch req.(type) {
 			case *types.Request:
@@ -177,6 +209,10 @@ func (ins *Instance) HandleRequests() {
 			default:
 				ins.log.Error("Unexpected request type: %v", reflect.TypeOf(req))
 			}
+		case <-ins.coolTimer.C:
+			// Warm up
+			ins.Validate()
+			ins.warm()
 		}
 	}
 }
@@ -245,6 +281,12 @@ func (ins *Instance) Close() {
 		return
 	}
 
+	if !ins.coolTimer.Stop() {
+		select {
+		case <-ins.coolTimer.C:
+		default:
+		}
+	}
 	if ins.cn != nil {
 		ins.cn.Close()
 	}
@@ -273,12 +315,12 @@ func (ins *Instance) tryTriggerLambda() bool {
 	ins.aliveLock.Lock()
 	defer ins.aliveLock.Unlock()
 
-	if ins.alive == true {
+	if ins.alive == INSTANCE_ALIVE {
 		return false
 	}
 
 	ins.log.Info("[Lambda store is not alive, activating...]")
-	ins.alive = true
+	ins.alive = INSTANCE_ALIVE
 	go ins.triggerLambda()
 
 	return true
@@ -291,7 +333,10 @@ func (ins *Instance) triggerLambda() {
 	ins.triggerLambdaLocked()
 	for {
 		if !ins.IsValidating() {
-			ins.alive = false
+			// Don't overwrite the MAYBE status.
+			if ins.alive != INSTANCE_MAYBE {
+				ins.alive = INSTANCE_DEAD
+			}
 			return
 		}
 
@@ -321,7 +366,7 @@ func (ins *Instance) triggerLambdaLocked() {
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)
 	} else {
-		ins.log.Info("[Lambda store is deactivated]")
+		ins.log.Debug("[Lambda store is deactivated]")
 	}
 }
 
@@ -337,6 +382,15 @@ func (ins *Instance) flagValidated(conn *Connection) {
 			ins.cn.Close()
 		}
 		ins.cn = conn
+
+		// There are two possibilities for connectio switch:
+		// 1. Migration
+		// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
+		// Here, we consider possibility 1 only.
+		// TODO: deal with possibility 2
+		ins.aliveLock.Lock()
+		defer ins.aliveLock.Unlock()
+		ins.alive = INSTANCE_MAYBE
 	}
 
 	ins.flagValidatedLocked(false)
@@ -348,8 +402,18 @@ func (ins *Instance) flagValidatedLocked(onClose bool) {
 		// Validated
 	default:
 		if !onClose {
-			ins.log.Info("Validated")
+			ins.log.Debug("Validated")
 		}
 		close(ins.validated)
 	}
+}
+
+func (ins *Instance) warm() {
+	if !ins.coolTimer.Stop() {
+		select{
+		case <-ins.coolTimer.C:
+		default:
+		}
+	}
+	ins.coolTimer.Reset(WarmTimout)
 }

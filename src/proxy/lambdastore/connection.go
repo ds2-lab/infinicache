@@ -126,6 +126,10 @@ func (conn *Connection) ServeLambda() {
 				conn.log.Warn("Unsupported response type: %s", cmd)
 			}
 		}
+
+		if conn.instance != nil {
+			conn.instance.warm()
+		}
 	}
 }
 
@@ -247,7 +251,7 @@ func (conn *Connection) receiveData() {
 	if err != nil {
 		conn.log.Error("Failed to read length of data from lambda: %v", err)
 	}
-	conn.log.Debug("collect DATA from lambda", ok)
+	conn.log.Debug("Collect DATA from lambda: %s", ok)
 	global.DataCollected.Done()
 }
 
