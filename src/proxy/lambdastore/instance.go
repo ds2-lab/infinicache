@@ -327,16 +327,15 @@ func (ins *Instance) tryTriggerLambda() bool {
 }
 
 func (ins *Instance) triggerLambda() {
-	ins.aliveLock.Lock()
-	defer ins.aliveLock.Unlock()
-
 	ins.triggerLambdaLocked()
 	for {
 		if !ins.IsValidating() {
 			// Don't overwrite the MAYBE status.
+			ins.aliveLock.Lock()
 			if ins.alive != INSTANCE_MAYBE {
 				ins.alive = INSTANCE_DEAD
 			}
+			ins.aliveLock.Unlock()
 			return
 		}
 
@@ -375,22 +374,27 @@ func (ins *Instance) flagValidated(conn *Connection) {
 	defer ins.mu.Unlock()
 
 	if ins.cn != conn {
+		oldIns := conn.instance
+		oldConn := ins.cn
+
 		// Set instance, order matters here.
 		conn.instance = ins
 		conn.log = ins.log
-		if ins.cn != nil {
-			ins.cn.Close()
-		}
 		ins.cn = conn
 
-		// There are two possibilities for connectio switch:
-		// 1. Migration
-		// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
-		// Here, we consider possibility 1 only.
-		// TODO: deal with possibility 2
-		ins.aliveLock.Lock()
-		defer ins.aliveLock.Unlock()
-		ins.alive = INSTANCE_MAYBE
+		if oldConn != nil {
+			oldConn.Close()
+		}
+		if oldIns != nil && oldIns.Id() != ins.Id() {
+			// There are two possibilities for connectio switch:
+			// 1. Migration
+			// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
+			// Here, we consider possibility 1 only.
+			// TODO: deal with possibility 2
+			ins.aliveLock.Lock()
+			defer ins.aliveLock.Unlock()
+			ins.alive = INSTANCE_MAYBE
+		}
 	}
 
 	ins.flagValidatedLocked(false)
