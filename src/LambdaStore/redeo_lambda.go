@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	startTime  = time.Now()
+	startTime  *time.Time
 	server     string // Passed from proxy dynamically.
 	lambdaConn net.Conn
 	srv        = redeo.NewServer(nil)
@@ -63,6 +63,9 @@ var (
 )
 
 func init() {
+	start := time.Now()
+	startTime = &start
+
 	goroutines := runtime.GOMAXPROCS(0)
 	if goroutines < EXPECTED_GOMAXPROCS {
 		log.Debug("Set GOMAXPROCS to %d (original %d)", EXPECTED_GOMAXPROCS, goroutines)
@@ -105,6 +108,13 @@ func getAwsReqId(ctx context.Context) string {
 }
 
 func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
+	if startTime == nil {
+		// Reset if necessary.
+		// This is essential for debugging, and useful if deployment pool is not large enough.
+		start := time.Now()
+		startTime = &start
+	}
+
 	if input.Timeout > 0 {
 		deadline, _ := ctx.Deadline()
 		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
@@ -228,7 +238,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 					timeout.Reset()
 					mu.Unlock()
 					break
-				} else if time.Since(startTime).Minutes() >= LIFESPAN && store.Len() > 0 {
+				} else if time.Since(*startTime).Minutes() >= LIFESPAN && store.Len() > 0 {
 					// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
 					// Time to migarate
 					// Disable timer so Reset will not work.
@@ -615,7 +625,7 @@ func main() {
 			if migrClient.IsReady() {
 				// FIXME: Reset startTime for reusing.
 				// This is essential for debugging, and useful if deployment pool is not large enough.
-				startTime  = time.Now()
+				startTime = nil
 				// Reset client and end lambda
 				migrClient = nil
 				Done()

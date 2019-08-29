@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	replica       = flag.Bool("replica", true, "Enable lambda replica deployment")
+	replica       = flag.Bool("replica", false, "Enable lambda replica deployment")
 	isPrint       = flag.Bool("isPrint", false, "Enable log printing")
 	prefix        = flag.String("prefix", "log", "log file prefix")
 	log           = &logger.ColorLogger{
