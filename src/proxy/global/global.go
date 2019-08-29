@@ -20,6 +20,8 @@ var (
 )
 
 func init() {
+	Log = logger.NilLogger
+
 	ip, err := GetPrivateIp()
 	if err != nil {
 		panic(err)

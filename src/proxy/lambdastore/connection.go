@@ -138,21 +138,24 @@ func (conn *Connection) Ping() {
 }
 
 func (conn *Connection) pongHandler() {
-	undesignated := conn.instance == nil
 	conn.log.Debug("PONG from lambda.")
 
 	// Read lambdaId
 	id, _ := conn.r.ReadInt()
 
+	if conn.instance != nil {
+		conn.instance.flagValidated(conn)
+		return
+	}
+
 	// Lock up lambda instance
 	instance, exists := Registry.Instance(uint64(id))
 	if !exists {
 		conn.log.Error("Failed to match lambda: %d", id)
+		return
 	}
 	instance.flagValidated(conn)
-	if undesignated {
-		conn.log.Debug("PONG from lambda confirmed.")
-	}
+	conn.log.Debug("PONG from lambda confirmed.")
 }
 
 func (conn *Connection) getHandler(start time.Time) {

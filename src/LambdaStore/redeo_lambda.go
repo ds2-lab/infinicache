@@ -577,7 +577,7 @@ func main() {
 		atomic.AddInt32(&active, 1)
 		defer atomic.AddInt32(&active, -1)
 
-		log.Debug("In BACKUP handler")
+		log.Debug("In MIGRATE handler")
 
 		timeout.Disable()
 		timeout.Stop()

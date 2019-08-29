@@ -24,11 +24,19 @@ type Scheduler struct {
 	actives        *hashmap.HashMap
 }
 
-func newScheduler() *Scheduler {
-	return &Scheduler{
-		pool: make(chan *lambdastore.Deployment, LambdaMaxDeployments + 1), // Allocate extra 1 buffer to avoid blocking
-		actives: hashmap.New(NumLambdaClusters),
+func NewScheduler(numCluster int, numDeployment int) *Scheduler {
+	s := &Scheduler{
+		pool: make(chan *lambdastore.Deployment, numDeployment + 1), // Allocate extra 1 buffer to avoid blocking
+		actives: hashmap.New(uintptr(numCluster)),
 	}
+	for i := 0; i < numDeployment; i++ {
+		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false)
+	}
+	return s
+}
+
+func newScheduler() *Scheduler {
+	return NewScheduler(NumLambdaClusters, LambdaMaxDeployments)
 }
 
 func (s *Scheduler) GetForGroup(g *Group, idx int) *lambdastore.Instance {
@@ -88,7 +96,10 @@ func (s *Scheduler) Instance(id uint64) (*lambdastore.Instance, bool) {
 	ins := got.(*GroupInstance)
 	validated := ins.group.Validate(ins)
 	if validated != ins {
-		// Switched, recycle ins
+		// Switch keys
+		s.actives.Set(validated.Id(), validated)
+		s.actives.Set(ins.Id(), ins)
+		// Recycle ins
 		s.Recycle(ins.LambdaDeployment)
 	}
 	return validated.LambdaDeployment.(*lambdastore.Instance), exists
@@ -128,9 +139,6 @@ func (s *Scheduler) GetDestination(lambdaId uint64) (types.LambdaDeployment, err
 
 func init() {
 	scheduler = newScheduler()
-	for i := 0; i < LambdaMaxDeployments; i++ {
-		scheduler.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false)
-	}
 
 	lambdastore.Registry = scheduler
 	global.Migrator = scheduler

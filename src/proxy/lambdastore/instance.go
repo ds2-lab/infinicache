@@ -227,7 +227,7 @@ func (ins *Instance) Migrate() error {
 		addr = global.ServerIp + addr
 	}
 
-	ins.log.Info("Initiating migration to %s...", ins.Name(), dply.Name())
+	ins.log.Info("Initiating migration to %s...", dply.Name())
 	ins.chanReq <- &types.Control{
 		Cmd: "migrate",
 		Addr: addr,
