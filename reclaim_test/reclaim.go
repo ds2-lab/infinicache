@@ -3,17 +3,29 @@ package main
 import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambdacontext"
+	"os/exec"
+	"strings"
 	"time"
 )
 
 var (
-	t     = time.Now().String()
-	myMap = make(map[string]string)
+	t        = time.Now().UnixNano()
+	hostName string
 )
 
-func HandleRequest() {
-	myMap["a"] = t
-	fmt.Println("Time now is ", time.Now().String(), "Global TimeStamp is ", t, "Stored TimeStamp in Map is", myMap["a"])
+func init() {
+	cmd := exec.Command("uname", "-a")
+	host, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("cmd.Run() failed with ", err)
+	}
+	hostName = strings.Split(string(host), " #")[0]
+}
+func HandleRequest() (string, error) {
+
+	fmt.Println("deployment is", lambdacontext.FunctionName, "hostName is", hostName, "Global timeStamp is", t)
+	return fmt.Sprintf("%s,%s,%d", lambdacontext.FunctionName, hostName, t), nil
 }
 
 func main() {
