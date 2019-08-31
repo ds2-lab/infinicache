@@ -237,6 +237,20 @@ func (ins *Instance) SetErrorResponse(err error) {
 	ins.log.Error("Unexpected error response: %v", err)
 }
 
+func (ins *Instance) ClearResponses(conn *Connection, err error) {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	// Make sure connection matches
+	if ins.cn != conn {
+		return
+	}
+
+	for req := range ins.chanWait {
+		req.ChanResponse <- err
+	}
+}
+
 func (ins *Instance) Switch(to types.LambdaDeployment) *Instance {
 	temp := &Deployment{}
 	ins.Reset(to, temp)
@@ -383,7 +397,7 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		ins.cn = conn
 
 		if oldConn != nil {
-			oldConn.Close()
+			oldConn.GraceClose()
 		}
 		if oldIns != nil && oldIns.Id() != ins.Id() {
 			// There are two possibilities for connectio switch:

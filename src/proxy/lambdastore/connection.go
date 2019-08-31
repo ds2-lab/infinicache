@@ -22,6 +22,7 @@ var (
 		Prefix: fmt.Sprintf("Undesignated "),
 		Color:  true,
 	}
+	ErrConnectionClosed = errors.New("connection closed")
 )
 
 type Connection struct {
@@ -47,7 +48,7 @@ func NewConnection(c net.Conn) *Connection {
 	return conn
 }
 
-func (conn *Connection) Close() {
+func (conn *Connection) GraceClose() {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -58,11 +59,17 @@ func (conn *Connection) Close() {
 	default:
 	}
 
+	// Signal colosed only. This allow ongoing transmission to finish.
 	close(conn.closed)
-	if conn.cn != nil {
-		// Don't use c.Close(), it will stuck and wait for lambda.
-		conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
-		conn.cn.Close()
+}
+
+func (conn *Connection) Close() {
+	conn.GraceClose()
+	// Don't use c.Close(), it will stuck and wait for lambda.
+	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
+	conn.cn.Close()
+	if conn.instance != nil {
+		conn.instance.ClearResponses(conn, ErrConnectionClosed)
 	}
 }
 
@@ -75,14 +82,14 @@ func (conn *Connection) Close() {
 // field 3 : obj val
 func (conn *Connection) ServeLambda() {
 	for {
+		select {
+		case <-conn.closed:
+			conn.Close()
+		default:
+		}
 		// field 0 for cmd
 		field0, err := conn.r.PeekType()
 		if err != nil {
-			select {
-			case <-conn.closed:
-				return
-			default:
-			}
 			if err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
 			} else {
@@ -106,7 +113,10 @@ func (conn *Connection) ServeLambda() {
 			conn.instance.SetErrorResponse(err)
 		default:
 			cmd, err = conn.r.ReadBulkString()
-			if err != nil {
+			if err != nil && err == io.EOF {
+				conn.log.Warn("Lambda store disconnected.")
+				conn.Close()
+			} else if err != nil {
 				conn.log.Warn("Error on read response type: %v", err)
 				break
 			}
