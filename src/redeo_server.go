@@ -32,7 +32,7 @@ func init() {
 }
 
 func main() {
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	flag.Parse()
 
 	// Register signals
