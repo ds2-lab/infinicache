@@ -222,6 +222,10 @@ func (ins *Instance) HandleRequests() {
 }
 
 func (ins *Instance) SetResponse(rsp *types.Response) {
+	if len(ins.chanWait) == 0 {
+		ins.log.Error("Unexpected response: %v", rsp)
+		return
+	}
 	for req := range ins.chanWait {
 		if req.IsResponse(rsp) {
 			ins.log.Debug("response matched: %v", req.Id)
@@ -231,15 +235,17 @@ func (ins *Instance) SetResponse(rsp *types.Response) {
 		ins.log.Warn("passing req: %v, got %v", req, rsp)
 		req.ChanResponse <- ErrMissingResponse
 	}
-	ins.log.Error("Unexpected response: %v", rsp)
 }
 
 func (ins *Instance) SetErrorResponse(err error) {
+	if len(ins.chanWait) == 0 {
+		ins.log.Error("Unexpected error response: %v", err)
+		return
+	}
 	for req := range ins.chanWait {
 		req.ChanResponse <- err
 		return
 	}
-	ins.log.Error("Unexpected error response: %v", err)
 }
 
 func (ins *Instance) Switch(to types.LambdaDeployment) *Instance {
@@ -281,8 +287,6 @@ func (ins *Instance) Migrate() error {
 func (ins *Instance) Close() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
-
-	ins.log.Debug("pass lock check")
 
 	if ins.isClosedLocked() {
 		return
@@ -421,6 +425,9 @@ func (ins *Instance) flagValidatedLocked(onClose bool) {
 }
 
 func (ins *Instance) clearResponses() {
+	if len(ins.chanWait) == 0 {
+		return
+	}
 	for req := range ins.chanWait {
 		req.ChanResponse <- ErrInstanceClosed
 	}
