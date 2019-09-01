@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
@@ -65,6 +66,8 @@ var (
 	lambdaReqId string
 	migrClient  *migrator.Client
 	prefix      string
+
+	ErrProxyClosing = errors.New("Proxy closed.")
 )
 
 func init() {
@@ -207,6 +210,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			if migrClient != nil {
 				migrClient.SetReady()
 			} else {
+				store = storage.New()
 				Done()
 			}
 		}()
@@ -257,19 +261,23 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 					initiator := func() error { return initMigrateHandler(lambdaConn) }
 					for err := migrClient.Initiate(initiator); err != nil; {
 						log.Warn("Fail to initiaiate migration: %v", err)
-						log.Warn("Retry migration")
+						if err == ErrProxyClosing {
+							return
+						}
 
+						log.Warn("Retry migration")
 						err = migrClient.Initiate(initiator)
 					}
 
 					// No more timeout, just wait for done
 					log.Debug("Migration initiated.")
 					break
+				} else {
+					doneLocked()
+					mu.Unlock()
+					log.Debug("Lambda timeout, return(%v).", timeout.Since())
+					return
 				}
-				doneLocked()
-				mu.Unlock()
-				log.Debug("Lambda timeout, return(%v).", timeout.Since())
-				return
 			}
 		}
 	}()
@@ -591,6 +599,12 @@ func main() {
 		timeout.Stop()
 		log.Debug("In DATA handler")
 
+		if migrClient != nil {
+			migrClient.SetError(ErrProxyClosing)
+			migrClient.Close()
+			migrClient = nil
+		}
+
 		// Wait for data depository.
 		dataDeposited.Wait()
 		// put DATA to s3
@@ -653,6 +667,7 @@ func main() {
 			Id:    uint64(newId),
 			Proxy: server,
 			Addr:  addr,
+			Prefix: prefix,
 		}); err != nil {
 			return
 		}
@@ -671,6 +686,7 @@ func main() {
 				migrClient = nil
 				// put data to s3 before migration finish
 				gatherData(prefix)
+				store = storage.New()
 				Done()
 			}
 		}()
@@ -683,9 +699,10 @@ func main() {
 		}
 
 		// Wait for ready, which means connection to proxy is closed and we are safe to proceed.
-		<-migrClient.Ready()
-
-		// TODO: Transfer data
+		err := <-migrClient.Ready()
+		if err != nil {
+			return
+		}
 
 		// Send key list by access time
 		w.AppendBulkString("mhello")

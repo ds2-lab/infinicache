@@ -143,3 +143,10 @@ func init() {
 	lambdastore.Registry = scheduler
 	global.Migrator = scheduler
 }
+
+func CleanUpScheduler() {
+	scheduler.ClearAll()
+	scheduler = nil
+
+	migrator.CleanUp()
+}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
+	"github.com/cornelk/hashmap"
 	"net"
 	"time"
 )
@@ -11,6 +12,7 @@ import (
 // ErrServerClosed is returned by the Server after a call to Shutdown or Close.
 var ErrServerClosed = errors.New("migrator: Server closed")
 var ListenTimeout = 30 * time.Second
+var all = &hashmap.HashMap{}
 
 type Server struct {
 	Addr    string // TCP address to listen on
@@ -21,6 +23,7 @@ type Server struct {
 	log       logger.ILogger
 	port      int
 	listener  *net.TCPListener
+	fconn     *forwardConnection
 }
 
 func New(port int, debug bool) *Server {
@@ -37,6 +40,7 @@ func New(port int, debug bool) *Server {
 		Color:   true,
 	}
 
+	all.Set(port, srv)
 	return srv
 }
 
@@ -88,17 +92,30 @@ func (srv *Server) Serve() {
 	srv.listener.Close()
 	srv.listener = nil
 
-	fConn := newForwardConnection(lConn, rConn)
-	fConn.Debug = srv.Debug
+	srv.fconn = newForwardConnection(lConn, rConn)
+	srv.fconn.Debug = srv.Debug
 	//fConn.Nagles = true
-	fConn.log = srv.log
+	srv.fconn.log = srv.log
 
-	fConn.forward()
+	srv.fconn.forward()
+	srv.fconn = nil
+
+	all.Del(srv.port)
 }
 
 func (srv *Server) Close() {
 	if srv.listener != nil {
 		srv.listener.Close()
 		srv.listener = nil
+	}
+	if srv.fconn != nil {
+		srv.fconn.close()
+		srv.fconn = nil
+	}
+}
+
+func CleanUp() {
+	for keyValue := range all.Iter() {
+		keyValue.Value.(*Server).Close()
 	}
 }

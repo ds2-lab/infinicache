@@ -105,6 +105,7 @@ func main() {
 
 		prxy.Close(lambdaLis)
 		prxy.Release()
+		proxy.CleanUpScheduler()
 		close(done)
 	}()
 

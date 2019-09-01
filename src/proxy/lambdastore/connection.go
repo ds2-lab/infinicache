@@ -258,10 +258,10 @@ func (conn *Connection) receiveData() {
 
 	_, err := conn.r.ReadBulkString()
 	ok, err := conn.r.ReadBulkString()
-	if err != nil {
-		conn.log.Error("Failed to read length of data from lambda: %v", err)
+	if err != nil && err != io.EOF {
+		conn.log.Error("Error on processing result of data collection: %v", err)
 	}
-	conn.log.Debug("Collect DATA from lambda: %s", ok)
+	conn.log.Debug("Collected DATA from lambda: %s", ok)
 	global.DataCollected.Done()
 }
 

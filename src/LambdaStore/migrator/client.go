@@ -136,7 +136,11 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 
 	keys := make([]string, len)
 	for i := 0; i < len; i++ {
-		keys[i], _ = reader.ReadBulkString()
+		keys[i], err = reader.ReadBulkString()
+		if err != nil {
+			log.Error("Failed to read migration keys: %v", err)
+			return
+		}
 	}
 
 	// Start migration
