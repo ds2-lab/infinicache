@@ -22,7 +22,6 @@ var (
 		Prefix: fmt.Sprintf("Undesignated "),
 		Color:  true,
 	}
-	ErrConnectionClosed = errors.New("connection closed")
 )
 
 type Connection struct {
@@ -68,9 +67,6 @@ func (conn *Connection) Close() {
 	// Don't use c.Close(), it will stuck and wait for lambda.
 	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
 	conn.cn.Close()
-	if conn.instance != nil {
-		conn.instance.ClearResponses(conn, ErrConnectionClosed)
-	}
 }
 
 // blocking on lambda peek Type

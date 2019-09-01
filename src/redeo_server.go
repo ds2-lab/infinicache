@@ -91,7 +91,8 @@ func main() {
 	go func() {
 		<-sig
 		log.Info("Receive signal, killing server...")
-		done <- struct{}{}
+		// done <- struct{}{}
+		close(sig)
 
 		collector.Stop()
 

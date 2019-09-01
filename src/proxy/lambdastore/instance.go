@@ -2,6 +2,7 @@ package lambdastore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -28,6 +29,8 @@ var (
 	Registry InstanceRegistry
 	TimeoutNever = make(<-chan time.Time)
 	WarmTimout = 1 * time.Minute
+	ErrInstanceClosed = errors.New("instance closed")
+	ErrMissingResponse = errors.New("Missing response")
 )
 
 type InstanceRegistry interface {
@@ -62,7 +65,7 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 		Deployment: dp,
 		alive:      INSTANCE_DEAD,
 		chanReq:    make(chan interface{}, 1),
-		chanWait:   make(chan *types.Request, 10),
+		chanWait:   make(chan *types.Request, 1),
 		validated:  validated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
 		coolTimer:  time.NewTimer(WarmTimout),
@@ -178,10 +181,11 @@ func (ins *Instance) HandleRequests() {
 					continue For
 				}
 
+				// In case there is a request already, wait to be consumed (for response).
+				ins.chanWait <- req
 				if err := req.Flush(); err != nil {
 					ins.log.Error("Flush pipeline error: %v", err)
 				}
-				ins.chanWait <- req
 
 			case *types.Control:
 				ctrl := req.(*types.Control)
@@ -224,7 +228,8 @@ func (ins *Instance) SetResponse(rsp *types.Response) {
 			req.ChanResponse <- rsp
 			return
 		}
-		ins.log.Debug("passing req: %v, got %v", req, rsp)
+		ins.log.Warn("passing req: %v, got %v", req, rsp)
+		req.ChanResponse <- ErrMissingResponse
 	}
 	ins.log.Error("Unexpected response: %v", rsp)
 }
@@ -235,20 +240,6 @@ func (ins *Instance) SetErrorResponse(err error) {
 		return
 	}
 	ins.log.Error("Unexpected error response: %v", err)
-}
-
-func (ins *Instance) ClearResponses(conn *Connection, err error) {
-	ins.mu.Lock()
-	defer ins.mu.Unlock()
-
-	// Make sure connection matches
-	if ins.cn != conn {
-		return
-	}
-
-	for req := range ins.chanWait {
-		req.ChanResponse <- err
-	}
 }
 
 func (ins *Instance) Switch(to types.LambdaDeployment) *Instance {
@@ -291,6 +282,8 @@ func (ins *Instance) Close() {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
 
+	ins.log.Debug("pass lock check")
+
 	if ins.isClosedLocked() {
 		return
 	}
@@ -304,6 +297,7 @@ func (ins *Instance) Close() {
 	if ins.cn != nil {
 		ins.cn.Close()
 	}
+	clearResponses()
 	close(ins.closed)
 	ins.flagValidatedLocked(true)
 }
@@ -423,6 +417,12 @@ func (ins *Instance) flagValidatedLocked(onClose bool) {
 			ins.log.Debug("Validated")
 		}
 		close(ins.validated)
+	}
+}
+
+func (ins *Instance) clearResponses() {
+	for req := range ins.chanWait {
+		req.ChanResponse <- ErrInstanceClosed
 	}
 }
 
