@@ -91,7 +91,7 @@ func main() {
 	go func() {
 		<-sig
 		log.Info("Receive signal, killing server...")
-		close(sig)
+		done <- struct{}{}
 
 		collector.Stop()
 
@@ -112,7 +112,7 @@ func main() {
 	err = srv.ServeAsync(clientLis)
 	if err != nil {
 		select {
-		case <-sig:
+		case <-done:
 			// Normal close
 		default:
 			log.Error("Error on serve clients: %v", err)
