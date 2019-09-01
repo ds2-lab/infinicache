@@ -292,6 +292,7 @@ func (ins *Instance) Close() {
 		return
 	}
 
+	close(ins.closed)
 	if !ins.coolTimer.Stop() {
 		select {
 		case <-ins.coolTimer.C:
@@ -302,7 +303,6 @@ func (ins *Instance) Close() {
 		ins.cn.Close()
 	}
 	ins.clearResponses()
-	close(ins.closed)
 	ins.flagValidatedLocked(true)
 }
 
