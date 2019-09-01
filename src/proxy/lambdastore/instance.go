@@ -297,7 +297,7 @@ func (ins *Instance) Close() {
 	if ins.cn != nil {
 		ins.cn.Close()
 	}
-	clearResponses()
+	ins.clearResponses()
 	close(ins.closed)
 	ins.flagValidatedLocked(true)
 }
