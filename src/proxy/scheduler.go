@@ -14,6 +14,7 @@ import(
 const DEP_STATUS_POOLED = 0
 const DEP_STATUS_ACTIVE = 1
 const DEP_STATUS_ACTIVATING = 2
+const IN_DEPLOYMENT_MIGRATION = false
 
 var (
 	scheduler    *Scheduler
@@ -64,7 +65,11 @@ func (s *Scheduler) ReserveForInstance(insId uint64) (types.LambdaDeployment, er
 	}
 
 	ins := got.(*GroupInstance)
-	return s.ReserveForGroup(ins.group, ins.idx)
+	if IN_DEPLOYMENT_MIGRATION {
+		return ins.LambdaDeployment, nil
+	} else {
+		return s.ReserveForGroup(ins.group, ins.idx)
+	}	
 }
 
 func (s *Scheduler) Recycle(dp types.LambdaDeployment) {
