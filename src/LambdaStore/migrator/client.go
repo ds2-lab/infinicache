@@ -175,6 +175,11 @@ func (cli *Client) SetError(err error) {
 }
 
 func (cli *Client) SetReady() {
+	select {
+	case <-cli.ready:
+	default:
+	}
+	
 	close(cli.ready)
 }
 

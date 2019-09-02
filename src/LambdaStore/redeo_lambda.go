@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsSession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
@@ -22,12 +22,11 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/storage"
-	lambdaTimeout "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/timeout"
+	lambdaLife "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/lifetime"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
@@ -36,45 +35,34 @@ const (
 	OP_GET              = "1"
 	OP_SET              = "0"
 	EXPECTED_GOMAXPROCS = 2
-	LIFESPAN            = 60
-	S3BUCKET            = "ao.test.data"
+	LIFESPAN            = 5 * time.Minute
+	S3BUCKET            = "tianium.default"
 )
 
 var (
-	startTime  *time.Time
-	server     string // Passed from proxy dynamically.
-	lambdaConn net.Conn
-	srv                      = redeo.NewServer(nil)
-	store      types.Storage = storage.New()
-	isFirst                  = true
-	log                      = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_WARN,
-	}
-	dataGatherer   = make(chan *types.DataEntry, 10)
-	dataDepository = make([]*types.DataEntry, 0, 100)
+	ErrProxyClosing               = errors.New("Proxy closed.")
+
+	lambdaConn     net.Conn
+	store          types.Storage   = storage.New()
+	srv                            = redeo.NewServer(nil)
+	log                            = &logger.ColorLogger{ Level: logger.LOG_LEVEL_ALL }
+	dataGatherer                   = make(chan *types.DataEntry, 10)
+	dataDepository                 = make([]*types.DataEntry, 0, 100)
 	dataDeposited  sync.WaitGroup
-	timeout        = lambdaTimeout.New(0)
+	lifetime                       = lambdaLife.New(LIFESPAN)
 	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
 	// at the same time.
-	pongLimiter = make(chan struct{}, 1)
+	pongLimiter                    = make(chan struct{}, 1)
 
-	active      int32
-	mu          sync.RWMutex
-	done        chan struct{}
-	id          uint64
-	hostName    string
-	lambdaReqId string
-	lastLambdaReqId string
-	migrClient  *migrator.Client
-	prefix      string
-
-	ErrProxyClosing = errors.New("Proxy closed.")
+	mu             sync.RWMutex
+	id             uint64
+	hostName       string
+	lambdaReqId    string
+	server         string // Passed from proxy dynamically.
+	prefix         string
 )
 
 func init() {
-	start := time.Now()
-	startTime = &start
-
 	goroutines := runtime.GOMAXPROCS(0)
 	if goroutines < EXPECTED_GOMAXPROCS {
 		log.Debug("Set GOMAXPROCS to %d (original %d)", EXPECTED_GOMAXPROCS, goroutines)
@@ -82,8 +70,6 @@ func init() {
 	} else {
 		log.Debug("GOMAXPROCS %d", goroutines)
 	}
-	timeout.SetLogger(log)
-	adapt()
 
 	cmd := exec.Command("uname", "-a")
 	host, err := cmd.CombinedOutput()
@@ -95,19 +81,6 @@ func init() {
 	log.Debug("hostname is: %s", hostName)
 }
 
-func adapt() {
-	if lambdacontext.MemoryLimitInMB < 896 {
-		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_1_ERROR_EXTEND
-		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_1_ERROR
-	} else if lambdacontext.MemoryLimitInMB < 1792 {
-		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_5_ERROR_EXTEND
-		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_5_ERROR
-	} else {
-		lambdaTimeout.TICK_ERROR_EXTEND = lambdaTimeout.TICK_10_ERROR_EXTEND
-		lambdaTimeout.TICK_ERROR = lambdaTimeout.TICK_10_ERROR
-	}
-}
-
 func getAwsReqId(ctx context.Context) string {
 	lc, ok := lambdacontext.FromContext(ctx)
 	if ok == false {
@@ -117,22 +90,21 @@ func getAwsReqId(ctx context.Context) string {
 }
 
 func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
-	if startTime == nil {
-		// Reset if necessary.
-		// This is essential for debugging, and useful if deployment pool is not large enough.
-		start := time.Now()
-		startTime = &start
-	}
+	// gorouting start from 3
 
+	// Reset if necessary.
+	// This is essential for debugging, and useful if deployment pool is not large enough.
+	lifetime.RebornIfDead()
+	session := lambdaLife.GetSession()
+	defer lambdaLife.ClearSession()
+
+	session.Timeout.SetLogger(log)
 	if input.Timeout > 0 {
 		deadline, _ := ctx.Deadline()
-		timeout.RestartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
+		session.Timeout.StartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
 	} else {
-		timeout.Restart()
+		session.Timeout.Start()
 	}
-	atomic.StoreInt32(&active, 0)
-	ResetDone()
-	var clear sync.WaitGroup
 	issuePong()
 
 	// Update global parameters
@@ -147,50 +119,53 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		}
 
 		mu.Lock()
-		if !isFirst {
+		if lambdaConn != nil {
 			// The connection is not closed on last invocation, reset.
-			start := time.Now()
-			startTime = &start
 			lambdaConn.Close()
 			lambdaConn = nil
-			isFirst = true
+			lifetime.Reborn()
 		}
 		mu.Unlock()
 
 		// connect to migrator
-		migrClient = migrator.NewClient()
-		if err := migrClient.Connect(input.Addr); err != nil {
+		session.Migrator = migrator.NewClient()
+		if err := session.Migrator.Connect(input.Addr); err != nil {
 			log.Error("Failed to connect migrator %s: %v", input.Addr, err)
 			return nil
 		}
 
 		// Send hello
-		reader, err := migrClient.Send("mhello")
+		reader, err := session.Migrator.Send("mhello")
 		if err != nil {
 			log.Error("Failed to hello source on migrator: %v", err)
 			return nil
 		}
 
 		// Apply store adapter to coordinate migration and normal requests
-		adapter := migrClient.GetStoreAdapter(store)
+		adapter := session.Migrator.GetStoreAdapter(store)
 		store = adapter
 
 		// Reader will be avaiable after connecting and source being replaced
-		go func() {
-			atomic.AddInt32(&active, 1)
-			defer atomic.AddInt32(&active, -1)
+		go func(s *lambdaLife.Session) {
+			// In-session gorouting
+			s.Timeout.Busy()
+			defer s.Timeout.DoneBusy()
 
-			migrClient.Migrate(reader, store)
-			migrClient = nil
+			s.Migrator.Migrate(reader, store)
+			s.Migrator = nil
 			store = adapter.Restore()
-		}()
+		}(session)
 	}
 
 	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
 	id = input.Id
 
-	if isFirst {
-		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
+	mu.Lock()
+	session.Connection = lambdaConn
+	mu.Unlock()
+
+	if session.Connection != nil {
+		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 
 		if len(input.Proxy) == 0 {
 			log.Error("No proxy set.")
@@ -200,175 +175,119 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		server = input.Proxy
 		log.Debug("Ready to connect %s, id %d", server, id)
 		var connErr error
-		lambdaConn, connErr = net.Dial("tcp", server)
+		session.Connection, connErr = net.Dial("tcp", server)
 		if connErr != nil {
 			log.Error("Failed to connect server %s: %v", server, connErr)
 			return connErr
 		}
-		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), timeout.Since())
+		mu.Lock()
+		lambdaConn = session.Connection
+		mu.Unlock()
+		log.Info("Connection to %v established (%v)", lambdaConn.RemoteAddr(), session.Timeout.Since())
 
-		isFirst = false
-		go func() {
-			err := srv.ServeForeignClient(lambdaConn)
+		go func(conn net.Conn) {
+			// Cross session gorouting
+			err := srv.ServeForeignClient(conn)
 			if err != nil && err != io.EOF {
 				log.Info("Connection closed: %v", err)
 			} else {
 				log.Info("Connection closed.")
 			}
+			conn.Close()
+
+			session := lambdaLife.GetSession()
 			mu.Lock()
-			if isFirst {
-				// Detect unexpected interruption on startup
-				mu.Unlock()
+			defer mu.Unlock()
+			if session.Connection == nil {
+				// Connection unset, but connection from previous invocation is lost.
+				lambdaConn = nil
+				lifetime.Reborn()
+				return
+			} else if session.Connection != conn {
+				// Connection changed.
 				return
 			}
-			lambdaConn = nil
-			isFirst = true
-			mu.Unlock()
 
 			// Flag destination is ready or we are done.
-			if migrClient != nil {
-				migrClient.SetReady()
+			lambdaConn = nil
+			if session.Migrator != nil {
+				session.Migrator.SetReady()
 			} else {
-				store = storage.New()
-				Done()
+				lifetime.Rest()
+				session.Done()
 			}
-		}()
+		}(session.Connection)
 	} else {
-		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
+		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 	}
 	// append PONG back to proxy on being triggered
-	pongHandler(lambdaConn)
+	pongHandler(session.Connection)
 
 	// data gathering
-	go func(clear *sync.WaitGroup) {
-		clear.Add(1)
-		defer clear.Done()
-
-		for {
-			select {
-			case <-done:
-				return
-			case entry := <-dataGatherer:
-				dataDepository = append(dataDepository, entry)
-				dataDeposited.Done()
-			}
-		}
-	}(&clear)
+	go CollectData(session)
 
 	// timeout control
-	func() {
-		for {
-			select {
-			case <-done:
-				return
-			case <-timeout.C:
-				mu.Lock()
-				if atomic.LoadInt32(&active) > 0 {
-					timeout.Reset()
-					mu.Unlock()
-					break
-				} else if time.Since(*startTime).Minutes() >= LIFESPAN && store.Len() > 0 {
-					// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
-					// Time to migarate
-					// Disable timer so Reset will not work.
-					timeout.Disable()
-					mu.Unlock()
+	Wait(session, lifetime)
 
-					// Initiate migration
-					migrClient = migrator.NewClient()
-					log.Info("Initiate migration.")
-					initiator := func() error { return initMigrateHandler(lambdaConn) }
-					for err := migrClient.Initiate(initiator); err != nil; {
-						log.Warn("Fail to initiaiate migration: %v", err)
-						if err == ErrProxyClosing {
-							return
-						}
-
-						log.Warn("Retry migration")
-						err = migrClient.Initiate(initiator)
-					}
-
-					// No more timeout, just wait for done
-					log.Debug("Migration initiated.")
-					break
-				} else {
-					doneLocked()
-					mu.Unlock()
-					log.Debug("Lambda timeout, return(%v).", timeout.Since())
-					return
-				}
-			}
-		}
-	}()
-
-	clear.Wait()
-	log.Debug("All routing cleared(%d) at %v", runtime.NumGoroutine(), timeout.Since())
-	ClearDone()
+	log.Debug("All routing cleared(%d) at %v", runtime.NumGoroutine(), session.Timeout.Since())
 	return nil
 }
 
-func ResetDone() {
-	mu.Lock()
-	defer mu.Unlock()
+func CollectData(session *lambdaLife.Session) {
+	session.Clear.Add(1)
+	defer session.Clear.Done()
 
-	done = nil
-	resetDoneLocked()
+	for {
+		select {
+		case <-session.WaitDone():
+			return
+		case entry := <-dataGatherer:
+			dataDepository = append(dataDepository, entry)
+			dataDeposited.Done()
+		}
+	}
 }
 
-func Done() {
-	mu.Lock()
-	defer mu.Unlock()
+func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
+	defer session.Clear.Wait()
 
-	// Migrating? Wait it is over
-	if migrClient != nil {
+	select {
+	case <-session.WaitDone():
 		return
-	}
+	case <-session.Timeout.C():
+		session.Timeout.Halt()
 
-	resetDoneLocked()
-	doneLocked()
-}
+		if lifetime.IsTimeUp() && store.Len() > 0 {
+			// Time to migarate
+			// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
 
-func ClearDone() {
-	mu.Lock()
-	defer mu.Unlock()
+			// Initiate migration
+			session.Migrator = migrator.NewClient()
+			log.Info("Initiate migration.")
+			initiator := func() error { return initMigrateHandler(session.Connection) }
+			for err := session.Migrator.Initiate(initiator); err != nil; {
+				log.Warn("Fail to initiaiate migration: %v", err)
+				if err == ErrProxyClosing {
+					return
+				}
 
-	done = nil
-}
-
-func IsDone() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	if done == nil {
-		return true
-	}
-
-	select {
-	case <-done:
-		return true
-	default:
-		return false
-	}
-}
-
-func resetDoneLocked() {
-	if done == nil {
-		done = make(chan struct{})
+				log.Warn("Retry migration")
+				err = session.Migrator.Initiate(initiator)
+			}
+			log.Debug("Migration initiated.")
+		} else {
+			session.Done()
+			log.Debug("Lambda timeout, return(%v).", session.Timeout.Since())
+			return
+		}
 	}
 }
 
-func doneLocked() {
-	select {
-	case <-done:
-		// closed
-	default:
-		close(done)
-	}
-}
+
 
 func issuePong() {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 
 	select {
 	case pongLimiter <- struct{}{}:
@@ -383,8 +302,8 @@ func pongHandler(conn net.Conn) {
 }
 
 func pong(w resp.ResponseWriter) {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 
 	select {
 	case <-pongLimiter:
@@ -399,7 +318,6 @@ func pong(w resp.ResponseWriter) {
 		log.Error("Error on PONG flush: %v", err)
 		return
 	}
-	log.Debug("PONG(%v)", timeout.Since())
 }
 
 func initMigrateHandler(conn net.Conn) error {
@@ -438,8 +356,8 @@ func initMigrateHandler(conn net.Conn) error {
 
 func remotePut(bucket string, k string, f string) {
 	// The session the S3 Uploader will use
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
+	sess := awsSession.Must(awsSession.NewSessionWithOptions(awsSession.Options{
+		SharedConfigState: awsSession.SharedConfigEnable,
 		Config:            aws.Config{Region: aws.String("us-east-1")},
 	}))
 
@@ -488,11 +406,12 @@ func gatherData(prefix string) {
 func main() {
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
-		atomic.AddInt32(&active, 1)
-		timeout.Requests++
-		extension := lambdaTimeout.TICK_ERROR
-		if timeout.Requests > 1 {
-			extension = lambdaTimeout.TICK
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
 		}
 		var respError *types.ResponseError
 
@@ -513,8 +432,8 @@ func main() {
 				dataDeposited.Add(1)
 				dataGatherer <- &types.DataEntry{OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
 			}
-			timeout.ResetWithExtension(extension)
-			atomic.AddInt32(&active, -1)
+			session.Timeout.ResetWithExtension(extension)
+			session.Timeout.DoneBusy()
 		}()
 
 		//val, err := myCache.Get(key)
@@ -559,15 +478,16 @@ func main() {
 	})
 
 	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
-		atomic.AddInt32(&active, 1)
-		timeout.Requests++
-		extension := lambdaTimeout.TICK_ERROR
-		if timeout.Requests > 1 {
-			extension = lambdaTimeout.TICK
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
 		}
 		defer func() {
-			timeout.ResetWithExtension(extension)
-			atomic.AddInt32(&active, -1)
+			session.Timeout.ResetWithExtension(extension)
+			session.Timeout.DoneBusy()
 		}()
 
 		t := time.Now()
@@ -617,13 +537,14 @@ func main() {
 	})
 
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
-		timeout.Stop()
+		session := lambdaLife.GetSession()
+		session.Timeout.Halt()
 		log.Debug("In DATA handler")
 
-		if migrClient != nil {
-			migrClient.SetError(ErrProxyClosing)
-			migrClient.Close()
-			migrClient = nil
+		if session.Migrator != nil {
+			session.Migrator.SetError(ErrProxyClosing)
+			session.Migrator.Close()
+			session.Migrator = nil
 		}
 
 		// Wait for data depository.
@@ -638,51 +559,52 @@ func main() {
 			return
 		}
 		log.Debug("data complete")
-		lambdaConn.Close()
+		session.Connection.Close()
 		// No need to close server, it will serve the new connection next time.
+
+		// Reset store
+		store = storage.New()
 	})
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
-		atomic.AddInt32(&active, 1)
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		defer session.Timeout.DoneBusy()
 
-		if IsDone() {
+		if session.IsDone() {
 			// If no request comes, ignore. This prevents unexpected pings.
-			atomic.AddInt32(&active, -1)
 			return
 		}
 
-		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR_EXTEND)
+		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 		log.Debug("PING")
 		issuePong()
 		pong(w)
-		atomic.AddInt32(&active, -1)
 	})
 
 	srv.HandleFunc("migrate", func(w resp.ResponseWriter, c *resp.Command) {
-		atomic.AddInt32(&active, 1)
-		defer atomic.AddInt32(&active, -1)
-
+		session := lambdaLife.GetSession()
+		session.Timeout.Halt()
 		log.Debug("In MIGRATE handler")
-
-		timeout.Disable()
-		timeout.Stop()
 
 		// addr:port
 		addr := c.Arg(0).String()
 		deployment := c.Arg(1).String()
 		newId, _ := c.Arg(2).Int()
+		requestFromProxy := false
 
-		if migrClient == nil {
+		if session.Migrator == nil {
 			// Migration initiated by proxy
-			migrClient = migrator.NewClient()
+			requestFromProxy = true
+			session.Migrator = migrator.NewClient()
 		}
 
 		// dial to migrator
-		if err := migrClient.Connect(addr); err != nil {
+		if err := session.Migrator.Connect(addr); err != nil {
 			return
 		}
 
-		if err := migrClient.TriggerDestination(deployment, &protocol.InputEvent{
+		if err := session.Migrator.TriggerDestination(deployment, &protocol.InputEvent{
 			Cmd:   "migrate",
 			Id:    uint64(newId),
 			Proxy: server,
@@ -693,33 +615,36 @@ func main() {
 		}
 
 		// Now, we serve migration connection
-		go func() {
-			migrClient.WaitForMigration(srv)
+		go func(session *lambdaLife.Session) {
+			// In session gorouting
+			session.Migrator.WaitForMigration(srv)
 			// Migration ends or is interrupted.
 
 			// Should be ready if migration ended.
-			if migrClient.IsReady() {
-				// FIXME: Reset startTime for reusing.
-				// This is essential for debugging, and useful if deployment pool is not large enough.
-				startTime = nil
-				// Reset client and end lambda
-				migrClient = nil
+			if session.Migrator.IsReady() {
 				// put data to s3 before migration finish
 				gatherData(prefix)
 				// store = storage.New()
-				Done()
+				session.Migrator = nil
+				// This is essential for debugging, and useful if deployment pool is not large enough.
+				lifetime.Rest()
+				session.Done()
+			} else if requestFromProxy {
+				session.Timeout.Enable()
+				session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 			}
-		}()
+		}(session)
 	})
 
 	srv.HandleFunc("mhello", func(w resp.ResponseWriter, c *resp.Command) {
-		if migrClient == nil {
+		session := lambdaLife.GetSession()
+		if session.Migrator == nil {
 			log.Error("Migration is not initiated.")
 			return
 		}
 
 		// Wait for ready, which means connection to proxy is closed and we are safe to proceed.
-		err := <-migrClient.Ready()
+		err := <-session.Migrator.Ready()
 		if err != nil {
 			return
 		}
