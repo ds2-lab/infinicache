@@ -15,7 +15,7 @@ var (
 	handler = "reclaim"
 	prefix  = "reclaim"
 	count   = 1000
-	mem     = int64(2048)
+	mem     = int64(3008)
 	timeout = int64(150)
 	subnet  = []*string{
 		aws.String("subnet-eeb536c0"),
