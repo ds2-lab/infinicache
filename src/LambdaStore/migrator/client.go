@@ -48,6 +48,16 @@ func (cli *Client) Initiate(initiator func() error) error {
 		return err
 	}
 
+	// Test ready and reset if neccessary
+	select{
+	case err := <-cli.ready:
+		if err == nil {
+			// closed, reopen
+			cli.ready = make(chan error, 1)
+		}
+	default:
+	}
+
 	return <-cli.ready
 }
 

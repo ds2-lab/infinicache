@@ -64,6 +64,7 @@ var (
 	id          uint64
 	hostName    string
 	lambdaReqId string
+	lastLambdaReqId string
 	migrClient  *migrator.Client
 	prefix      string
 
@@ -116,7 +117,6 @@ func getAwsReqId(ctx context.Context) string {
 }
 
 func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
-	prefix = input.Prefix
 	if startTime == nil {
 		// Reset if necessary.
 		// This is essential for debugging, and useful if deployment pool is not large enough.
@@ -135,7 +135,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	var clear sync.WaitGroup
 	issuePong()
 
-	// get lambda invoke reqId
+	// Update global parameters
+	prefix = input.Prefix
 	lambdaReqId = getAwsReqId(ctx)
 
 	// migration triggered lambda
@@ -144,6 +145,17 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			log.Error("No migrator set.")
 			return nil
 		}
+
+		mu.Lock()
+		if !isFirst {
+			// The connection is not closed on last invocation, reset.
+			start := time.Now()
+			startTime = &start
+			lambdaConn.Close()
+			lambdaConn = nil
+			isFirst = true
+		}
+		mu.Unlock()
 
 		// connect to migrator
 		migrClient = migrator.NewClient()
@@ -177,7 +189,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	// log.Debug("Routings on requesting: %d", runtime.NumGoroutine())
 	id = input.Id
 
-	if isFirst == true {
+	if isFirst {
 		timeout.ResetWithExtension(lambdaTimeout.TICK_ERROR)
 
 		if len(input.Proxy) == 0 {
@@ -203,8 +215,15 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			} else {
 				log.Info("Connection closed.")
 			}
+			mu.Lock()
+			if isFirst {
+				// Detect unexpected interruption on startup
+				mu.Unlock()
+				return
+			}
 			lambdaConn = nil
 			isFirst = true
+			mu.Unlock()
 
 			// Flag destination is ready or we are done.
 			if migrClient != nil {
