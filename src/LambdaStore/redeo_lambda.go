@@ -462,6 +462,7 @@ func gatherData(prefix string) {
 		//w.AppendBulkString(entry.Duration.String())
 	}
 	remotePut(S3BUCKET, prefix, dat.String())
+	dataDepository = dataDepository[:0]
 }
 
 func main() {
@@ -619,7 +620,6 @@ func main() {
 		log.Debug("data complete")
 		lambdaConn.Close()
 		// No need to close server, it will serve the new connection next time.
-		dataDepository = dataDepository[:0]
 	})
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
@@ -686,7 +686,7 @@ func main() {
 				migrClient = nil
 				// put data to s3 before migration finish
 				gatherData(prefix)
-				store = storage.New()
+				// store = storage.New()
 				Done()
 			}
 		}()

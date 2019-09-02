@@ -31,6 +31,7 @@ type Connection struct {
 	w        *resp.RequestWriter
 	r        resp.ResponseReader
 	mu       sync.Mutex
+	respType chan interface{}
 	closed   chan struct{}
 }
 
@@ -41,6 +42,7 @@ func NewConnection(c net.Conn) *Connection {
 		// wrap writer and reader
 		w:      resp.NewRequestWriter(c),
 		r:      resp.NewResponseReader(c),
+		respType: make(chan interface{}),
 		closed: make(chan struct{}),
 	}
 	defaultConnectionLog.Level = global.Log.GetLevel()
@@ -78,14 +80,20 @@ func (conn *Connection) Close() {
 // field 3 : obj val
 func (conn *Connection) ServeLambda() {
 	for {
+		go conn.peekResponse()
+
+		var retPeek interface{}
 		select {
 		case <-conn.closed:
 			conn.Close()
-		default:
+			return
+		case retPeek = <-conn.respType:
 		}
-		// field 0 for cmd
-		field0, err := conn.r.PeekType()
-		if err != nil {
+
+		var respType resp.ResponseType
+		switch retPeek.(type) {
+		case error:
+			err := retPeek.(error)
 			if err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
 			} else {
@@ -93,11 +101,12 @@ func (conn *Connection) ServeLambda() {
 			}
 			conn.Close()
 			return
+		case resp.ResponseType:
+			respType = retPeek.(resp.ResponseType)
 		}
-		start := time.Now()
 
-		var cmd string
-		switch field0 {
+		start := time.Now()
+		switch respType {
 		case resp.TypeError:
 			strErr, err := conn.r.ReadError()
 			if err != nil {
@@ -108,7 +117,7 @@ func (conn *Connection) ServeLambda() {
 			conn.log.Warn("%v", err)
 			conn.instance.SetErrorResponse(err)
 		default:
-			cmd, err = conn.r.ReadBulkString()
+			cmd, err := conn.r.ReadBulkString()
 			if err != nil && err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
 				conn.Close()
@@ -144,6 +153,15 @@ func (conn *Connection) Ping() {
 	err := conn.w.Flush()
 	if err != nil {
 		conn.log.Warn("Flush pipeline error(ping): %v", err)
+	}
+}
+
+func (conn *Connection) peekResponse() {
+	respType, err := conn.r.PeekType()
+	if err != nil {
+		conn.respType <- err
+	} else {
+		conn.respType <- respType
 	}
 }
 
