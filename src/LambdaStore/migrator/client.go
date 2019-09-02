@@ -116,12 +116,14 @@ func (cli *Client) WaitForMigration(srv *redeo.Server) {
 	err := srv.ServeForeignClient(cli.cn)
 	if err == nil {
 		return
-	} else if !cli.IsReady() || err != io.EOF {
+	} else if !cli.IsReady() {
 		if err == io.EOF {
 			err = ErrClosedPrematurely
 		}
 		log.Warn("Migration connection closed: %v", err)
 		cli.ready <- err
+	} else if err != io.EOF {
+		log.Warn("Migration connection closed: %v", err)
 	} else {
 		log.Info("Migration Connection closed.")
 	}
