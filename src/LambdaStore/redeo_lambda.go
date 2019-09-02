@@ -311,6 +311,7 @@ func ResetDone() {
 	mu.Lock()
 	defer mu.Unlock()
 
+	done = nil
 	resetDoneLocked()
 }
 
