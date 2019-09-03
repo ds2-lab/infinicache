@@ -217,6 +217,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 				session.Done()
 			}
 		}(session.Connection)
+	} else if input.Cmd == "warmup" {
+		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 	} else {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 	}

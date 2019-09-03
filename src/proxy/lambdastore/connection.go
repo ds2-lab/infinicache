@@ -143,7 +143,7 @@ func (conn *Connection) ServeLambda() {
 		}
 
 		if conn.instance != nil {
-			conn.instance.warm()
+			conn.instance.warmUp()
 		}
 	}
 }

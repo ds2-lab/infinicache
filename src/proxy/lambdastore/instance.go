@@ -81,7 +81,7 @@ func (ins *Instance) C() chan interface{} {
 	return ins.chanReq
 }
 
-func (ins *Instance) Validate() bool {
+func (ins *Instance) Validate(warmUp bool) bool {
 	ins.mu.Lock()
 
 	select {
@@ -91,9 +91,12 @@ func (ins *Instance) Validate() bool {
 		ins.mu.Unlock()
 
 		ins.log.Debug("Validating...")
-		triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda()
+		triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda(warmUp)
 		if triggered {
 			<-ins.validated
+			return triggered
+		} else if warmUp {
+			ins.flagValidatedLocked(false)
 			return triggered
 		}
 
@@ -114,7 +117,7 @@ func (ins *Instance) Validate() bool {
 			// Set status to dead and revalidate.
 			ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
 			ins.alive = INSTANCE_DEAD
-			return ins.Validate()
+			return ins.Validate(false)
 		case <-ins.validated:
 			return triggered
 		}
@@ -149,7 +152,7 @@ func (ins *Instance) HandleRequests() {
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
 			// Check lambda status first
 			validateStart := time.Now()
-			ins.Validate()
+			ins.Validate(false)
 			validateDuration := time.Since(validateStart)
 			ins.log.Debug("validateDuration is %v", validateDuration)
 
@@ -160,7 +163,7 @@ func (ins *Instance) HandleRequests() {
 			default:
 			}
 
-			ins.warm()
+			ins.warmUp()
 
 			switch req.(type) {
 			case *types.Request:
@@ -215,8 +218,8 @@ func (ins *Instance) HandleRequests() {
 			}
 		case <-ins.coolTimer.C:
 			// Warm up
-			ins.Validate()
-			ins.warm()
+			ins.Validate(true)
+			ins.warmUp()
 		}
 	}
 }
@@ -323,7 +326,7 @@ func (ins *Instance) isClosedLocked() bool {
 	}
 }
 
-func (ins *Instance) tryTriggerLambda() bool {
+func (ins *Instance) tryTriggerLambda(warmUp bool) bool {
 	ins.aliveLock.Lock()
 	defer ins.aliveLock.Unlock()
 
@@ -333,13 +336,13 @@ func (ins *Instance) tryTriggerLambda() bool {
 
 	ins.log.Info("[Lambda store is not alive, activating...]")
 	ins.alive = INSTANCE_ALIVE
-	go ins.triggerLambda()
+	go ins.triggerLambda(warmUp)
 
 	return true
 }
 
-func (ins *Instance) triggerLambda() {
-	ins.triggerLambdaLocked()
+func (ins *Instance) triggerLambda(warmUp bool) {
+	ins.triggerLambdaLocked(warmUp)
 	for {
 		if !ins.IsValidating() {
 			// Don't overwrite the MAYBE status.
@@ -353,11 +356,11 @@ func (ins *Instance) triggerLambda() {
 
 		// Validating, retrigger.
 		ins.log.Info("[Validating lambda store,  reactivateing...]")
-		ins.triggerLambdaLocked()
+		ins.triggerLambdaLocked(false)
 	}
 }
 
-func (ins *Instance) triggerLambdaLocked() {
+func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -366,6 +369,9 @@ func (ins *Instance) triggerLambdaLocked() {
 		Id:     ins.Id(),
 		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
 		Prefix: global.Prefix,
+	}
+	if warmUp {
+		event.Cmd = "warmup"
 	}
 	payload, _ := json.Marshal(event)
 	input := &lambda.InvokeInput{
@@ -433,7 +439,7 @@ func (ins *Instance) clearResponses() {
 	}
 }
 
-func (ins *Instance) warm() {
+func (ins *Instance) warmUp() {
 	if !ins.coolTimer.Stop() {
 		select{
 		case <-ins.coolTimer.C:

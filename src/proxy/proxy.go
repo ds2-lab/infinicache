@@ -51,7 +51,7 @@ func New(replica bool) *Proxy {
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go func() {
-			node.Validate()
+			node.Validate(true)
 			if atomic.AddInt32(&p.initialized, 1) == int32(p.group.Len()) {
 				p.log.Info("[Proxy is ready]")
 				close(p.ready)
