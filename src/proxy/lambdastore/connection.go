@@ -213,6 +213,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	// Check if chunks are enough? Shortcut response if YES.
 	if int(reqCounter) > counter.(*types.ClientReqCounter).DataShards {
 		abandon = true
+		conn.log.Debug("GOT %v, abandon.", rsp.Id)
 		conn.instance.SetResponse(rsp)
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
@@ -244,7 +245,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	rsp.BodyStream.(resp.Holdable).Hold()
 	defer rsp.BodyStream.Close()
 
-	conn.log.Debug("GET peek complete, send to client channel %v", rsp.Id)
+	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
 	conn.instance.SetResponse(rsp)
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
@@ -260,7 +261,7 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
-	conn.log.Debug("SET peek complete, send to client channel %v", rsp.Id)
+	conn.log.Debug("SET %v, confirmed.", rsp.Id)
 	conn.instance.SetResponse(rsp)
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)

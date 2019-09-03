@@ -105,8 +105,6 @@ func main() {
 		prxy.CollectData()
 
 		prxy.Close(lambdaLis)
-		prxy.Release()
-		proxy.CleanUpScheduler()
 		close(done)
 	}()
 
@@ -114,7 +112,7 @@ func main() {
 	err = srv.ServeAsync(clientLis)
 	if err != nil {
 		select {
-		case <-done:
+		case <-sig:
 			// Normal close
 		default:
 			log.Error("Error on serve clients: %v", err)
@@ -125,6 +123,9 @@ func main() {
 
 	// Wait for data collection
 	<-done
+	prxy.Release()
+	proxy.CleanUpScheduler()
+	
 	err = os.Remove(filePath)
 	if err != nil {
 		log.Error("Failed to remove PID: %v", err)
