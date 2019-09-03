@@ -164,7 +164,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	session.Connection = lambdaConn
 	mu.Unlock()
 
-	if session.Connection != nil {
+	if session.Connection == nil {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 
 		if len(input.Proxy) == 0 {
