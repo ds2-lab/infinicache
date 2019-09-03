@@ -78,9 +78,9 @@ func (a *StorageAdapter) Get(key string) (string, resp.AllReadCloser, error) {
 
 	err := <-cmd.err
 	if err != nil {
-		return cmd.chunk, cmd.bodyStream, nil
-	} else {
 		return "", nil, err
+	} else {
+		return cmd.chunk, cmd.bodyStream, err
 	}
 }
 
@@ -97,7 +97,7 @@ func (a *StorageAdapter) Set(key string, chunk string, body []byte) {
 	<-cmd.err
 }
 
-func (a *StorageAdapter) Migrate(key string) error {
+func (a *StorageAdapter) Migrate(key string) (string, error) {
 	cmd := cmds.Get().(*storageAdapterCommand)
 	defer cmds.Put(cmd)
 
@@ -105,7 +105,12 @@ func (a *StorageAdapter) Migrate(key string) error {
 	cmd.handler = a.migrateHandler
 	a.serializer<- cmd
 
-	return <-cmd.err
+	err := <-cmd.err
+	if err != nil {
+		return "", err
+	} else {
+		return cmd.chunk, err
+	}
 }
 
 func (a *StorageAdapter) Len() int {
@@ -124,7 +129,7 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 		return
 	}
 
-	reader, err := a.migrator.Send("get", "migrator", "migrate", "", cmd.key)
+	reader, err := a.migrator.Send("get", "migrator", "proxy", "", cmd.key)
 	if err != nil {
 		cmd.err<- err
 		return

@@ -3,6 +3,7 @@ package lifetime
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
 )
@@ -30,7 +31,7 @@ func GetSession() *Session {
 	if session == nil {
 		session = &Session{
 			done: done,
-			Timeout: NewTimeout(TICK_ERROR_EXTEND, done),
+			Timeout: NewTimeout(time.Duration(TICK_ERROR_EXTEND), done),
 		}
 	}
 	return session

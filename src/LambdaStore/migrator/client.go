@@ -158,13 +158,13 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 	// Start migration
 	log.Debug("Start migrating %d keys", len)
 	for _, key := range keys {
-		err := store.(*StorageAdapter).Migrate(key)
+		chunk, err := store.(*StorageAdapter).Migrate(key)
 		if err == ErrSkip {
 			log.Debug("Migrating key %s: %v", key, err)
 		} else if err != nil {
 			log.Warn("Migrating key %s: %v", key, err)
 		} else {
-			log.Debug("Migrating key %s: success", key)
+			log.Debug("Migrating key %s(chunk %s): success", key, chunk)
 		}
 	}
 	log.Debug("End migration")
@@ -179,7 +179,7 @@ func (cli *Client) SetReady() {
 	case <-cli.ready:
 	default:
 	}
-	
+
 	close(cli.ready)
 }
 
