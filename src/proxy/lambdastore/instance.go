@@ -237,6 +237,10 @@ func (ins *Instance) SetResponse(rsp *types.Response) {
 		}
 		ins.log.Warn("passing req: %v, got %v", req, rsp)
 		req.ChanResponse <- ErrMissingResponse
+
+		if len(ins.chanWait) == 0 {
+			break
+		}
 	}
 }
 
@@ -436,6 +440,9 @@ func (ins *Instance) clearResponses() {
 	}
 	for req := range ins.chanWait {
 		req.ChanResponse <- ErrInstanceClosed
+		if len(ins.chanWait) == 0 {
+			break
+		}
 	}
 }
 
