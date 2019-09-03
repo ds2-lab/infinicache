@@ -30,7 +30,7 @@ func GetSession() *Session {
 	if session == nil {
 		session = &Session{
 			done: done,
-			Timeout: NewTimeout(0, done),
+			Timeout: NewTimeout(TICK_ERROR_EXTEND, done),
 		}
 	}
 	return session

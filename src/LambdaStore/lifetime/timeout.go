@@ -53,7 +53,6 @@ func NewTimeout(d time.Duration, done <-chan struct{}) *Timeout {
 		timer: time.NewTimer(d),
 		lastExtension: TICK_ERROR,
 		log: logger.NilLogger,
-		disabled: 1,
 		c: make(chan time.Time),
 	}
 	go t.validateTimeout(done)
@@ -66,8 +65,6 @@ func (t *Timeout) Start() time.Time {
 
 func (t *Timeout) StartWithCalibration(start time.Time) time.Time {
 	t.start = start
-	// atomic.StoreInt32(&t.active, 0)
-	t.Enable()
 	return t.start
 }
 
