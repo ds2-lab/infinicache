@@ -224,24 +224,25 @@ func (ins *Instance) HandleRequests() {
 	}
 }
 
-func (ins *Instance) SetResponse(rsp *types.Response) {
+func (ins *Instance) SetResponse(rsp *types.Response) bool {
 	if len(ins.chanWait) == 0 {
 		ins.log.Error("Unexpected response: %v", rsp)
-		return
+		return false
 	}
 	for req := range ins.chanWait {
 		if req.IsResponse(rsp) {
 			ins.log.Debug("response matched: %v", req.Id)
-			req.ChanResponse <- rsp
-			return
+			req.SetResponse(rsp)
+			return true
 		}
 		ins.log.Warn("passing req: %v, got %v", req, rsp)
-		req.ChanResponse <- ErrMissingResponse
+		req.SetResponse(ErrMissingResponse)
 
 		if len(ins.chanWait) == 0 {
 			break
 		}
 	}
+	return false
 }
 
 func (ins *Instance) SetErrorResponse(err error) {
@@ -250,8 +251,8 @@ func (ins *Instance) SetErrorResponse(err error) {
 		return
 	}
 	for req := range ins.chanWait {
-		req.ChanResponse <- err
-		return
+		req.SetResponse(err)
+		break
 	}
 }
 
@@ -439,7 +440,7 @@ func (ins *Instance) clearResponses() {
 		return
 	}
 	for req := range ins.chanWait {
-		req.ChanResponse <- ErrInstanceClosed
+		req.SetResponse(ErrInstanceClosed)
 		if len(ins.chanWait) == 0 {
 			break
 		}

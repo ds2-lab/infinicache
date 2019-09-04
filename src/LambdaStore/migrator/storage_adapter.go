@@ -78,6 +78,7 @@ func (a *StorageAdapter) Get(key string) (string, resp.AllReadCloser, error) {
 
 	err := <-cmd.err
 	if err != nil {
+		log.Warn("Proxying key %s: %v", cmd.key, err)
 		return "", nil, err
 	} else {
 		return cmd.chunk, cmd.bodyStream, err
@@ -145,7 +146,6 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 	// Intercept stream
 	interceptor := NewInterceptReader(cmd.bodyStream)
 	cmd.bodyStream = interceptor
-	a.store.Set(cmd.key, cmd.chunk, interceptor.Intercepted())
 
 	// return
 	cmd.err<- nil
@@ -153,6 +153,15 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 	// Hold until done streaming
 	interceptor.AllReadCloser.(resp.Holdable).Hold()
 	interceptor.Close()
+
+	// Hold released, check if any error exists
+	if err := interceptor.LastError(); err != nil {
+		log.Warn("Proxying key %s: %v", cmd.key, err)
+		return
+	}
+
+	log.Debug("Proxying key %s(chunk %s): success", cmd.key, cmd.chunk)
+	a.store.Set(cmd.key, cmd.chunk, interceptor.Intercepted())
 }
 
 func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {

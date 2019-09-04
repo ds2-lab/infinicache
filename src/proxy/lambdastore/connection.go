@@ -246,7 +246,10 @@ func (conn *Connection) getHandler(start time.Time) {
 	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
-	conn.instance.SetResponse(rsp)
+	if !conn.instance.SetResponse(rsp) {
+		// Failed to set response, release hold.
+		rsp.BodyStream.(resp.Holdable).Unhold()
+	}
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}

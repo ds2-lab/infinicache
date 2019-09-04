@@ -67,3 +67,10 @@ func (req *Request) IsResponse(rsp *Response) bool {
 		req.Id.ReqId == rsp.Id.ReqId &&
 		req.Id.ChunkId == rsp.Id.ChunkId
 }
+
+func (req *Request) SetResponse(rsp interface{}) {
+	req.ChanResponse <- rsp
+
+	// Release reference so chan can be garbage collected.
+	req.ChanResponse = nil
+}

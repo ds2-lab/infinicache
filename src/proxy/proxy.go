@@ -159,6 +159,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		return
 	}
 	// Send request to lambda channel
+	p.log.Debug("Requesting %s: %d", key, lambdaDest.(int))
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
