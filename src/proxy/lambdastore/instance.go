@@ -29,8 +29,6 @@ var (
 	Registry InstanceRegistry
 	TimeoutNever = make(<-chan time.Time)
 	WarmTimout = 1 * time.Minute
-	ErrInstanceClosed = errors.New("instance closed")
-	ErrMissingResponse = errors.New("Missing response")
 )
 
 type InstanceRegistry interface {
@@ -42,7 +40,6 @@ type Instance struct {
 
 	cn        *Connection
 	chanReq   chan interface{}
-	chanWait  chan *types.Request
 	alive     int
 	aliveLock sync.Mutex
 	validated chan bool
@@ -65,7 +62,6 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 		Deployment: dp,
 		alive:      INSTANCE_DEAD,
 		chanReq:    make(chan interface{}, 1),
-		chanWait:   make(chan *types.Request, 1),
 		validated:  validated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
 		coolTimer:  time.NewTimer(WarmTimout),
@@ -144,7 +140,6 @@ func (ins *Instance) IsValidating() bool {
 // Handle incoming client requests
 // lambda facing goroutine
 func (ins *Instance) HandleRequests() {
-	For:
 	for {
 		select {
 		case <-ins.closed:
@@ -154,7 +149,7 @@ func (ins *Instance) HandleRequests() {
 			validateStart := time.Now()
 			ins.Validate(false)
 			validateDuration := time.Since(validateStart)
-			ins.log.Debug("validateDuration is %v", validateDuration)
+			ins.warmUp()
 
 			select {
 			case <-ins.closed:
@@ -163,96 +158,12 @@ func (ins *Instance) HandleRequests() {
 			default:
 			}
 
-			ins.warmUp()
-
-			switch req.(type) {
-			case *types.Request:
-				req := req.(*types.Request)
-				cmd := strings.ToLower(req.Cmd)
-
-				if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
-					ins.log.Warn("Fail to record validate duration: %v", err)
-				}
-
-				switch cmd {
-				case "set": /*set or two argument cmd*/
-					req.PrepareForSet(ins.cn.w)
-				case "get": /*get or one argument cmd*/
-					req.PrepareForGet(ins.cn.w)
-				default:
-					ins.log.Error("Unexpected request command: %s", cmd)
-					continue For
-				}
-
-				// In case there is a request already, wait to be consumed (for response).
-				ins.chanWait <- req
-				if err := req.Flush(); err != nil {
-					ins.log.Error("Flush pipeline error: %v", err)
-				}
-
-			case *types.Control:
-				ctrl := req.(*types.Control)
-				cmd := strings.ToLower(ctrl.Cmd)
-				isDataRequest := false
-
-				switch cmd {
-				case "data":
-					ctrl.PrepareForData(ins.cn.w)
-					isDataRequest = true
-				case "migrate":
-					ctrl.PrepareForMigrate(ins.cn.w)
-				default:
-					ins.log.Error("Unexpected control command: %s", cmd)
-					continue For
-				}
-
-				if err := ctrl.Flush(); err != nil {
-					ins.log.Error("Flush pipeline error: %v", err)
-					if isDataRequest {
-						global.DataCollected.Done()
-					}
-				}
-
-			default:
-				ins.log.Error("Unexpected request type: %v", reflect.TypeOf(req))
-			}
+			ins.handleRequest(req, validateDuration)
 		case <-ins.coolTimer.C:
 			// Warm up
 			ins.Validate(true)
 			ins.warmUp()
 		}
-	}
-}
-
-func (ins *Instance) SetResponse(rsp *types.Response) bool {
-	if len(ins.chanWait) == 0 {
-		ins.log.Error("Unexpected response: %v", rsp)
-		return false
-	}
-	for req := range ins.chanWait {
-		if req.IsResponse(rsp) {
-			ins.log.Debug("response matched: %v", req.Id)
-			req.SetResponse(rsp)
-			return true
-		}
-		ins.log.Warn("passing req: %v, got %v", req, rsp)
-		req.SetResponse(ErrMissingResponse)
-
-		if len(ins.chanWait) == 0 {
-			break
-		}
-	}
-	return false
-}
-
-func (ins *Instance) SetErrorResponse(err error) {
-	if len(ins.chanWait) == 0 {
-		ins.log.Error("Unexpected error response: %v", err)
-		return
-	}
-	for req := range ins.chanWait {
-		req.SetResponse(err)
-		break
 	}
 }
 
@@ -310,7 +221,6 @@ func (ins *Instance) Close() {
 	if ins.cn != nil {
 		ins.cn.Close()
 	}
-	ins.clearResponses()
 	ins.flagValidatedLocked(true)
 }
 
@@ -321,16 +231,6 @@ func (ins *Instance) IsClosed() bool {
 	return ins.isClosedLocked()
 }
 
-func (ins *Instance) isClosedLocked() bool {
-	select {
-	case <-ins.closed:
-		// already closed
-		return true
-	default:
-		return false
-	}
-}
-
 func (ins *Instance) tryTriggerLambda(warmUp bool) bool {
 	ins.aliveLock.Lock()
 	defer ins.aliveLock.Unlock()
@@ -339,7 +239,11 @@ func (ins *Instance) tryTriggerLambda(warmUp bool) bool {
 		return false
 	}
 
-	ins.log.Info("[Lambda store is not alive, activating...]")
+	if warmUp {
+		ins.log.Info("[Lambda store is not alive, warming up...]")
+	} else {
+		ins.log.Info("[Lambda store is not alive, activating...]")
+	}
 	ins.alive = INSTANCE_ALIVE
 	go ins.triggerLambda(warmUp)
 
@@ -435,15 +339,71 @@ func (ins *Instance) flagValidatedLocked(onClose bool) {
 	}
 }
 
-func (ins *Instance) clearResponses() {
-	if len(ins.chanWait) == 0 {
-		return
-	}
-	for req := range ins.chanWait {
-		req.SetResponse(ErrInstanceClosed)
-		if len(ins.chanWait) == 0 {
-			break
+func (ins *Instance) handleRequest(req interface{}, validateDuration time.Duration) {
+	// Ensure connection is not changed during handling.
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	switch req.(type) {
+	case *types.Request:
+		req := req.(*types.Request)
+		cmd := strings.ToLower(req.Cmd)
+
+		if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
+			ins.log.Warn("Fail to record validate duration: %v", err)
 		}
+
+		switch cmd {
+		case "set": /*set or two argument cmd*/
+			req.PrepareForSet(ins.cn.w)
+		case "get": /*get or one argument cmd*/
+			req.PrepareForGet(ins.cn.w)
+		default:
+			req.SetResponse(errors.New(fmt.Sprintf("Unexpected request command: %s", cmd)))
+			return
+		}
+
+		// In case there is a request already, wait to be consumed (for response).
+		ins.cn.chanWait <- req
+		if err := req.Flush(); err != nil {
+			ins.log.Error("Flush pipeline error: %v", err)
+		}
+
+	case *types.Control:
+		ctrl := req.(*types.Control)
+		cmd := strings.ToLower(ctrl.Cmd)
+		isDataRequest := false
+
+		switch cmd {
+		case "data":
+			ctrl.PrepareForData(ins.cn.w)
+			isDataRequest = true
+		case "migrate":
+			ctrl.PrepareForMigrate(ins.cn.w)
+		default:
+			ins.log.Error("Unexpected control command: %s", cmd)
+			return
+		}
+
+		if err := ctrl.Flush(); err != nil {
+			ins.log.Error("Flush pipeline error: %v", err)
+			if isDataRequest {
+				global.DataCollected.Done()
+			}
+		}
+
+	default:
+		ins.log.Error("Unexpected request type: %v", reflect.TypeOf(req))
+	}
+}
+
+func (ins *Instance) isClosedLocked() bool {
+	select {
+	case <-ins.closed:
+		// already closed
+		return true
+	default:
+		return false
 	}
 }
 

@@ -22,6 +22,8 @@ var (
 		Prefix: fmt.Sprintf("Undesignated "),
 		Color:  true,
 	}
+	ErrConnectionClosed = errors.New("Connection closed")
+	ErrMissingResponse = errors.New("Missing response")
 )
 
 type Connection struct {
@@ -31,6 +33,7 @@ type Connection struct {
 	w        *resp.RequestWriter
 	r        resp.ResponseReader
 	mu       sync.Mutex
+	chanWait chan *types.Request
 	respType chan interface{}
 	closed   chan struct{}
 }
@@ -42,8 +45,9 @@ func NewConnection(c net.Conn) *Connection {
 		// wrap writer and reader
 		w:      resp.NewRequestWriter(c),
 		r:      resp.NewResponseReader(c),
+		chanWait: make(chan *types.Request, 1),
 		respType: make(chan interface{}),
-		closed: make(chan struct{}),
+		closed:   make(chan struct{}),
 	}
 	defaultConnectionLog.Level = global.Log.GetLevel()
 	return conn
@@ -69,6 +73,7 @@ func (conn *Connection) Close() {
 	// Don't use c.Close(), it will stuck and wait for lambda.
 	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
 	conn.cn.Close()
+	conn.clearResponses()
 }
 
 // blocking on lambda peek Type
@@ -85,8 +90,13 @@ func (conn *Connection) ServeLambda() {
 		var retPeek interface{}
 		select {
 		case <-conn.closed:
-			conn.Close()
-			return
+			if len(conn.chanWait) > 0 {
+				// Is there request waiting?
+				retPeek = <-conn.respType
+			} else {
+				conn.Close()
+				return
+			}
 		case retPeek = <-conn.respType:
 		}
 
@@ -115,7 +125,7 @@ func (conn *Connection) ServeLambda() {
 				err = errors.New(fmt.Sprintf("Response error: %s", strErr))
 			}
 			conn.log.Warn("%v", err)
-			conn.instance.SetErrorResponse(err)
+			conn.SetErrorResponse(err)
 		default:
 			cmd, err := conn.r.ReadBulkString()
 			if err != nil && err == io.EOF {
@@ -153,6 +163,50 @@ func (conn *Connection) Ping() {
 	err := conn.w.Flush()
 	if err != nil {
 		conn.log.Warn("Flush pipeline error(ping): %v", err)
+	}
+}
+
+func (conn *Connection) SetResponse(rsp *types.Response) bool {
+	if len(conn.chanWait) == 0 {
+		conn.log.Error("Unexpected response: %v", rsp)
+		return false
+	}
+	for req := range conn.chanWait {
+		if req.IsResponse(rsp) {
+			conn.log.Debug("response matched: %v", req.Id)
+			req.SetResponse(rsp)
+			return true
+		}
+		conn.log.Warn("passing req: %v, got %v", req, rsp)
+		req.SetResponse(ErrMissingResponse)
+
+		if len(conn.chanWait) == 0 {
+			break
+		}
+	}
+	return false
+}
+
+func (conn *Connection) SetErrorResponse(err error) {
+	if len(conn.chanWait) == 0 {
+		conn.log.Error("Unexpected error response: %v", err)
+		return
+	}
+	for req := range conn.chanWait {
+		req.SetResponse(err)
+		break
+	}
+}
+
+func (conn *Connection) clearResponses() {
+	if len(conn.chanWait) == 0 {
+		return
+	}
+	for req := range conn.chanWait {
+		req.SetResponse(ErrConnectionClosed)
+		if len(conn.chanWait) == 0 {
+			break
+		}
 	}
 }
 
@@ -214,7 +268,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	if int(reqCounter) > counter.(*types.ClientReqCounter).DataShards {
 		abandon = true
 		conn.log.Debug("GOT %v, abandon.", rsp.Id)
-		conn.instance.SetResponse(rsp)
+		conn.SetResponse(rsp)
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
@@ -246,7 +300,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
-	if !conn.instance.SetResponse(rsp) {
+	if !conn.SetResponse(rsp) {
 		// Failed to set response, release hold.
 		rsp.BodyStream.(resp.Holdable).Unhold()
 	}
@@ -265,7 +319,7 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("SET %v, confirmed.", rsp.Id)
-	conn.instance.SetResponse(rsp)
+	conn.SetResponse(rsp)
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
