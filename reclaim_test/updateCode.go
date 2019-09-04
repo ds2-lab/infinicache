@@ -14,7 +14,7 @@ var (
 	KEY     = "reclaim.zip"
 	handler = "reclaim"
 	prefix  = "reclaim"
-	count   = 1000
+	count   = 2
 	mem     = int64(3008)
 	timeout = int64(150)
 	subnet  = []*string{

@@ -15,7 +15,7 @@ echo "updating lambda code.."
 echo "putting code zip to s3"
 aws s3api put-object --bucket ao.lambda.code --key lambdastore.zip --body Lambda2SmallJPG.zip
 
-for i in {0..63}
+for i in {0..299}
 do
      aws lambda update-function-code --function-name $PREFIX$i --s3-bucket ao.lambda.code --s3-key lambdastore.zip
      # aws lambda update-function-configuration --function-name $PREFIX$i --memory-size $mem
