@@ -27,12 +27,10 @@ func GetSession() *Session {
 	mu.Lock()
 	defer mu.Unlock()
 
-	done := make(chan struct{})
+
 	if session == nil {
-		session = &Session{
-			done: done,
-			Timeout: NewTimeout(time.Duration(TICK_ERROR_EXTEND), done),
-		}
+		session = &Session{ done: make(chan struct{}) }
+		session.Timeout = NewTimeout(session, time.Duration(TICK_ERROR_EXTEND))
 	}
 	return session
 }
@@ -52,7 +50,7 @@ func (s *Session) Done() {
 	mu.Lock()
 	defer mu.Unlock()
 
-	s.doneLocked()
+	s.DoneLocked()
 }
 
 func (s *Session) IsDone() bool {
@@ -71,17 +69,25 @@ func (s *Session) IsDone() bool {
 	}
 }
 
-func (s *Session) resetDoneLocked() {
-	if s.done == nil {
-		s.done = make(chan struct{})
-	}
+func (s *Session) Lock() {
+	mu.Lock()
 }
 
-func (s *Session) doneLocked() {
+func (s *Session) Unlock() {
+	mu.Unlock()
+}
+
+func (s *Session) DoneLocked() {
 	select {
 	case <-s.done:
 		// closed
 	default:
 		close(s.done)
+	}
+}
+
+func (s *Session) resetDoneLocked() {
+	if s.done == nil {
+		s.done = make(chan struct{})
 	}
 }

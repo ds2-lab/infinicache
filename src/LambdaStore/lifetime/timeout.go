@@ -39,6 +39,7 @@ func init() {
 }
 
 type Timeout struct {
+	session       *Session
 	start         time.Time
 	timer         *time.Timer
 	lastExtension int64
@@ -48,14 +49,15 @@ type Timeout struct {
 	c             chan time.Time
 }
 
-func NewTimeout(d time.Duration, done <-chan struct{}) *Timeout {
+func NewTimeout(s *Session, d time.Duration) *Timeout {
 	t := &Timeout{
+		session: s,
 		timer: time.NewTimer(d),
 		lastExtension: TICK_ERROR,
 		log: logger.NilLogger,
 		c: make(chan time.Time),
 	}
-	go t.validateTimeout(done)
+	go t.validateTimeout(s.done)
 	return t
 }
 
@@ -147,11 +149,15 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 		case <-done:
 			return
 		case ti := <-t.timer.C:
+			t.session.Lock()
 			if t.IsDisabled() {
+				t.session.Unlock()
 				continue
 			} else if t.IsBusy() {
 				t.Reset()
+				t.session.Unlock()
 			} else {
+				// FIXME: We can't unlock here, ugly!
 				t.c <- ti
 			}
 		}

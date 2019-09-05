@@ -257,9 +257,11 @@ func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
 	case <-session.WaitDone():
 		return
 	case <-session.Timeout.C():
+		// FIXME: We must call unlock here.
 		session.Timeout.Halt()
 
 		if lifetime.IsTimeUp() && store.Len() > 0 {
+			session.Unlock()
 			// Time to migarate
 			// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
 
@@ -278,7 +280,8 @@ func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
 			}
 			log.Debug("Migration initiated.")
 		} else {
-			session.Done()
+			session.DoneLocked()
+			session.Unlock()
 			log.Debug("Lambda timeout, return(%v).", session.Timeout.Since())
 			return
 		}
@@ -380,7 +383,7 @@ func remotePut(bucket string, k string, f string) {
 		log.Error("Failed to upload data: %v", err)
 		return
 	}
-	
+
 	log.Info("Data uploaded to S3: %v", result.Location)
 }
 
