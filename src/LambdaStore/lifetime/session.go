@@ -10,7 +10,7 @@ import (
 
 var (
 	session *Session
-	mu      sync.RWMutex
+	mu      sync.Mutex
 )
 
 type Session struct {
@@ -54,12 +54,8 @@ func (s *Session) Done() {
 }
 
 func (s *Session) IsDone() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	if s.done == nil {
-		return true
-	}
+	mu.Lock()
+	defer mu.Unlock()
 
 	select {
 	case <-s.done:
@@ -83,11 +79,5 @@ func (s *Session) DoneLocked() {
 		// closed
 	default:
 		close(s.done)
-	}
-}
-
-func (s *Session) resetDoneLocked() {
-	if s.done == nil {
-		s.done = make(chan struct{})
 	}
 }
