@@ -312,16 +312,18 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		if oldConn != nil {
 			oldConn.GraceClose()
 		}
-		if oldIns != nil && oldIns.Id() != ins.Id() {
+		if oldIns != nil {
 			// There are two possibilities for connectio switch:
 			// 1. Migration
 			// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
-			// Here, we consider possibility 1 only.
-			// TODO: deal with possibility 2
+			// In either case, the status is alive and it indicate the status of the old instance, it is not reliable.
 			ins.aliveLock.Lock()
 			defer ins.aliveLock.Unlock()
 			ins.alive = INSTANCE_MAYBE
 		}
+		// No need to set alive for new connection, it has been set already.
+	} else {
+		ins.alive = INSTANCE_ALIVE
 	}
 
 	ins.flagValidatedLocked(false)
