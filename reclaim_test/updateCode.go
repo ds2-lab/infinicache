@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -9,15 +10,25 @@ import (
 	"strconv"
 )
 
+const (
+	BUCKET = "ao.lambda.code"
+	KEY    = "reclaim.zip"
+	ROLE   = "arn:aws:iam::037862857942:role/ProxyNoVPC"
+)
+
 var (
-	BUCKET  = "ao.lambda.code"
-	KEY     = "reclaim.zip"
+	code    = flag.Bool("code", false, "update function code")
+	config  = flag.Bool("config", false, "update function config")
+	create  = flag.Bool("create", false, "create function")
+	timeout = flag.Int64("timeout", 100, "function timeout")
+	prefix  = flag.String("prefix", "reclaim", "function name prefix")
+	vpc     = flag.Bool("vpc", false, "vpc config")
+
 	handler = "reclaim"
-	prefix  = "reclaim"
-	count   = 2
-	mem     = int64(3008)
-	timeout = int64(150)
-	subnet  = []*string{
+	//prefix  = "reclaimNoVpc"
+	count  = 300
+	mem    = int64(3008)
+	subnet = []*string{
 		aws.String("subnet-eeb536c0"),
 		aws.String("subnet-f94739f6"),
 		aws.String("subnet-f432faca")}
@@ -26,15 +37,22 @@ var (
 )
 
 func updateConfig(name string, svc *lambda.Lambda) {
+	var vpcConfig *lambda.VpcConfig
+	if *vpc {
+		vpcConfig = &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup}
+	} else {
+		vpcConfig = &lambda.VpcConfig{}
+	}
 	input := &lambda.UpdateFunctionConfigurationInput{
 		//Description:  aws.String(""),
 		FunctionName: aws.String(name),
 		Handler:      aws.String(handler),
 		MemorySize:   aws.Int64(mem),
 		//Role:         aws.String("arn:aws:iam::123456789012:role/lambda_basic_execution"),
-		//Runtime:      aws.String("python2.7"),
-		Timeout:   aws.Int64(timeout),
-		VpcConfig: &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup},
+		Timeout:   aws.Int64(*timeout),
+		VpcConfig: vpcConfig,
+		//VpcConfig: &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup},
+		//VpcConfig: &lambda.VpcConfig{},
 	}
 	result, err := svc.UpdateFunctionConfiguration(input)
 	if err != nil {
@@ -70,11 +88,8 @@ func updateConfig(name string, svc *lambda.Lambda) {
 func updateCode(name string, svc *lambda.Lambda) {
 	input := &lambda.UpdateFunctionCodeInput{
 		FunctionName: aws.String(name),
-		Publish:      aws.Bool(true),
 		S3Bucket:     aws.String(BUCKET),
 		S3Key:        aws.String(KEY),
-		//S3ObjectVersion: aws.String("1"),
-		//ZipFile:         []byte("fileb://file-path/file.zip"),
 	}
 	result, err := svc.UpdateFunctionCode(input)
 	if err != nil {
@@ -106,6 +121,57 @@ func updateCode(name string, svc *lambda.Lambda) {
 	return
 }
 
+func createFunction(name string, svc *lambda.Lambda) {
+	var vpcConfig *lambda.VpcConfig
+	if *vpc {
+		vpcConfig = &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup}
+	} else {
+		vpcConfig = &lambda.VpcConfig{}
+	}
+	input := &lambda.CreateFunctionInput{
+		Code: &lambda.FunctionCode{
+			S3Bucket: aws.String(BUCKET),
+			S3Key:    aws.String(KEY),
+		},
+		FunctionName: aws.String(name),
+		Handler:      aws.String(handler),
+		MemorySize:   aws.Int64(mem),
+		Role:         aws.String(ROLE),
+		Runtime:      aws.String("go1.x"),
+		Timeout:      aws.Int64(*timeout),
+		VpcConfig:    vpcConfig,
+	}
+
+	result, err := svc.CreateFunction(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case lambda.ErrCodeServiceException:
+				fmt.Println(lambda.ErrCodeServiceException, aerr.Error())
+			case lambda.ErrCodeInvalidParameterValueException:
+				fmt.Println(lambda.ErrCodeInvalidParameterValueException, aerr.Error())
+			case lambda.ErrCodeResourceNotFoundException:
+				fmt.Println(lambda.ErrCodeResourceNotFoundException, aerr.Error())
+			case lambda.ErrCodeResourceConflictException:
+				fmt.Println(lambda.ErrCodeResourceConflictException, aerr.Error())
+			case lambda.ErrCodeTooManyRequestsException:
+				fmt.Println(lambda.ErrCodeTooManyRequestsException, aerr.Error())
+			case lambda.ErrCodeCodeStorageExceededException:
+				fmt.Println(lambda.ErrCodeCodeStorageExceededException, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+		return
+	}
+
+	fmt.Println(result)
+}
+
 //func upload(sess *session.Session) {
 //	// Create an uploader with the session and default options
 //	uploader := s3manager.NewUploader(sess)
@@ -128,16 +194,24 @@ func updateCode(name string, svc *lambda.Lambda) {
 //}
 
 func main() {
+	flag.Parse()
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
-	//var wg sync.WaitGroup
-	for i := 0; i < count; i++ {
-		//wg.Add(1)
-		updateConfig(prefix+strconv.Itoa(i), svc)
-		//updateCode(prefix+strconv.Itoa(i), svc)
+	if *code {
+		for i := 0; i < count; i++ {
+			updateCode(*prefix+strconv.Itoa(i), svc)
+		}
 	}
-	//wg.Wait()
-	fmt.Println("finish")
+	if *config {
+		for i := 0; i < count; i++ {
+			updateConfig(*prefix+strconv.Itoa(i), svc)
+		}
+	}
+	if *create {
+		for i := 0; i < count; i++ {
+			createFunction(*prefix+strconv.Itoa(i), svc)
+		}
+	}
 }

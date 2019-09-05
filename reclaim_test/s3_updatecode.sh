@@ -24,3 +24,4 @@ aws s3api put-object --bucket ao.lambda.code --key reclaim.zip --body reclaim.zi
 # done
 
 go clean
+rm reclaim.zip
