@@ -119,16 +119,17 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 
 	// Check if the chunk key(key + chunkId) exists
 	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
-	request := &types.Request{
+	lambdaDest, _ := p.metaMap.GetOrInsert(chunkKey, int(lambdaId))
+	
+	// Send chunk to the corresponding lambda instance in group
+	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest.(int))
+	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
 		Key:          []byte(chunkKey),
 		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
 	}
-	lambdaDest, _ := p.metaMap.GetOrInsert(chunkKey, int(lambdaId))
-	// Send chunk to the corresponding lambda instance in group
-	p.group.Instance(lambdaDest.(int)).C() <- request
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
 
@@ -151,7 +152,6 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	// key is "key"+"chunkId"
 	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
 	lambdaDest, ok := p.metaMap.Get(chunkKey)
-	// p.log.Debug("KEY is", key.String(), "IN GET, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaDestination)
 	if !ok {
 		p.log.Warn("KEY %s not found in lambda store, please set first.", chunkKey)
 		w.AppendErrorf("KEY %s not found in lambda store, please set first.", chunkKey)
@@ -159,7 +159,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		return
 	}
 	// Send request to lambda channel
-	p.log.Debug("Requesting %s: %d", key, lambdaDest.(int))
+	p.log.Debug("Requesting to get %s: %d", chunkKey, lambdaDest.(int))
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
