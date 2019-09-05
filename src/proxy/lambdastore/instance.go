@@ -301,7 +301,6 @@ func (ins *Instance) flagValidated(conn *Connection) {
 	defer ins.mu.Unlock()
 
 	if ins.cn != conn {
-		oldIns := conn.instance
 		oldConn := ins.cn
 
 		// Set instance, order matters here.
@@ -311,15 +310,16 @@ func (ins *Instance) flagValidated(conn *Connection) {
 
 		if oldConn != nil {
 			oldConn.GraceClose()
-		}
-		if oldIns != nil {
-			// There are two possibilities for connectio switch:
-			// 1. Migration
-			// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
-			// In either case, the status is alive and it indicate the status of the old instance, it is not reliable.
-			ins.aliveLock.Lock()
-			defer ins.aliveLock.Unlock()
-			ins.alive = INSTANCE_MAYBE
+
+			if oldConn.instance == ins {
+				// There are two possibilities for connectio switch:
+				// 1. Migration
+				// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
+				// In either case, the status is alive and it indicate the status of the old instance, it is not reliable.
+				ins.aliveLock.Lock()
+				defer ins.aliveLock.Unlock()
+				ins.alive = INSTANCE_MAYBE
+			}
 		}
 		// No need to set alive for new connection, it has been set already.
 	} else {
