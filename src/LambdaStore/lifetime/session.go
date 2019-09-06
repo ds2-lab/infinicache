@@ -10,7 +10,7 @@ import (
 
 var (
 	session *Session
-	mu      sync.Mutex
+	mu      sync.RWMutex
 )
 
 type Session struct {
@@ -23,15 +23,21 @@ type Session struct {
 	done      chan struct{}
 }
 
-func GetSession() *Session {
+func GetOrCreateSession() *Session {
 	mu.Lock()
 	defer mu.Unlock()
-
 
 	if session == nil {
 		session = &Session{ done: make(chan struct{}) }
 		session.Timeout = NewTimeout(session, time.Duration(TICK_ERROR_EXTEND))
 	}
+	return session
+}
+
+func GetSession() *Session {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	return session
 }
 
@@ -54,8 +60,8 @@ func (s *Session) Done() {
 }
 
 func (s *Session) IsDone() bool {
-	mu.Lock()
-	defer mu.Unlock()
+	mu.RLock()
+	defer mu.RUnlock()
 
 	return s.isDoneLocked()
 }

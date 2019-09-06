@@ -95,7 +95,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	// Reset if necessary.
 	// This is essential for debugging, and useful if deployment pool is not large enough.
 	lifetime.RebornIfDead()
-	session := lambdaLife.GetSession()
+	session := lambdaLife.GetOrCreateSession()
 	defer lambdaLife.ClearSession()
 
 	session.Timeout.SetLogger(log)
@@ -195,7 +195,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 			}
 			conn.Close()
 
-			session := lambdaLife.GetSession()
+			session := lambdaLife.GetOrCreateSession()
 			mu.Lock()
 			defer mu.Unlock()
 			if session.Connection == nil {
@@ -574,7 +574,10 @@ func main() {
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
-		if !session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND) && !session.IsMigrating() {
+		if session == nil {
+			// Possibilities are ping may comes after HandleRequest returned
+			return
+		} else if !session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND) && !session.IsMigrating() {
 			// Failed to extend timeout, do nothing and prepare to return from lambda.
 			return
 		}

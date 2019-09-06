@@ -46,6 +46,7 @@ type Timeout struct {
 	log           logger.ILogger
 	active        int32
 	disabled      int32
+	reset         chan int64
 	c             chan time.Time
 	timeout       bool
 }
@@ -56,6 +57,7 @@ func NewTimeout(s *Session, d time.Duration) *Timeout {
 		timer: time.NewTimer(d),
 		lastExtension: TICK_ERROR,
 		log: logger.NilLogger,
+		reset: make(chan int64),
 		c: make(chan time.Time),
 	}
 	go t.validateTimeout(s.done)
@@ -100,21 +102,18 @@ func (t *Timeout) Reset() bool {
 	t.session.Lock()
 	defer t.session.Unlock()
 
-	if !t.Disable() {
+	if t.IsDisabled() {
 		// already disabled
 		return false
 	}
-	defer t.Enable()
 
 	if t.session.isDoneLocked() {
 		return false
 	}
 
 	t.timeout = false
-	t.Stop()
-	timeout := t.getTimeout(t.lastExtension)
-	t.timer.Reset(timeout)
-	t.log.Debug("Timeout reset: %v", timeout)
+	t.reset <- t.lastExtension
+
 	return true
 }
 
@@ -158,6 +157,11 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 		select {
 		case <-done:
 			return
+		case extension := <-t.reset:
+			t.Stop()
+			timeout := t.getTimeout(extension)
+			t.timer.Reset(timeout)
+			t.log.Debug("Timeout reset: %v", timeout)
 		case ti := <-t.timer.C:
 			t.timeout = true
 
