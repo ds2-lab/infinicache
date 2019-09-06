@@ -580,14 +580,13 @@ func main() {
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
-		log.Debug("Incoming ping")
 		if session == nil {
 			// Possibilities are ping may comes after HandleRequest returned
-			log.Debug("No session for ping")
+			log.Debug("PING ignored: session ended.")
 			return
 		} else if !session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND) && !session.IsMigrating() {
 			// Failed to extend timeout, do nothing and prepare to return from lambda.
-			log.Debug("Failed to reset for ping")
+			log.Debug("PING ignored: timeout extension denied.")
 			return
 		}
 

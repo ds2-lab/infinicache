@@ -111,8 +111,6 @@ func (t *Timeout) Reset() bool {
 	defer t.session.Unlock()
 
 	if t.timeout || t.IsDisabled() {
-		t.log.Debug("Is timeout: %v", t.timeout)
-		t.log.Debug("Is timeout disabled: %v", t.IsDisabled())
 		return false
 	}
 
@@ -178,14 +176,11 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 				// Nothing
 			}
 
-			t.log.Debug("In timeout")
 			t.session.Lock()
 			// Double check timeout after locked.
 			if t.hasReset || t.IsDisabled() {
-				t.log.Debug("Has reset: %v", t.hasReset)
-				t.log.Debug("Is timeout disabled: %v", t.IsDisabled())
+				// pass
 			} else if t.IsBusy() {
-				t.log.Debug("Is timeout busy: %v", t.IsBusy())
 				t.resetLocked()
 			} else {
 				t.c <- ti
