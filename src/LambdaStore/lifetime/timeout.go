@@ -112,7 +112,7 @@ func (t *Timeout) Reset() bool {
 	}
 
 	t.timeout = false
-	t.reset <- t.lastExtension
+	t.resetLocked()
 
 	return true
 }
@@ -172,7 +172,7 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 				t.session.Unlock()
 				continue
 			} else if t.IsBusy() {
-				t.Reset()
+				t.resetLocked()
 				t.session.Unlock()
 			} else {
 				// FIXME: We can't unlock here, ugly!
@@ -180,6 +180,10 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 			}
 		}
 	}
+}
+
+func (t *Timeout) resetLocked() {
+	t.reset <- t.lastExtension
 }
 
 func (t *Timeout) getTimeout(ext int64) time.Duration {
