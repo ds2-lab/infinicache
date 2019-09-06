@@ -139,6 +139,11 @@ func (t *Timeout) DoneBusy() {
 	atomic.AddInt32(&t.active, -1)
 }
 
+func (t *Timeout) DoneBusyWithReset(ext int64) {
+	t.ResetWithExtension(ext)
+	atomic.AddInt32(&t.active, -1)
+}
+
 func (t *Timeout) IsBusy() bool {
 	return atomic.LoadInt32(&t.active) > 0
 }

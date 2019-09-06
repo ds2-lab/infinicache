@@ -425,7 +425,7 @@ func main() {
 		if session.Requests > 1 {
 			extension = lambdaLife.TICK
 		}
-		var respError *types.ResponseError
+		defer session.Timeout.DoneBusyWithReset(extension)
 
 		t := time.Now()
 		log.Debug("In GET handler")
@@ -433,20 +433,6 @@ func main() {
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
 		key := c.Arg(3).String()
-
-		defer func() {
-			if respError != nil {
-				log.Warn("Failed to get %s: %v", key, respError)
-				w.AppendErrorf("Failed to get %s: %v", key, respError)
-				if err := w.Flush(); err != nil {
-					log.Error("Error on flush: %v", err)
-				}
-				dataDeposited.Add(1)
-				dataGatherer <- &types.DataEntry{OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
-			}
-			session.Timeout.ResetWithExtension(extension)
-			session.Timeout.DoneBusy()
-		}()
 
 		//val, err := myCache.Get(key)
 		//if err == false {
@@ -481,11 +467,22 @@ func main() {
 			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunkId)
 			dataDeposited.Add(1)
 			dataGatherer <- &types.DataEntry{OP_GET, "200", reqId, chunkId, d2, d3, dt, lambdaReqId}
-		} else if err == types.ErrNotFound {
-			// Not found
-			respError = types.NewResponseError(404, err)
 		} else {
-			respError = types.NewResponseError(500, err)
+			var respError *types.ResponseError
+			if err == types.ErrNotFound {
+				// Not found
+				respError = types.NewResponseError(404, err)
+			} else {
+				respError = types.NewResponseError(500, err)
+			}
+
+			log.Warn("Failed to get %s: %v", key, respError)
+			w.AppendErrorf("Failed to get %s: %v", key, respError)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush: %v", err)
+			}
+			dataDeposited.Add(1)
+			dataGatherer <- &types.DataEntry{OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), lambdaReqId}
 		}
 	})
 
@@ -497,10 +494,7 @@ func main() {
 		if session.Requests > 1 {
 			extension = lambdaLife.TICK
 		}
-		defer func() {
-			session.Timeout.ResetWithExtension(extension)
-			session.Timeout.DoneBusy()
-		}()
+		defer session.Timeout.DoneBusyWithReset(extension)
 
 		t := time.Now()
 		log.Debug("In SET handler")
