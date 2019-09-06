@@ -42,7 +42,8 @@ type Instance struct {
 	chanReq   chan interface{}
 	alive     int
 	aliveLock sync.Mutex
-	validated chan bool
+	chanValidated chan struct{}
+	lastValidated *Connection
 	mu        sync.Mutex
 	closed    chan struct{}
 	coolTimer *time.Timer
@@ -55,14 +56,14 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 		Color:  true,
 	}
 
-	validated := make(chan bool)
-	close(validated)
+	chanValidated := make(chan struct{})
+	close(chanValidated)
 
 	return &Instance{
 		Deployment: dp,
 		alive:      INSTANCE_DEAD,
 		chanReq:    make(chan interface{}, 1),
-		validated:  validated, // Initialize with a closed channel.
+		chanValidated:  chanValidated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
 		coolTimer:  time.NewTimer(WarmTimout),
 	}
@@ -77,51 +78,58 @@ func (ins *Instance) C() chan interface{} {
 	return ins.chanReq
 }
 
-func (ins *Instance) Validate(warmUp bool) bool {
+func (ins *Instance) WarmUp() {
+	ins.validate(true)
+}
+
+func (ins *Instance) Validate() *Connection {
+	return ins.validate(false)
+}
+
+func (ins *Instance) validate(warmUp bool) *Connection {
 	ins.mu.Lock()
 
 	select {
-	case <-ins.validated:
+	case <-ins.chanValidated:
 		// Not validating. Validate...
-		ins.validated = make(chan bool)
+		ins.chanValidated = make(chan struct{})
+		ins.lastValidated = nil
 		ins.mu.Unlock()
 
-		ins.log.Debug("Validating...")
-		triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda(warmUp)
-		if triggered {
-			<-ins.validated
-			return triggered
-		} else if warmUp {
-			ins.flagValidatedLocked(false)
-			return triggered
-		}
+		for {
+			ins.log.Debug("Validating...")
+			triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda(warmUp)
+			if triggered {
+				return ins.validated()
+			} else if warmUp {
+				return ins.flagValidatedLocked(ins.cn)
+			}
 
-		// ping is issued to ensure alive
-		ins.cn.Ping()
+			// ping is issued to ensure alive
+			ins.cn.Ping()
 
-		// If we are not sure instance status, set a short timeout and trigger after timeout.
-		var timeout <-chan time.Time
-		if ins.alive == INSTANCE_MAYBE {
-			timer := time.NewTimer(10 * time.Millisecond) // average triggering cost.
-			timeout = timer.C
-		} else {
-			timeout = TimeoutNever
-		}
+			// If we are not sure instance status, set a short timeout and trigger after timeout.
+			var timeout <-chan time.Time
+			if ins.alive == INSTANCE_MAYBE {
+				timer := time.NewTimer(10 * time.Millisecond) // average triggering cost.
+				timeout = timer.C
+			} else {
+				timeout = TimeoutNever
+			}
 
-		select{
-		case <-timeout:
-			// Set status to dead and revalidate.
-			ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
-			ins.alive = INSTANCE_DEAD
-			return ins.Validate(false)
-		case <-ins.validated:
-			return triggered
+			select{
+			case <-timeout:
+				// Set status to dead and revalidate.
+				ins.alive = INSTANCE_DEAD
+				ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
+			case <-ins.chanValidated:
+				return ins.validated()
+			}
 		}
 	default:
 		// Validating... Wait and return false
 		ins.mu.Unlock()
-		<-ins.validated
-		return false
+		return ins.validated()
 	}
 }
 
@@ -130,7 +138,7 @@ func (ins *Instance) IsValidating() bool {
 	defer ins.mu.Unlock()
 
 	select {
-	case <-ins.validated:
+	case <-ins.chanValidated:
 		return false
 	default:
 		return true
@@ -147,22 +155,18 @@ func (ins *Instance) HandleRequests() {
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
 			// Check lambda status first
 			validateStart := time.Now()
-			ins.Validate(false)
+			// Once active connection is confirmed, keep alive on serving.
+			conn := ins.Validate()
 			validateDuration := time.Since(validateStart)
-			ins.warmUp()
 
-			select {
-			case <-ins.closed:
-				// Again, check if instance is closed.
+			if conn == nil {
+				// Check if conn is valid, nil if ins get closed
 				return
-			default:
 			}
-
-			ins.handleRequest(req, validateDuration)
+			ins.handleRequest(conn, req, validateDuration)
 		case <-ins.coolTimer.C:
 			// Warm up
-			ins.Validate(true)
-			ins.warmUp()
+			ins.WarmUp()
 		}
 	}
 }
@@ -221,7 +225,7 @@ func (ins *Instance) Close() {
 	if ins.cn != nil {
 		ins.cn.Close()
 	}
-	ins.flagValidatedLocked(true)
+	ins.flagValidatedLocked(nil)
 }
 
 func (ins *Instance) IsClosed() bool {
@@ -300,6 +304,7 @@ func (ins *Instance) flagValidated(conn *Connection) {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
 
+	ins.warmUp()
 	if ins.cn != conn {
 		oldConn := ins.cn
 
@@ -326,47 +331,50 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		ins.alive = INSTANCE_ALIVE
 	}
 
-	ins.flagValidatedLocked(false)
+	ins.flagValidatedLocked(conn)
 }
 
-func (ins *Instance) flagValidatedLocked(onClose bool) {
+func (ins *Instance) flagValidatedLocked(conn *Connection) *Connection {
 	select {
-	case <-ins.validated:
+	case <-ins.chanValidated:
 		// Validated
 	default:
-		if !onClose {
+		if conn != nil {
 			ins.log.Debug("Validated")
+			ins.lastValidated = conn
 		}
-		close(ins.validated)
+		close(ins.chanValidated)
 	}
+	return ins.lastValidated
 }
 
-func (ins *Instance) handleRequest(req interface{}, validateDuration time.Duration) {
-	// Ensure connection is not changed during handling.
-	ins.mu.Lock()
-	defer ins.mu.Unlock()
+func (ins *Instance) validated() *Connection {
+	<-ins.chanValidated
+	return ins.lastValidated
+}
 
+func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDuration time.Duration) {
 	switch req.(type) {
 	case *types.Request:
 		req := req.(*types.Request)
-		cmd := strings.ToLower(req.Cmd)
+		// In case there is a request already, wait to be consumed (for response).
+		conn.chanWait <- req
 
+		cmd := strings.ToLower(req.Cmd)
 		if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
 			ins.log.Warn("Fail to record validate duration: %v", err)
 		}
 
 		switch cmd {
 		case "set": /*set or two argument cmd*/
-			req.PrepareForSet(ins.cn.w)
+			req.PrepareForSet(conn.w)
 		case "get": /*get or one argument cmd*/
-			req.PrepareForGet(ins.cn.w)
+			req.PrepareForGet(conn.w)
 		default:
 			req.SetResponse(errors.New(fmt.Sprintf("Unexpected request command: %s", cmd)))
 			return
 		}
 
-		// In case there is a request already, wait to be consumed (for response).
-		ins.cn.chanWait <- req
 		if err := req.Flush(); err != nil {
 			ins.log.Error("Flush pipeline error: %v", err)
 		}
@@ -378,10 +386,10 @@ func (ins *Instance) handleRequest(req interface{}, validateDuration time.Durati
 
 		switch cmd {
 		case "data":
-			ctrl.PrepareForData(ins.cn.w)
+			ctrl.PrepareForData(conn.w)
 			isDataRequest = true
 		case "migrate":
-			ctrl.PrepareForMigrate(ins.cn.w)
+			ctrl.PrepareForMigrate(conn.w)
 		default:
 			ins.log.Error("Unexpected control command: %s", cmd)
 			return

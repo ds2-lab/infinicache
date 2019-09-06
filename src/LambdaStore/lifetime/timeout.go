@@ -47,6 +47,7 @@ type Timeout struct {
 	active        int32
 	disabled      int32
 	c             chan time.Time
+	timeout       bool
 }
 
 func NewTimeout(s *Session, d time.Duration) *Timeout {
@@ -95,22 +96,31 @@ func (t *Timeout) Halt() {
 	t.Stop()
 }
 
-func (t *Timeout) Reset() {
+func (t *Timeout) Reset() bool {
+	t.session.Lock()
+	defer t.session.Unlock()
+
 	if !t.Disable() {
 		// already disabled
-		return
+		return false
 	}
 	defer t.Enable()
 
+	if t.session.isDoneLocked() {
+		return false
+	}
+
+	t.timeout = false
 	t.Stop()
 	timeout := t.getTimeout(t.lastExtension)
 	t.timer.Reset(timeout)
 	t.log.Debug("Timeout reset: %v", timeout)
+	return true
 }
 
-func (t *Timeout) ResetWithExtension(ext int64) {
+func (t *Timeout) ResetWithExtension(ext int64) bool {
 	t.lastExtension = ext
-	t.Reset()
+	return t.Reset()
 }
 
 func (t *Timeout) SetLogger(log logger.ILogger) {
@@ -149,8 +159,12 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 		case <-done:
 			return
 		case ti := <-t.timer.C:
+			t.timeout = true
+
 			t.session.Lock()
-			if t.IsDisabled() {
+			// Double check timeout after locked.
+			if !t.timeout || t.IsDisabled() {
+				t.timeout = false
 				t.session.Unlock()
 				continue
 			} else if t.IsBusy() {

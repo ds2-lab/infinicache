@@ -51,7 +51,7 @@ func New(replica bool) *Proxy {
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go func() {
-			node.Validate(true)
+			node.WarmUp()
 			if atomic.AddInt32(&p.initialized, 1) == int32(p.group.Len()) {
 				p.log.Info("[Proxy is ready]")
 				close(p.ready)
@@ -120,7 +120,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	// Check if the chunk key(key + chunkId) exists
 	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
 	lambdaDest, _ := p.metaMap.GetOrInsert(chunkKey, int(lambdaId))
-	
+
 	// Send chunk to the corresponding lambda instance in group
 	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest.(int))
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{

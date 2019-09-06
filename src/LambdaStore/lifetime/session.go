@@ -57,12 +57,7 @@ func (s *Session) IsDone() bool {
 	mu.Lock()
 	defer mu.Unlock()
 
-	select {
-	case <-s.done:
-		return true
-	default:
-		return false
-	}
+	return s.isDoneLocked()
 }
 
 func (s *Session) Lock() {
@@ -71,6 +66,19 @@ func (s *Session) Lock() {
 
 func (s *Session) Unlock() {
 	mu.Unlock()
+}
+
+func (s *Session) IsMigrating() bool {
+	return s.Migrator != nil
+}
+
+func (s *Session) isDoneLocked() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Session) DoneLocked() {

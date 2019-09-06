@@ -262,8 +262,9 @@ func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
 
 		if lifetime.IsTimeUp() && store.Len() > 0 {
 			session.Unlock()
-			// Time to migarate
-			// TODO: Remove len obligation for store. Store may serve other requests after initiating migration.
+			// Time to migrate
+			// Check of number of keys in store is necessary. As soon as there is any value
+			// in the store and time up, we should start migration.
 
 			// Initiate migration
 			session.Migrator = migrator.NewClient()
@@ -573,15 +574,11 @@ func main() {
 
 	srv.HandleFunc("ping", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
-		session.Timeout.Busy()
-		defer session.Timeout.DoneBusy()
-
-		if session.IsDone() {
-			// If no request comes, ignore. This prevents unexpected pings.
+		if !session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND) && !session.IsMigrating() {
+			// Failed to extend timeout, do nothing and prepare to return from lambda.
 			return
 		}
 
-		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 		log.Debug("PING")
 		issuePong()
 		pong(w)
@@ -598,7 +595,7 @@ func main() {
 		newId, _ := c.Arg(2).Int()
 		requestFromProxy := false
 
-		if session.Migrator == nil {
+		if !session.IsMigrating() {
 			// Migration initiated by proxy
 			requestFromProxy = true
 			session.Migrator = migrator.NewClient()
@@ -635,6 +632,7 @@ func main() {
 				lifetime.Rest()
 				session.Done()
 			} else if requestFromProxy {
+				session.Migrator = nil
 				session.Timeout.Enable()
 				session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 			}
