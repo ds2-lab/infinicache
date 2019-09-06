@@ -248,7 +248,6 @@ func (ins *Instance) tryTriggerLambda(warmUp bool) bool {
 	} else {
 		ins.log.Info("[Lambda store is not alive, activating...]")
 	}
-	ins.alive = INSTANCE_ALIVE
 	go ins.triggerLambda(warmUp)
 
 	return true
@@ -332,6 +331,18 @@ func (ins *Instance) flagValidated(conn *Connection) {
 	}
 
 	ins.flagValidatedLocked(conn)
+}
+
+func (ins *Instance) bye(conn *Connection) {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+
+	if ins.cn == conn {
+		ins.aliveLock.Lock()
+		defer ins.aliveLock.Unlock()
+
+		ins.alive = INSTANCE_DEAD
+	}
 }
 
 func (ins *Instance) flagValidatedLocked(conn *Connection) *Connection {

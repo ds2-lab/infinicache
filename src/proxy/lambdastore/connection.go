@@ -149,6 +149,8 @@ func (conn *Connection) ServeLambda() {
 				conn.receiveData()
 			case "initMigrate":
 				go conn.initMigrateHandler()
+			case "bye":
+				conn.bye()
 			default:
 				conn.log.Warn("Unsupported response type: %s", cmd)
 			}
@@ -274,6 +276,9 @@ func (conn *Connection) getHandler(start time.Time) {
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
+		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards + counter.(*types.ClientReqCounter).ParityShards {
+			global.ReqMap.Del(reqId)
+		}
 	}
 
 	// Read value
@@ -343,4 +348,10 @@ func (conn *Connection) initMigrateHandler() {
 	conn.log.Debug("Request to initiate migration")
 
 	conn.instance.Migrate()
+}
+
+func (conn *Connection) bye() {
+	if conn.instance != nil {
+		conn.instance.bye(conn)
+	}
 }

@@ -49,6 +49,7 @@ type Timeout struct {
 	reset         chan int64
 	c             chan time.Time
 	timeout       bool
+	hasReset      bool
 }
 
 func NewTimeout(s *Session, d time.Duration) *Timeout {
@@ -57,8 +58,8 @@ func NewTimeout(s *Session, d time.Duration) *Timeout {
 		timer: time.NewTimer(d),
 		lastExtension: TICK_ERROR,
 		log: logger.NilLogger,
-		reset: make(chan int64),
-		c: make(chan time.Time),
+		reset: make(chan int64, 1),
+		c: make(chan time.Time, 1),
 	}
 	go t.validateTimeout(s.done)
 	return t
@@ -98,12 +99,20 @@ func (t *Timeout) Halt() {
 	t.Stop()
 }
 
+func (t *Timeout) Restart(ext int64) {
+	// Prevent timeout being triggered or reset after stopped
+	t.Enable()
+
+	t.ResetWithExtension(ext)
+}
+
 func (t *Timeout) Reset() bool {
 	t.session.Lock()
 	defer t.session.Unlock()
 
-	if t.IsDisabled() {
-		// already disabled
+	if t.timeout || t.IsDisabled() {
+		t.log.Debug("Is timeout: %v", t.timeout)
+		t.log.Debug("Is timeout disabled: %v", t.IsDisabled())
 		return false
 	}
 
@@ -111,9 +120,7 @@ func (t *Timeout) Reset() bool {
 		return false
 	}
 
-	t.timeout = false
 	t.resetLocked()
-
 	return true
 }
 
@@ -162,28 +169,42 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 			timeout := t.getTimeout(extension)
 			t.timer.Reset(timeout)
 			t.log.Debug("Timeout reset: %v", timeout)
+			t.hasReset = false
 		case ti := <-t.timer.C:
-			t.timeout = true
+			// Timeout channel should be empty, or we clear it
+			select{
+			case <-t.c:
+			default:
+				// Nothing
+			}
 
+			t.log.Debug("In timeout")
 			t.session.Lock()
 			// Double check timeout after locked.
-			if !t.timeout || t.IsDisabled() {
-				t.timeout = false
-				t.session.Unlock()
-				continue
+			if t.hasReset || t.IsDisabled() {
+				t.log.Debug("Has reset: %v", t.hasReset)
+				t.log.Debug("Is timeout disabled: %v", t.IsDisabled())
 			} else if t.IsBusy() {
+				t.log.Debug("Is timeout busy: %v", t.IsBusy())
 				t.resetLocked()
-				t.session.Unlock()
 			} else {
-				// FIXME: We can't unlock here, ugly!
 				t.c <- ti
+				t.timeout = true
 			}
+			t.session.Unlock()
 		}
 	}
 }
 
 func (t *Timeout) resetLocked() {
-	t.reset <- t.lastExtension
+	select{
+	case t.reset <- t.lastExtension:
+	default:
+		// Consume unread and replace with latest.
+		<-t.reset
+		t.reset <- t.lastExtension
+	}
+	t.hasReset = true
 }
 
 func (t *Timeout) getTimeout(ext int64) time.Duration {
