@@ -1,27 +1,19 @@
 #!/bin/bash
 
+PWD=`dirname $0`
 PREFIX="Proxy1Node"
-if [ "$1" != "" ] ; then
-  PREFIX="$1"
-fi
-# concurrency=30
+KEY="redeo_lambda"
+cluster=300
+mem=1024
 
 echo "compiling lambda code..."
-GOOS=linux go build redeo_lambda.go
+GOOS=linux go build $KEY.go
 echo "compress file..."
-zip Lambda2SmallJPG redeo_lambda
+zip $KEY $KEY
 echo "updating lambda code.."
 
 echo "putting code zip to s3"
-aws s3api put-object --bucket ao.lambda.code --key lambdastore.zip --body Lambda2SmallJPG.zip
+aws s3api put-object --bucket ao.lambda.code --key $KEY.zip --body $KEY.zip
 
-for i in {0..299}
-do
-     aws lambda update-function-code --function-name $PREFIX$i --s3-bucket ao.lambda.code --s3-key lambdastore.zip
-     # aws lambda update-function-configuration --function-name $PREFIX$i --memory-size $mem
-     # aws lambda update-function-configuration --function-name $PREFIX$i --timeout $2
-#    aws lambda update-function-configuration --function-name $PREFIX$i --handler redeo_lambda
-#    aws lambda put-function-concurrency --function-name $PREFIX$i --reserved-concurrent-executions $concurrency
-done
-
+go run $PWD/../../sbin/deploy_function.go -code=true -config=true -prefix=$PREFIX -vpc=true -key=$KEY -cluster=$cluster -mem=$mem -timeout=$1
 go clean

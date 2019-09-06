@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	BUCKET = "tianium.default"
-	ROLE   = "arn:aws:iam::022127035044:role/lambda-store"
+	BUCKET = "ao.lambda.code"
+	ROLE   = "arn:aws:iam::037862857942:role/ProxyNoVPC"
 )
 
 var (
@@ -20,18 +20,19 @@ var (
 	config  = flag.Bool("config", false, "update function config")
 	create  = flag.Bool("create", false, "create function")
 	timeout = flag.Int64("timeout", 100, "function timeout")
-	prefix  = flag.String("prefix", "Store1VPCNode", "function name prefix")
+	prefix  = flag.String("prefix", "Proxy1Node", "function name prefix")
 	vpc     = flag.Bool("vpc", false, "vpc config")
 	key     = flag.String("key", "redeo_lambda", "key for handler and file name")
 	cluster = flag.Int64("key", 32, "the number of lambda deployment involved")
 	mem     = flag.Int64("mem", 256, "the memory of lambda")
 
 	subnet = []*string{
-		aws.String("subnet-b53a6bff"),
-		aws.String("subnet-fcde0bc2"),
+		aws.String("subnet-eeb536c0"),
+		aws.String("subnet-f94739f6"),
+		aws.String("subnet-f432faca"),
 	}
 	securityGroup = []*string{
-		aws.String("sg-079f6cc4e658209c3"),
+		aws.String("sg-0281863209f428cb2"), aws.String("sg-d5b37d99"),
 	}
 )
 
