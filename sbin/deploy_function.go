@@ -200,17 +200,17 @@ func main() {
 	}))
 	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	if *code {
-		for i := 0; i < *cluster; i++ {
+		for i := int64(0); i < *cluster; i++ {
 			updateCode(*prefix+strconv.Itoa(i), svc)
 		}
 	}
 	if *config {
-		for i := 0; i < *cluster; i++ {
+		for i := int64(0); i < *cluster; i++ {
 			updateConfig(*prefix+strconv.Itoa(i), svc)
 		}
 	}
 	if *create {
-		for i := 0; i < *cluster; i++ {
+		for i := int64(0); i < *cluster; i++ {
 			createFunction(*prefix+strconv.Itoa(i), svc)
 		}
 	}

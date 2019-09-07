@@ -97,14 +97,18 @@ func (p *Proxy) Release() {
 func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	client := redeo.GetClient(c.Context())
 	connId := int(client.ID())
-	key, _ := c.NextArg().Bytes()
+
+	// Get args
+	key, _ := c.NextArg().String()
 	chunkId, _ := c.NextArg().String()
 	lambdaId, _ := c.NextArg().Int()
+	randBase, _ := c.NextArg().Int()
 	reqId, _ := c.NextArg().String()
+	_, _ = c.NextArg().Int()
+	_, _ = c.NextArg().Int()
 	// dataShards, _ := c.NextArg().Int()
 	// parityShards, _ := c.NextArg().Int()
-	_, _ = c.NextArg().Int()
-	_, _ = c.NextArg().Int()
+
 	bodyStream, err := c.Next()
 	if err != nil {
 		p.log.Error("Error on get value reader: %v", err)
@@ -120,16 +124,21 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	// We don't use this for now
 	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
 
-	// Check if the chunk key(key + chunkId) exists
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
-	lambdaDest, _ := p.metaMap.GetOrInsert(chunkKey, int(lambdaId))
+	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
+	tbInserted := p.group.Slice(uint64(randBase))
+	slice, got := p.metaMap.GetOrInsert(key, tbInserted)
+	if got {
+		tbInserted.Close()
+	}
+	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
+	lambdaDest, got := p.metaMap.GetOrInsert(chunkKey, slice.(*Slice).GetIndex(int(lambdaId)))
 
 	// Send chunk to the corresponding lambda instance in group
 	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest.(int))
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
-		Key:          []byte(chunkKey),
+		Key:          chunkKey,
 		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
 	}
@@ -139,7 +148,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	client := redeo.GetClient(c.Context())
 	connId := int(client.ID())
-	key := c.Arg(0)
+	key := c.Arg(0).String()
 	chunkId := c.Arg(1).String()
 	reqId := c.Arg(2).String()
 	dataShards, _ := c.Arg(3).Int()
@@ -153,7 +162,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataShards), int(parityShards), 0})
 
 	// key is "key"+"chunkId"
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
+	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
 	lambdaDest, ok := p.metaMap.Get(chunkKey)
 	if !ok {
 		p.log.Warn("KEY %s not found in lambda store, please set first.", chunkKey)
@@ -166,7 +175,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
-		Key:          []byte(chunkKey),
+		Key:          chunkKey,
 		ChanResponse: client.Responses(),
 	}
 }

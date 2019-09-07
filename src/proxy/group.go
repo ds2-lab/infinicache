@@ -3,10 +3,23 @@ package proxy
 import(
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/lambdastore"
+	"sync"
+	"sync/atomic"
+)
+
+var (
+	slicePool = sync.Pool{
+		New: func() interface{} {
+				return &Slice{}
+		},
+	}
 )
 
 type Group struct {
-	All []*GroupInstance
+	All         []*GroupInstance
+
+	size        int
+	sliceBase   uint64
 }
 
 type GroupInstance struct {
@@ -16,11 +29,21 @@ type GroupInstance struct {
 }
 
 func NewGroup(num int) *Group {
-	return &Group{ make([]*GroupInstance, num) }
+	return &Group{
+		All: make([]*GroupInstance, num),
+		size: num,
+	}
 }
 
 func (g *Group) Len() int {
-	return len(g.All)
+	return g.size
+}
+
+func (g *Group) Slice(sliceSize uint64) *Slice {
+	slice := slicePool.Get().(*Slice)
+	slice.group = g
+	slice.size = sliceSize
+	return slice
 }
 
 func (g *Group) Reserve(idx int, d types.LambdaDeployment) *GroupInstance {
@@ -48,4 +71,28 @@ func (g *Group) Validate(ins *GroupInstance) *GroupInstance {
 
 func (g *Group) Instance(idx int) *lambdastore.Instance {
 	return g.All[idx].LambdaDeployment.(*lambdastore.Instance)
+}
+
+func (g *Group) nextSlice(sliceSize uint64) uint64 {
+	return (atomic.AddUint64(&g.sliceBase, sliceSize) - sliceSize) % uint64(g.size)
+}
+
+type Slice struct {
+	once sync.Once
+	group *Group
+	size uint64
+	base int
+}
+
+func (s *Slice) GetIndex(idx int) int {
+	s.once.Do(s.get)
+	return (s.base + idx) % s.group.size
+}
+
+func (s *Slice) Close() {
+	slicePool.Put(s)
+}
+
+func (s *Slice) get() {
+	s.base = int(s.group.nextSlice(s.size))
 }

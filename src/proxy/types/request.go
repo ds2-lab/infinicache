@@ -9,7 +9,7 @@ import (
 type Request struct {
 	Id           Id
 	Cmd          string
-	Key          []byte
+	Key          string
 	Body         []byte
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
@@ -23,7 +23,7 @@ func (req *Request) PrepareForSet(w *resp.RequestWriter) {
 	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
 	w.WriteBulkString(req.Id.ReqId)
 	w.WriteBulkString(req.Id.ChunkId)
-	w.WriteBulk(req.Key)
+	w.WriteBulkString(req.Key)
 	if req.Body != nil {
 		w.WriteBulk(req.Body)
 	}
@@ -36,7 +36,7 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
 	w.WriteBulkString(req.Id.ReqId)
 	w.WriteBulkString("")
-	w.WriteBulk(req.Key)
+	w.WriteBulkString(req.Key)
 	req.w = w
 }
 
