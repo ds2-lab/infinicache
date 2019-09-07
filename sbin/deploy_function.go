@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"strconv"
 )
 
 const (
@@ -200,18 +199,18 @@ func main() {
 	}))
 	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	if *code {
-		for i := int64(0); i < *cluster; i++ {
-			updateCode(*prefix+strconv.Itoa(i), svc)
+		for i := 0; i < int(*cluster); i++ {
+			updateCode(fmt.Sprintf("%s%d", *prefix, i), svc)
 		}
 	}
 	if *config {
-		for i := int64(0); i < *cluster; i++ {
-			updateConfig(*prefix+strconv.Itoa(i), svc)
+		for i := 0; i < int(*cluster); i++ {
+			updateConfig(fmt.Sprintf("%s%d", *prefix, i), svc)
 		}
 	}
 	if *create {
-		for i := int64(0); i < *cluster; i++ {
-			createFunction(*prefix+strconv.Itoa(i), svc)
+		for i := 0; i < int(*cluster); i++ {
+			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)
 		}
 	}
 }
