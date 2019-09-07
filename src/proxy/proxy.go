@@ -101,8 +101,10 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	chunkId, _ := c.NextArg().String()
 	lambdaId, _ := c.NextArg().Int()
 	reqId, _ := c.NextArg().String()
-	dataShards, _ := c.NextArg().Int()
-	parityShards, _ := c.NextArg().Int()
+	// dataShards, _ := c.NextArg().Int()
+	// parityShards, _ := c.NextArg().Int()
+	_, _ = c.NextArg().Int()
+	_, _ = c.NextArg().Int()
 	bodyStream, err := c.Next()
 	if err != nil {
 		p.log.Error("Error on get value reader: %v", err)
