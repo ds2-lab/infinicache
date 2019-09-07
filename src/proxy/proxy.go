@@ -115,7 +115,8 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
 
-	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
+	// We don't use this for now
+	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
 
 	// Check if the chunk key(key + chunkId) exists
 	chunkKey := fmt.Sprintf("%s@%s", chunkId, string(key))
