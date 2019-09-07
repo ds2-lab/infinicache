@@ -18,6 +18,10 @@ func New(expected time.Duration) *Lifetime{
 	}
 }
 
+func (l *Lifetime) Id() int64 {
+	return l.birthtime.UnixNano()
+}
+
 func (l *Lifetime) Reborn() {
 	l.birthtime = time.Now()
 	l.alive = true

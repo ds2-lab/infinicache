@@ -8,8 +8,16 @@ import (
 	"time"
 )
 
+const (
+	OP_SET         = 0
+	OP_GET         = 1
+	OP_WARMUP      = 90
+	OP_MIGRATION   = 91
+)
+
 var (
-	ErrNotFound = errors.New("Key not found")
+	ErrProxyClosing               = errors.New("Proxy closed.")
+	ErrNotFound                   = errors.New("Key not found")
 )
 
 type Storage interface {
@@ -38,14 +46,14 @@ func (c *Chunk) Access() []byte {
 
 // For data collection
 type DataEntry struct {
-	Op             string
+	Op             int
 	Status         string
 	ReqId          string
 	ChunkId        string
 	DurationAppend time.Duration
 	DurationFlush  time.Duration
 	Duration       time.Duration
-	LambdaReqId    string
+	Session        string
 }
 
 type ResponseError struct {

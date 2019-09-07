@@ -14,6 +14,7 @@ var (
 )
 
 type Session struct {
+	Id        string
 	Requests  int
 	Clear     sync.WaitGroup
 	Migrator  *migrator.Client
