@@ -22,7 +22,7 @@ var (
 	prefix  = flag.String("prefix", "Proxy1Node", "function name prefix")
 	vpc     = flag.Bool("vpc", false, "vpc config")
 	key     = flag.String("key", "redeo_lambda", "key for handler and file name")
-	cluster = flag.Int64("key", 32, "the number of lambda deployment involved")
+	cluster = flag.Int64("cluster", 32, "the number of lambda deployment involved")
 	mem     = flag.Int64("mem", 256, "the memory of lambda")
 
 	subnet = []*string{
