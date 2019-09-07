@@ -15,7 +15,7 @@ type Response struct {
 }
 
 func (rsp *Response) PrepareFor(w resp.ResponseWriter) {
-	w.WriteBulkString(rsp.Id.ReqId)
+	w.AppendBulkString(rsp.Id.ReqId)
 	if rsp.Body == nil && rsp.BodyStream == nil {
 		w.AppendBulkString("-1")
 	} else {
