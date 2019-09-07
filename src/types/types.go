@@ -8,4 +8,5 @@ type InputEvent struct {
 	Timeout int    `json:"timeout"`
 	Addr    string `json:"addr"`
 	Prefix  string `json:"prefix"`
+	Log     int    `json:"log"`
 }

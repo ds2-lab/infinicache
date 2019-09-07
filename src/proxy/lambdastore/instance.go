@@ -281,6 +281,7 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 		Id:     ins.Id(),
 		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
 		Prefix: global.Prefix,
+		Log:    global.Log.GetLevel(),
 	}
 	if warmUp {
 		event.Cmd = "warmup"

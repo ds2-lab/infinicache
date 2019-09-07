@@ -39,7 +39,7 @@ function update_lambda_mem() {
 function start_proxy() {
     echo "running proxy server"
     PREFIX=$1
-    GOMAXPROCS=36 go run $PWD/../src/redeo_server.go -replica=false -isPrint=true -prefix=$PREFIX
+    GOMAXPROCS=36 go run $PWD/../src/lambdaproxy.go -isPrint=true -prefix=$PREFIX
 }
 
 function bench() {

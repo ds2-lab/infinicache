@@ -43,7 +43,7 @@ var (
 	srv                            = redeo.NewServer(nil)   // Serve requests from proxy
 
 	mu             sync.RWMutex
-	log                            = &logger.ColorLogger{ Level: logger.LOG_LEVEL_ALL }
+	log                            = &logger.ColorLogger{ Level: logger.LOG_LEVEL_WARN }
 	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
 	// at the same time.
 	pongLimiter                    = make(chan struct{}, 1)
@@ -88,6 +88,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 	// Update global parameters
 	collector.Prefix = input.Prefix
+	log.Level = input.Log
 
 	// migration triggered lambda
 	if input.Cmd == "migrate" {
@@ -524,6 +525,7 @@ func main() {
 			Proxy: proxy,
 			Addr:  addr,
 			Prefix: collector.Prefix,
+			Log:   log.GetLevel(),
 		}); err != nil {
 			return
 		}
