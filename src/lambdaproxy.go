@@ -24,7 +24,7 @@ var (
 		Level: logger.LOG_LEVEL_WARN,
 	}
 	lambdaLis net.Listener
-	filePath  = "/tmp/pidLog.txt"
+	filePath  = "/tmp/lambdaproxy.pid"
 )
 
 func init() {
