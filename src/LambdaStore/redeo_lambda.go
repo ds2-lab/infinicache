@@ -141,6 +141,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 	if session.Connection == nil {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
+		collector.Send(&types.DataEntry{ Op: types.OP_MIGRATION, Session: session.Id })
 
 		if len(input.Proxy) == 0 {
 			log.Error("No proxy set.")

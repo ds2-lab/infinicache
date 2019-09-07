@@ -72,7 +72,8 @@ func Save(l *lifetime.Lifetime) {
 	for _, entry := range dataDepository {
 		data.WriteString(fmt.Sprintf("%d,%s,%s,%s,%d,%d,%d,%s,%s,%s\n",
 			entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
-			entry.Duration, entry.DurationAppend, entry.DurationFlush, HostName, FunctionName, entry.Session))
+			entry.Duration, entry.DurationAppend, entry.DurationFlush,
+			HostName, FunctionName, entry.Session))
 	}
 
 	key := fmt.Sprintf("%s%s-%d", Prefix, FunctionName, l.Id())
