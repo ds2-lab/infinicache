@@ -319,7 +319,7 @@ func (conn *Connection) getHandler(start time.Time) {
 func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
-	rsp := &types.Response{Cmd: "set", Body: []byte{1}}
+	rsp := &types.Response{ Cmd: "set", Body: []byte(strconv.FormatUInt(conn.instance.Id(), 10)) }
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
