@@ -215,6 +215,7 @@ func (ins *Instance) Close() {
 		return
 	}
 
+	ins.log.Debug("Closing...")
 	close(ins.closed)
 	if !ins.coolTimer.Stop() {
 		select {
