@@ -9,6 +9,3 @@ start-server:
 
 stop-server:
 	kill -2 $(shell cat /tmp/lambdaproxy.pid)
-
-log:
-	tail -f ./log

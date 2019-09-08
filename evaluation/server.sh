@@ -17,6 +17,7 @@ function perform(){
     start_proxy $PREPROXY
 }
 
+mkdir -p $PWD/$ENTRY
 perform
 
 mv $PWD/log $PWD/$ENTRY.log
