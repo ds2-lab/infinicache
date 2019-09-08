@@ -12,7 +12,7 @@ NODE_PREFIX="Proxy1Node"
 source $PWD/util.sh
 
 function perform(){
-    PREPROXY=$PWD/$ENTRY/dryrun
+    PREPROXY=$PWD/$ENTRY/dryrun-
 
     start_proxy $PREPROXY
 }
