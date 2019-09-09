@@ -7,6 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"math"
+	"sync"
+	"time"
 )
 
 const (
@@ -22,10 +25,11 @@ var (
 	prefix  = flag.String("prefix", "Proxy1Node", "function name prefix")
 	vpc     = flag.Bool("vpc", false, "vpc config")
 	key     = flag.String("key", "redeo_lambda", "key for handler and file name")
-	cluster = flag.Int64("cluster", 32, "the number of lambda deployment involved")
+	from    = flag.Int64("from", 0, "the number of lambda deployment involved")
+	to      = flag.Int64("to", 400, "the number of lambda deployment involved")
+	batch   = flag.Int64("batch", 10, "batch Number, no need to modify")
 	mem     = flag.Int64("mem", 256, "the memory of lambda")
-
-	subnet = []*string{
+	subnet  = []*string{
 		aws.String("subnet-eeb536c0"),
 		aws.String("subnet-f94739f6"),
 		aws.String("subnet-f432faca"),
@@ -35,7 +39,7 @@ var (
 	}
 )
 
-func updateConfig(name string, svc *lambda.Lambda) {
+func updateConfig(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 	var vpcConfig *lambda.VpcConfig
 	if *vpc {
 		vpcConfig = &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup}
@@ -53,7 +57,7 @@ func updateConfig(name string, svc *lambda.Lambda) {
 		//VpcConfig: &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup},
 		//VpcConfig: &lambda.VpcConfig{},
 	}
-	result, err := svc.UpdateFunctionConfiguration(input)
+	_, err := svc.UpdateFunctionConfiguration(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -79,12 +83,12 @@ func updateConfig(name string, svc *lambda.Lambda) {
 		}
 		return
 	}
-	fmt.Println(name, "\n", result)
+	fmt.Println(name)
+	wg.Done()
 	return
-	//wg.Done()
 }
 
-func updateCode(name string, svc *lambda.Lambda) {
+func updateCode(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 	input := &lambda.UpdateFunctionCodeInput{
 		FunctionName: aws.String(name),
 		S3Bucket:     aws.String(BUCKET),
@@ -117,6 +121,7 @@ func updateCode(name string, svc *lambda.Lambda) {
 		return
 	}
 	fmt.Println(name, "\n", result)
+	wg.Done()
 	return
 }
 
@@ -194,22 +199,40 @@ func createFunction(name string, svc *lambda.Lambda) {
 
 func main() {
 	flag.Parse()
+	// get group count
+	group := int64(math.Ceil(float64(*to-*from) / float64(*batch)))
+	fmt.Println("group", group)
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	if *code {
-		for i := 0; i < int(*cluster); i++ {
-			updateCode(fmt.Sprintf("%s%d", *prefix, i), svc)
+		for j := int64(0); j < group; j++ {
+			fmt.Println(j)
+			var wg sync.WaitGroup
+			//for i := j*(*batch) + *from; i < (j+1)*(*batch); i++ {
+			for i := int64(0); i < *batch; i++ {
+				wg.Add(1)
+				go updateCode(fmt.Sprintf("%s%d", *prefix, j*(*batch)+*from+i), svc, &wg)
+			}
+			wg.Wait()
+			time.Sleep(1 * time.Second)
 		}
 	}
 	if *config {
-		for i := 0; i < int(*cluster); i++ {
-			updateConfig(fmt.Sprintf("%s%d", *prefix, i), svc)
+		for j := int64(0); j < group; j++ {
+			fmt.Println(j)
+			var wg sync.WaitGroup
+			for i := int64(0); i < *batch; i++ {
+				wg.Add(1)
+				go updateConfig(fmt.Sprintf("%s%d", *prefix, j*(*batch)+*from+i), svc, &wg)
+			}
+			wg.Wait()
+			time.Sleep(1 * time.Second)
 		}
 	}
 	if *create {
-		for i := 0; i < int(*cluster); i++ {
+		for i := *from; i < *to; i++ {
 			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)
 		}
 	}
