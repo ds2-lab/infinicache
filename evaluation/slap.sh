@@ -11,48 +11,6 @@ NODE_PREFIX="Node"
 
 source $PWD/util.sh
 
-OPTIND=1         # Reset in case getopts has been used previously in the shell.
-MEM=128
-NUMBER=1
-CON=1
-KEYMIN=1
-KEYMAX=2
-SZ=128
-DATA=4
-PARITY=2
-TIME=$1
-while getopts ":hm:n:c:a:b:s:d:p:t:" opt; do
-    case ${opt} in
-    h)
-#        echo "grade [options] tarfile"
-#        echo "options:"
-#        echo "  -m move file to the sub directory, which is named by 'date', of 'grade' program"
-        exit 0
-        ;;
-    m)  MEM=$OPTARG
-        ;;
-    n)  NUMBER=$OPTARG
-        ;;
-    c)  CON=$OPTARG
-        ;;
-    a)  KEYMIN=$OPTARG
-        ;;
-    b)  KEYMAX=$OPTARG
-        ;;
-    s)  SZ=$OPTARG
-        ;;
-    d)  DATA=$OPTARG
-        ;;
-    p)  PARITY=$OPTARG
-        ;;
-    t)  TIME=$OPTARG
-        ;;
-    \?)
-        ;;
-    esac
-done
-shift $((OPTIND-1))
-
 function perform(){
     MEM=$1
     NUMBER=$2

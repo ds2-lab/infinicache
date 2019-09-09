@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PWD=`dirname $0`
-PREFIX="Proxy1Node"
+PREFIX="Proxy2Node"
 KEY="redeo_lambda"
 cluster=300
 mem=1024

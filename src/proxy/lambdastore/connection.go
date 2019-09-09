@@ -23,7 +23,7 @@ var (
 		Color:  true,
 	}
 	ErrConnectionClosed = errors.New("Connection closed")
-	ErrMissingResponse = errors.New("Missing response")
+	ErrMissingResponse  = errors.New("Missing response")
 )
 
 type Connection struct {
@@ -43,8 +43,8 @@ func NewConnection(c net.Conn) *Connection {
 		log: defaultConnectionLog,
 		cn:  c,
 		// wrap writer and reader
-		w:      resp.NewRequestWriter(c),
-		r:      resp.NewResponseReader(c),
+		w:        resp.NewRequestWriter(c),
+		r:        resp.NewResponseReader(c),
 		chanWait: make(chan *types.Request, 1),
 		respType: make(chan interface{}),
 		closed:   make(chan struct{}),
@@ -276,7 +276,7 @@ func (conn *Connection) getHandler(start time.Time) {
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
-		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards + counter.(*types.ClientReqCounter).ParityShards {
+		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
 			global.ReqMap.Del(reqId)
 		}
 	}
@@ -319,7 +319,7 @@ func (conn *Connection) getHandler(start time.Time) {
 func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
-	rsp := &types.Response{ Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10)) }
+	rsp := &types.Response{Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10))}
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
@@ -333,14 +333,40 @@ func (conn *Connection) setHandler(start time.Time) {
 }
 
 func (conn *Connection) receiveData() {
+	//conn.log.Debug("DATA from lambda.")
+	//
+	//_, err := conn.r.ReadBulkString()
+	//ok, err := conn.r.ReadBulkString()
+	//if err != nil && err != io.EOF {
+	//	conn.log.Error("Error on processing result of data collection: %v", err)
+	//}
+	//conn.log.Debug("Collected DATA from lambda: %s", ok)
+	//global.DataCollected.Done()
 	conn.log.Debug("DATA from lambda.")
 
-	_, err := conn.r.ReadBulkString()
-	ok, err := conn.r.ReadBulkString()
-	if err != nil && err != io.EOF {
-		conn.log.Error("Error on processing result of data collection: %v", err)
+	strLen, err := conn.r.ReadBulkString()
+	len := 0
+	if err != nil {
+		conn.log.Error("Failed to read length of data from lambda: %v", err)
+	} else {
+		len, err = strconv.Atoi(strLen)
+		if err != nil {
+			conn.log.Error("Convert strLen err: %v", err)
+		}
 	}
-	conn.log.Debug("Collected DATA from lambda: %s", ok)
+	for i := 0; i < len; i++ {
+		//op, _ := conn.r.ReadBulkString()
+		//status, _ := conn.r.ReadBulkString()
+		//reqId, _ := conn.r.ReadBulkString()
+		//chunkId, _ := conn.r.ReadBulkString()
+		//dAppend, _ := conn.r.ReadBulkString()
+		//dFlush, _ := conn.r.ReadBulkString()
+		//dTotal, _ := conn.r.ReadBulkString()
+		dat, _ := conn.r.ReadBulkString()
+		//fmt.Println("op, reqId, chunkId, status, dTotal, dAppend, dFlush", op, reqId, chunkId, status, dTotal, dAppend, dFlush)
+		collector.Collect(collector.LogLambda, "data", dat)
+	}
+	conn.log.Info("Data collected, %d in total.", len)
 	global.DataCollected.Done()
 }
 

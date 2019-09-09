@@ -1,34 +1,36 @@
 package collector
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	awsSession "github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
+	"github.com/wangaoone/redeo/resp"
+	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/lifetime"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 )
 
 const (
-	S3BUCKET                       = "tianium.default"
+	//S3BUCKET = "tianium.default"
+	S3BUCKET = "tianium.default"
 )
 
 var (
-	Prefix         string
-	HostName       string
-	FunctionName   string
+	Prefix       string
+	HostName     string
+	FunctionName string
 
-	dataGatherer                   = make(chan *types.DataEntry, 10)
-	dataDepository                 = make([]*types.DataEntry, 0, 100)
+	dataGatherer   = make(chan *types.DataEntry, 10)
+	dataDepository = make([]*types.DataEntry, 0, 100)
 	dataDeposited  sync.WaitGroup
-	log            logger.ILogger  = &logger.ColorLogger{ Prefix: "collector ", Level: logger.LOG_LEVEL_INFO }
+	log            logger.ILogger = &logger.ColorLogger{Prefix: "collector ", Level: logger.LOG_LEVEL_INFO}
 )
 
 func init() {
@@ -64,20 +66,22 @@ func Collect(session *lifetime.Session) {
 	}
 }
 
-func Save(l *lifetime.Lifetime) {
+func Save(l *lifetime.Lifetime, w resp.ResponseWriter) {
+	w.AppendBulkString(strconv.Itoa(len(dataDepository)))
 	// Wait for data depository.
 	dataDeposited.Wait()
 
-	var data bytes.Buffer
+	//var data bytes.Buffer
 	for _, entry := range dataDepository {
-		data.WriteString(fmt.Sprintf("%d,%s,%s,%s,%d,%d,%d,%s,%s,%s\n",
+		format := fmt.Sprintf("%d,%s,%s,%s,%d,%d,%d,%s,%s,%s",
 			entry.Op, entry.ReqId, entry.ChunkId, entry.Status,
 			entry.Duration, entry.DurationAppend, entry.DurationFlush,
-			HostName, FunctionName, entry.Session))
+			HostName, FunctionName, entry.Session)
+		w.AppendBulkString(format)
 	}
 
-	key := fmt.Sprintf("%s%s-%d", Prefix, FunctionName, l.Id())
-	s3Put(S3BUCKET, key, data.String())
+	//key := fmt.Sprintf("%s%s-%d", Prefix, FunctionName, l.Id())
+	//s3Put(S3BUCKET, key, data.String())
 	dataDepository = dataDepository[:0]
 }
 
