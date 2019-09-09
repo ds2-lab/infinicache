@@ -63,5 +63,5 @@ function playback() {
     CLUSTER=$4
     FILE=$5
     COMPACT=$6
-    go run $REDBENCH/simulator/playback/sim.go -addrlist localhost:6378 -d $D -p $P -scalesz $3 -cluster $4 $COMPACT $FILE
+    go run $REDBENCH/simulator/playback/sim.go -addrlist localhost:6378 -d $D -p $P -scalesz $SCALE -cluster $CLUSTER $COMPACT $FILE
 }
