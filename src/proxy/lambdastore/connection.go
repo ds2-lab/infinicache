@@ -66,6 +66,7 @@ func (conn *Connection) GraceClose() {
 
 	// Signal colosed only. This allow ongoing transmission to finish.
 	close(conn.closed)
+	conn.bye()
 	conn.log.Debug("Signal to close.")
 }
 

@@ -29,6 +29,8 @@ var (
 	Registry InstanceRegistry
 	TimeoutNever = make(<-chan time.Time)
 	WarmTimout = 1 * time.Minute
+	ConnectTimeout = 20 * time.Millisecond // Just above average triggering cost.
+	RequestTimeout = 10 * time.Millisecond
 )
 
 type InstanceRegistry interface {
@@ -111,7 +113,7 @@ func (ins *Instance) validate(warmUp bool) *Connection {
 			// If we are not sure instance status, set a short timeout and trigger after timeout.
 			var timeout <-chan time.Time
 			if ins.alive == INSTANCE_MAYBE {
-				timer := time.NewTimer(10 * time.Millisecond) // average triggering cost.
+				timer := time.NewTimer(ConnectTimeout)
 				timeout = timer.C
 			} else {
 				timeout = TimeoutNever
@@ -366,12 +368,10 @@ func (ins *Instance) validated() *Connection {
 	return ins.lastValidated
 }
 
-func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDuration time.Duration) {
+func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDuration time.Duration) error {
 	switch req.(type) {
 	case *types.Request:
 		req := req.(*types.Request)
-		// In case there is a request already, wait to be consumed (for response).
-		conn.chanWait <- req
 
 		cmd := strings.ToLower(req.Cmd)
 		if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
@@ -385,11 +385,17 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 			req.PrepareForGet(conn.w)
 		default:
 			req.SetResponse(errors.New(fmt.Sprintf("Unexpected request command: %s", cmd)))
-			return
+			// Unrecoverable
+			return nil
 		}
 
+		// In case there is a request already, wait to be consumed (for response).
+		conn.chanWait <- req
+		conn.cn.SetWriteDeadline(time.Now().Add(RequestTimeout))
+		defer conn.cn.SetWriteDeadline(time.Time{})
 		if err := req.Flush(); err != nil {
 			ins.log.Error("Flush pipeline error: %v", err)
+			return err
 		}
 
 	case *types.Control:
@@ -405,7 +411,8 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 			ctrl.PrepareForMigrate(conn.w)
 		default:
 			ins.log.Error("Unexpected control command: %s", cmd)
-			return
+			// Unrecoverable
+			return nil
 		}
 
 		if err := ctrl.Flush(); err != nil {
@@ -413,11 +420,17 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 			if isDataRequest {
 				global.DataCollected.Done()
 			}
+			// Control commands are valid to connection only.
+			return nil
 		}
 
 	default:
 		ins.log.Error("Unexpected request type: %v", reflect.TypeOf(req))
+		// Unrecoverable
+		return nil
 	}
+	
+	return nil
 }
 
 func (ins *Instance) isClosedLocked() bool {
