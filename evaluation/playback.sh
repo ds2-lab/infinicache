@@ -17,7 +17,7 @@ function perform(){
 	SCALE=$3
 	COMPACT=$4
 
-	PREPROXY=$PWD/$ENTRY/dryrun-
+	PREPROXY=$PWD/$ENTRY/simulate-$CLUSTER$COMPACT
 
 	start_proxy $PREPROXY &
 	while [ ! -f /tmp/lambdaproxy.pid ]
@@ -32,6 +32,6 @@ function perform(){
 }
 
 mkdir -p $PWD/$ENTRY
-perform
+perform $1 $2 $3 $4
 
 mv $PWD/log $PWD/$ENTRY.log
