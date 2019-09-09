@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/wangaoone/redeo/resp"
 	"strconv"
+	"sync/atomic"
 )
 
 type Request struct {
@@ -15,6 +16,7 @@ type Request struct {
 	ChanResponse chan interface{}
 
 	w *resp.RequestWriter
+	responded    uint32
 }
 
 func (req *Request) PrepareForSet(w *resp.RequestWriter) {
@@ -68,9 +70,15 @@ func (req *Request) IsResponse(rsp *Response) bool {
 		req.Id.ChunkId == rsp.Id.ChunkId
 }
 
-func (req *Request) SetResponse(rsp interface{}) {
+func (req *Request) SetResponse(rsp interface{}) bool {
+	if !atomic.CompareAndSwapUint32(&req.responded, 0, 1) {
+		return false
+	}
+
 	req.ChanResponse <- rsp
 
 	// Release reference so chan can be garbage collected.
 	req.ChanResponse = nil
+
+	return true
 }

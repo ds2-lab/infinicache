@@ -178,8 +178,7 @@ func (conn *Connection) SetResponse(rsp *types.Response) bool {
 	for req := range conn.chanWait {
 		if req.IsResponse(rsp) {
 			conn.log.Debug("response matched: %v", req.Id)
-			req.SetResponse(rsp)
-			return true
+			return req.SetResponse(rsp)
 		}
 		conn.log.Warn("passing req: %v, got %v", req, rsp)
 		req.SetResponse(ErrMissingResponse)
