@@ -55,3 +55,13 @@ function bench() {
     go run $REDBENCH/bench.go -addrlist localhost:6378 -n $N -c $C -keymin $KEYMIN -keymax $KEYMAX \
     -sz $SZ -d $D -p $P -op $OP -file $FILE -dec -i 1000
 }
+
+function playback() {
+    D=$1
+    P=$2
+    SCALE=$3
+    CLUSTER=$4
+    FILE=$5
+    COMPACT=$6
+    go run $REDBENCH/simulator/playback/sim.go -addrlist localhost:6378 -d $D -p $P -scalesz $3 -cluster $4 $COMPACT $FILE
+}
