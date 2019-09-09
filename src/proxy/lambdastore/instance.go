@@ -30,7 +30,7 @@ var (
 	TimeoutNever = make(<-chan time.Time)
 	WarmTimout = 1 * time.Minute
 	ConnectTimeout = 20 * time.Millisecond // Just above average triggering cost.
-	RequestTimeout = 10 * time.Millisecond
+	RequestTimeout = 30 * time.Second
 )
 
 type InstanceRegistry interface {
@@ -429,7 +429,7 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 		// Unrecoverable
 		return nil
 	}
-	
+
 	return nil
 }
 
