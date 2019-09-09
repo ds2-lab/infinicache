@@ -90,8 +90,12 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	collector.Prefix = input.Prefix
 	log.Level = input.Log
 
+	log.Debug("New lambda invocation: %v", input.Cmd)
+
 	// migration triggered lambda
 	if input.Cmd == "migrate" {
+		collector.Send(&types.DataEntry{ Op: types.OP_MIGRATION, Session: session.Id })
+
 		if len(input.Addr) == 0 {
 			log.Error("No migrator set.")
 			return nil
@@ -141,9 +145,6 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	mu.Unlock()
 
 	if session.Connection == nil {
-		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
-		collector.Send(&types.DataEntry{ Op: types.OP_MIGRATION, Session: session.Id })
-
 		if len(input.Proxy) == 0 {
 			log.Error("No proxy set.")
 			return nil
@@ -195,7 +196,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 				session.Done()
 			}
 		}(session.Connection)
-	} else if input.Cmd == "warmup" {
+	}
+	if input.Cmd == "warmup" {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
 		collector.Send(&types.DataEntry{ Op: types.OP_WARMUP, Session: session.Id })
 	} else {
