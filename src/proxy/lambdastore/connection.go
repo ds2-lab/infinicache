@@ -66,12 +66,12 @@ func (conn *Connection) GraceClose() {
 
 	// Signal colosed only. This allow ongoing transmission to finish.
 	close(conn.closed)
-	conn.bye()
 	conn.log.Debug("Signal to close.")
 }
 
 func (conn *Connection) Close() {
 	conn.GraceClose()
+	conn.bye()
 	// Don't use c.Close(), it will stuck and wait for lambda.
 	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
 	conn.cn.Close()
