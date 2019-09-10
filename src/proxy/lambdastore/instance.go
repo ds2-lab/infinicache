@@ -317,7 +317,7 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		ins.cn = conn
 
 		if oldConn != nil {
-			oldConn.GraceClose()
+			oldConn.Close()
 
 			if oldConn.instance == ins {
 				// There are two possibilities for connectio switch:

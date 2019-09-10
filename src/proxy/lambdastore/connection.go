@@ -53,7 +53,7 @@ func NewConnection(c net.Conn) *Connection {
 	return conn
 }
 
-func (conn *Connection) GraceClose() {
+func (conn *Connection) Close() {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -69,8 +69,8 @@ func (conn *Connection) GraceClose() {
 	conn.log.Debug("Signal to close.")
 }
 
-func (conn *Connection) Close() {
-	conn.GraceClose()
+func (conn *Connection) close() {
+	conn.Close()
 	conn.bye()
 	// Don't use c.Close(), it will stuck and wait for lambda.
 	conn.cn.(*net.TCPConn).SetLinger(0) // The operating system discards any unsent or unacknowledged data.
@@ -97,7 +97,7 @@ func (conn *Connection) ServeLambda() {
 				// Is there request waiting?
 				retPeek = <-conn.respType
 			} else {
-				conn.Close()
+				conn.close()
 				return
 			}
 		case retPeek = <-conn.respType:
@@ -112,7 +112,7 @@ func (conn *Connection) ServeLambda() {
 			} else {
 				conn.log.Warn("Failed to peek response type: %v", err)
 			}
-			conn.Close()
+			conn.close()
 			return
 		case resp.ResponseType:
 			respType = retPeek.(resp.ResponseType)
@@ -133,7 +133,7 @@ func (conn *Connection) ServeLambda() {
 			cmd, err := conn.r.ReadBulkString()
 			if err != nil && err == io.EOF {
 				conn.log.Warn("Lambda store disconnected.")
-				conn.Close()
+				conn.close()
 			} else if err != nil {
 				conn.log.Warn("Error on read response type: %v", err)
 				break
