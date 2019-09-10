@@ -412,6 +412,11 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 		defer conn.cn.SetWriteDeadline(time.Time{})
 		if err := req.Flush(); err != nil {
 			ins.log.Warn("Flush pipeline error: %v", err)
+			// Remove request.
+			select {
+			case <-conn.chanWait:
+			default:
+			}
 			return err
 		}
 
