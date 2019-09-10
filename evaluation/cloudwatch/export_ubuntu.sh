@@ -1,6 +1,7 @@
 #!/bin/bash
-LAMBDA="/aws/lambda/Store1VPCNode"
-FILE="/lambda/"
+LAMBDA="/aws/lambda/"
+FILE="log/"
+LOG_PREFIX="Store1VPCNode"
 
 PREFIX=$1
 start=$2
@@ -13,6 +14,6 @@ endTime=$(date -d "$end" +%s)000
 
 for i in {0..399}
 do
-    aws logs create-export-task --log-group-name $LAMBDA$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$i
-    sleep 1s
+    aws logs create-export-task --log-group-name $LAMBDA$LOG_PREFIX$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$LOG_PREFIX$i
+    sleep 2s
 done
