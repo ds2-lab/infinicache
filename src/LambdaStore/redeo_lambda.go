@@ -265,12 +265,12 @@ func issuePong() {
 	}
 }
 
-func pongHandler(conn net.Conn) {
+func pongHandler(conn net.Conn) error {
 	writer := resp.NewResponseWriter(conn)
-	pong(writer)
+	return pong(writer)
 }
 
-func pong(w resp.ResponseWriter) {
+func pong(w resp.ResponseWriter) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -278,15 +278,17 @@ func pong(w resp.ResponseWriter) {
 	case <-pongLimiter:
 		// Quota avaiable or abort.
 	default:
-		return
+		return nil
 	}
 
 	w.AppendBulkString("pong")
 	w.AppendInt(int64(storeId))
 	if err := w.Flush(); err != nil {
 		log.Error("Error on PONG flush: %v", err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func initMigrateHandler(conn net.Conn) error {

@@ -101,6 +101,8 @@ func (conn *Connection) ServeLambda() {
 				return
 			}
 		case retPeek = <-conn.respType:
+			// Got response, reset read deadline.
+			conn.cn.SetReadDeadline(time.Time{})
 		}
 
 		var respType resp.ResponseType

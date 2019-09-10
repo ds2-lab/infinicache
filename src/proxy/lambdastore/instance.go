@@ -23,6 +23,7 @@ const (
 	INSTANCE_DEAD = 0
 	INSTANCE_ALIVE = 1
 	INSTANCE_MAYBE = 2
+	MAX_RETRY = 3
 )
 
 var (
@@ -155,17 +156,33 @@ func (ins *Instance) HandleRequests() {
 		case <-ins.closed:
 			return
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
-			// Check lambda status first
-			validateStart := time.Now()
-			// Once active connection is confirmed, keep alive on serving.
-			conn := ins.Validate()
-			validateDuration := time.Since(validateStart)
+			var err error
+			for i := 0; i < MAX_RETRY; i++ {
+				if i > 0 {
+					ins.log.Debug("Attempt %d", i)
+				}
+				// Check lambda status first
+				validateStart := time.Now()
+				// Once active connection is confirmed, keep alive on serving.
+				conn := ins.Validate()
+				validateDuration := time.Since(validateStart)
 
-			if conn == nil {
-				// Check if conn is valid, nil if ins get closed
-				return
+				if conn == nil {
+					// Check if conn is valid, nil if ins get closed
+					return
+				}
+				err = ins.handleRequest(conn, req, validateDuration)
+				if err == nil {
+					break
+				}
 			}
-			ins.handleRequest(conn, req, validateDuration)
+			if err != nil {
+				ins.log.Error("Max retry reaches, give up")
+				if request, ok := req.(*types.Request); ok {
+					request.SetResponse(err)
+				}
+			}
+			ins.warmUp()
 		case <-ins.coolTimer.C:
 			// Warm up
 			ins.WarmUp()
@@ -391,10 +408,10 @@ func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDu
 
 		// In case there is a request already, wait to be consumed (for response).
 		conn.chanWait <- req
-		conn.cn.SetWriteDeadline(time.Now().Add(RequestTimeout))
+		conn.cn.SetWriteDeadline(time.Now().Add(RequestTimeout))  // Set deadline for write
 		defer conn.cn.SetWriteDeadline(time.Time{})
 		if err := req.Flush(); err != nil {
-			ins.log.Error("Flush pipeline error: %v", err)
+			ins.log.Warn("Flush pipeline error: %v", err)
 			return err
 		}
 

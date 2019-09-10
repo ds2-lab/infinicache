@@ -8,16 +8,16 @@ import (
 	"time"
 )
 
-const TICK = int64(100 * time.Millisecond)
+const TICK = 100 * time.Millisecond
 // For Lambdas below 0.5vCPU(896M).
-const TICK_1_ERROR_EXTEND = int64(10000 * time.Millisecond)
-const TICK_1_ERROR = int64(10 * time.Millisecond)
+const TICK_1_ERROR_EXTEND = 10000 * time.Millisecond
+const TICK_1_ERROR = 10 * time.Millisecond
 // For Lambdas with 0.5vCPU(896M) and above.
-const TICK_5_ERROR_EXTEND = int64(1000 * time.Millisecond)
-const TICK_5_ERROR = int64(10 * time.Millisecond)
+const TICK_5_ERROR_EXTEND = 1000 * time.Millisecond
+const TICK_5_ERROR = 10 * time.Millisecond
 // For Lambdas with 1vCPU(1792M) and above.
-const TICK_10_ERROR_EXTEND = int64(1000 * time.Millisecond)
-const TICK_10_ERROR = int64(2 * time.Millisecond)
+const TICK_10_ERROR_EXTEND = 1000 * time.Millisecond
+const TICK_10_ERROR = 2 * time.Millisecond
 
 var (
 	TICK_ERROR_EXTEND = TICK_10_ERROR_EXTEND
@@ -42,25 +42,28 @@ type Timeout struct {
 	session       *Session
 	start         time.Time
 	timer         *time.Timer
-	lastExtension int64
+	lastExtension time.Duration
 	log           logger.ILogger
 	active        int32
 	disabled      int32
-	reset         chan int64
+	reset         chan time.Duration
 	c             chan time.Time
 	timeout       bool
 	hasReset      bool
+	due           time.Duration
 }
 
 func NewTimeout(s *Session, d time.Duration) *Timeout {
 	t := &Timeout{
 		session: s,
-		timer: time.NewTimer(d),
-		lastExtension: TICK_ERROR,
+		lastExtension: d,
 		log: logger.NilLogger,
-		reset: make(chan int64, 1),
+		reset: make(chan time.Duration, 1),
 		c: make(chan time.Time, 1),
 	}
+	timeout, due := t.getTimeout(d)
+	t.due = due
+	t.timer = time.NewTimer(timeout)
 	go t.validateTimeout(s.done)
 	return t
 }
@@ -99,7 +102,7 @@ func (t *Timeout) Halt() {
 	t.Stop()
 }
 
-func (t *Timeout) Restart(ext int64) {
+func (t *Timeout) Restart(ext time.Duration) {
 	// Prevent timeout being triggered or reset after stopped
 	t.Enable()
 
@@ -122,7 +125,7 @@ func (t *Timeout) Reset() bool {
 	return true
 }
 
-func (t *Timeout) ResetWithExtension(ext int64) bool {
+func (t *Timeout) ResetWithExtension(ext time.Duration) bool {
 	t.lastExtension = ext
 	return t.Reset()
 }
@@ -139,7 +142,7 @@ func (t *Timeout) DoneBusy() {
 	atomic.AddInt32(&t.active, -1)
 }
 
-func (t *Timeout) DoneBusyWithReset(ext int64) {
+func (t *Timeout) DoneBusyWithReset(ext time.Duration) {
 	t.ResetWithExtension(ext)
 	atomic.AddInt32(&t.active, -1)
 }
@@ -169,9 +172,10 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 			return
 		case extension := <-t.reset:
 			t.Stop()
-			timeout := t.getTimeout(extension)
+			timeout, due := t.getTimeout(extension)
+			t.due = due
 			t.timer.Reset(timeout)
-			t.log.Debug("Timeout reset: %v", timeout)
+			t.log.Debug("Due expectation updated: %v, timeout in %v", due, timeout)
 			t.hasReset = false
 		case ti := <-t.timer.C:
 			// Timeout channel should be empty, or we clear it
@@ -187,6 +191,10 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 				// pass
 			} else if t.IsBusy() {
 				t.resetLocked()
+			} else if t.Since() < t.due {
+				// FIXME: This is just a precaution check, remove if possible.
+				t.log.Debug("Unexpected timeout before due (%v / %v), try reset.", t.Since(), t.due)
+				t.resetLocked()
 			} else {
 				t.c <- ti
 				t.timeout = true
@@ -197,6 +205,8 @@ func (t *Timeout) validateTimeout(done <-chan struct{}) {
 }
 
 func (t *Timeout) resetLocked() {
+	_, t.due = t.getTimeout(t.lastExtension)
+	t.log.Debug("Due expectation updated: %v", t.due)
 	select{
 	case t.reset <- t.lastExtension:
 	default:
@@ -207,11 +217,15 @@ func (t *Timeout) resetLocked() {
 	t.hasReset = true
 }
 
-func (t *Timeout) getTimeout(ext int64) time.Duration {
+func (t *Timeout) getTimeout(ext time.Duration) (timeout, due time.Duration) {
 	if ext < 0 {
-		return 1 * time.Millisecond
+		timeout = 1 * time.Millisecond
+		due = time.Since(t.start) + timeout
+		return
 	}
 
-	now := time.Now().Sub(t.start).Nanoseconds()
-	return time.Duration(int64(math.Ceil(float64(now + ext) / float64(TICK)))*TICK - TICK_ERROR - now)
+	now := time.Since(t.start)
+	due = time.Duration(math.Ceil(float64(now + ext) / float64(TICK)))*TICK - TICK_ERROR
+	timeout = due - now
+	return
 }
