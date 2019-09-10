@@ -83,7 +83,7 @@ func updateConfig(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 		}
 		return
 	}
-	fmt.Println(name)
+	fmt.Println(name, "\n", result)
 	wg.Done()
 	return
 }
