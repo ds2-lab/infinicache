@@ -32,6 +32,10 @@ function perform(){
 }
 
 mkdir -p $PWD/$ENTRY
-perform $1 $2 $3 $4
 
+START `date +"%Y-%m-%d %H:%M:%S"`
+perform $1 $2 $3 $4
 mv $PWD/log $PWD/$ENTRY.log
+END `date +"%Y-%m-%d %H:%M:%S"`
+
+cloudwatch/export_ubuntu.sh $ENTRY/ "$START" "$END"
