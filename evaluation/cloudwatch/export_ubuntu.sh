@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 LAMBDA="/aws/lambda/Store1VPCNode"
 FILE="/lambda/"
 

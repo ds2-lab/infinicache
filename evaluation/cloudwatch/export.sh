@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 LAMBDA="/aws/lambda/reclaim"
 FILE="aws/lambda/reclaim"
 
