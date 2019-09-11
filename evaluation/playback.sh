@@ -5,8 +5,8 @@ if [ "$GOPATH" == "" ] ; then
 fi
 
 PWD=`dirname $0`
-ENTRY=`date "+%Y%m%d%H%M"`
-ENTRY="/data/$ENTRY"
+DATE=`date "+%Y%m%d%H%M"`
+ENTRY="/data/$DATE"
 NODE_PREFIX="Store1VPCNode"
 
 source $PWD/util.sh
@@ -45,4 +45,4 @@ mv $PWD/log $PWD/$ENTRY.log
 END=`date +"%Y-%m-%d %H:%M:%S"`
 
 echo "Transfering logs from CloudWatch to S3: $START - $END ..."
-cloudwatch/export_ubuntu.sh $ENTRY/ "$START" "$END"
+cloudwatch/export_ubuntu.sh $DATE/ "$START" "$END"
