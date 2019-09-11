@@ -76,7 +76,7 @@ func Save(l *lifetime.Lifetime) {
 			HostName, FunctionName, entry.Session))
 	}
 
-	key := fmt.Sprintf("%s%s-%d", Prefix, FunctionName, l.Id())
+	key := fmt.Sprintf("%s/%s/%d", Prefix, FunctionName, l.Id())
 	s3Put(S3BUCKET, key, data.String())
 	dataDepository = dataDepository[:0]
 }
