@@ -20,6 +20,7 @@ function perform(){
 	PREPROXY=$PWD/$ENTRY/simulate-$CLUSTER$COMPACT
 
 	start_proxy $PREPROXY &
+  # Wait for proxy is ready
 	while [ ! -f /tmp/lambdaproxy.pid ]
 	do
 		sleep 1s
@@ -29,14 +30,19 @@ function perform(){
 	sleep 1s
 	playback 10 2 $SCALE $CLUSTER $FILE $COMPACT
 	kill -2 `cat /tmp/lambdaproxy.pid`
+  # Wait for proxy cleaned up
+  while [ -f /tmp/lambdaproxy.pid ]
+	do
+		sleep 1s
+	done
 }
 
 mkdir -p $PWD/$ENTRY
 
-START `date +"%Y-%m-%d %H:%M:%S"`
+START=`date +"%Y-%m-%d %H:%M:%S"`
 perform $1 $2 $3 $4
 mv $PWD/log $PWD/$ENTRY.log
-END `date +"%Y-%m-%d %H:%M:%S"`
+END=`date +"%Y-%m-%d %H:%M:%S"`
 
 echo "Transfering logs from CloudWatch to S3: $START - $END ..."
 cloudwatch/export_ubuntu.sh $ENTRY/ "$START" "$END"
