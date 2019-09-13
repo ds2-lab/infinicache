@@ -57,7 +57,7 @@ func updateConfig(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 		//VpcConfig: &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup},
 		//VpcConfig: &lambda.VpcConfig{},
 	}
-	_, err := svc.UpdateFunctionConfiguration(input)
+	result, err := svc.UpdateFunctionConfiguration(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {

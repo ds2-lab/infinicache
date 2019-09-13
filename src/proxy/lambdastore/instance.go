@@ -32,6 +32,11 @@ var (
 	WarmTimout = 1 * time.Minute
 	ConnectTimeout = 20 * time.Millisecond // Just above average triggering cost.
 	RequestTimeout = 30 * time.Second
+	timeouts  = sync.Pool{
+		New: func() interface{} {
+			return time.NewTimer(0)
+		},
+	}
 )
 
 type InstanceRegistry interface {
@@ -105,27 +110,30 @@ func (ins *Instance) validate(warmUp bool) *Connection {
 			if triggered {
 				return ins.validated()
 			} else if warmUp {
-				return ins.flagValidatedLocked(ins.cn)
+				return ins.flagValidated(ins.cn)
 			}
 
-			// ping is issued to ensure alive
+			// Ping is issued to ensure alive
 			ins.cn.Ping()
 
-			// If we are not sure instance status, set a short timeout and trigger after timeout.
-			var timeout <-chan time.Time
-			if ins.alive == INSTANCE_MAYBE {
-				timer := time.NewTimer(ConnectTimeout)
-				timeout = timer.C
-			} else {
-				timeout = TimeoutNever
+			// Start timeout, ping may get stucked anytime.
+			timeout := timeouts.Get().(*time.Timer)
+			if !timeout.Stop() {
+				select {
+				case <-timeout.C:
+				default:
+				}
 			}
+			timeout.Reset(ConnectTimeout)
 
 			select{
-			case <-timeout:
+			case <-timeout.C:
 				// Set status to dead and revalidate.
+				timeouts.Put(timeout)
 				ins.alive = INSTANCE_DEAD
 				ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
 			case <-ins.chanValidated:
+				timeouts.Put(timeout)
 				return ins.validated()
 			}
 		}
@@ -320,7 +328,7 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	}
 }
 
-func (ins *Instance) flagValidated(conn *Connection) {
+func (ins *Instance) flagValidated(conn *Connection) *Connection {
 	ins.mu.Lock()
 	defer ins.mu.Unlock()
 
@@ -351,7 +359,7 @@ func (ins *Instance) flagValidated(conn *Connection) {
 		ins.alive = INSTANCE_ALIVE
 	}
 
-	ins.flagValidatedLocked(conn)
+	return ins.flagValidatedLocked(conn)
 }
 
 func (ins *Instance) bye(conn *Connection) {

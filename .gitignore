@@ -6,3 +6,5 @@ lambda.zip
 *.iml
 *.xml
 *.zip
+evaluation/cloudwatch/data
+evaluation/downloaded
