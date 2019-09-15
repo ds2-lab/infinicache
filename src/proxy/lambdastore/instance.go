@@ -31,7 +31,7 @@ var (
 	TimeoutNever = make(<-chan time.Time)
 	WarmTimout = 1 * time.Minute
 	ConnectTimeout = 20 * time.Millisecond // Just above average triggering cost.
-	RequestTimeout = 30 * time.Second
+	RequestTimeout = 10 * time.Second
 	timeouts  = sync.Pool{
 		New: func() interface{} {
 			return time.NewTimer(0)
