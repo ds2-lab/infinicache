@@ -118,7 +118,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		}
 
 		// Send hello
-		reader, err := session.Migrator.Send("mhello")
+		reader, err := session.Migrator.Send("mhello", nil)
 		if err != nil {
 			log.Error("Failed to hello source on migrator: %v", err)
 			return nil
@@ -356,7 +356,7 @@ func main() {
 		//	log.Debug("not found")
 		//}
 		t2 := time.Now()
-		chunkId, stream, err := store.Get(key)
+		chunkId, stream, err := store.GetStream(key)
 		d2 := time.Since(t2)
 
 		if err == nil {
@@ -427,16 +427,24 @@ func main() {
 			}
 			return
 		}
-		val, err := valReader.ReadAll()
+		// val, err := valReader.ReadAll()
+		// if err != nil {
+		// 	log.Error("Error on get value: %v", err)
+		// 	w.AppendErrorf("Error on get value: %v", err)
+		// 	if err := w.Flush(); err != nil {
+		// 		log.Error("Error on flush(error 500): %v", err)
+		// 	}
+		// 	return
+		// }
+		err = store.SetStream(key, chunkId, valReader)
 		if err != nil {
-			log.Error("Error on get value: %v", err)
-			w.AppendErrorf("Error on get value: %v", err)
+			log.Error("%v", err)
+			w.AppendErrorf("%v", err)
 			if err := w.Flush(); err != nil {
 				log.Error("Error on flush(error 500): %v", err)
 			}
 			return
 		}
-		store.Set(key, chunkId, val)
 
 		// write Key, clientId, chunkId, body back to proxy
 		response := &types.Response{
@@ -452,7 +460,7 @@ func main() {
 			return
 		}
 
-		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s, Item length %d", key, connId, chunkId, len(val))
+		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s", key, connId, chunkId)
 		collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
 	})
 

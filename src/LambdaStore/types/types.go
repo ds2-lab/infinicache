@@ -21,8 +21,10 @@ var (
 )
 
 type Storage interface {
-	Get(string) (string, resp.AllReadCloser, error)
-	Set(string, string, []byte)
+	Get(string) (string, []byte, error)
+	GetStream(string) (string, resp.AllReadCloser, error)
+	Set(string, string, []byte) error
+	SetStream(string, string, resp.AllReadCloser) error
 	Len() int
 	Keys()  <-chan string
 }

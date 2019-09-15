@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/wangaoone/redeo/resp"
+	"strings"
 	"sync"
 
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
@@ -68,7 +69,17 @@ func (a *StorageAdapter) Restore() types.Storage {
 	return a.store
 }
 
-func (a *StorageAdapter) Get(key string) (string, resp.AllReadCloser, error) {
+func (a *StorageAdapter) Get(key string) (string, []byte, error) {
+	chunkId, valReader, err := a.GetStream(key)
+	if err != nil {
+		return chunkId, nil, err
+	}
+
+	val, err := valReader.ReadAll()
+	return chunkId, val, err
+}
+
+func (a *StorageAdapter) GetStream(key string) (string, resp.AllReadCloser, error) {
 	cmd := cmds.Get().(*storageAdapterCommand)
 	defer cmds.Put(cmd)
 
@@ -85,17 +96,21 @@ func (a *StorageAdapter) Get(key string) (string, resp.AllReadCloser, error) {
 	}
 }
 
-func (a *StorageAdapter) Set(key string, chunk string, body []byte) {
+func (a *StorageAdapter) Set(key string, chunk string, val []byte) error {
+	return a.SetStream(key, chunk, resp.NewInlineReader(val))
+}
+
+func (a *StorageAdapter) SetStream(key string, chunk string, valReader resp.AllReadCloser) error {
 	cmd := cmds.Get().(*storageAdapterCommand)
 	defer cmds.Put(cmd)
 
 	cmd.key = key
 	cmd.chunk = chunk
-	cmd.body = body
+	cmd.bodyStream = valReader
 	cmd.handler = a.setHandler
 	a.serializer<- cmd
 
-	<-cmd.err
+	return <-cmd.err
 }
 
 func (a *StorageAdapter) Migrate(key string) (string, error) {
@@ -124,13 +139,13 @@ func (a *StorageAdapter) Keys() <-chan string {
 
 func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 	var err error
-	cmd.chunk, cmd.bodyStream, err = a.store.Get(cmd.key)
+	cmd.chunk, cmd.bodyStream, err = a.store.GetStream(cmd.key)
 	if err == nil {
 		cmd.err<- nil
 		return
 	}
 
-	reader, err := a.migrator.Send("get", "migrator", "proxy", "", cmd.key)
+	reader, err := a.migrator.Send("get", nil, "migrator", "proxy", "", cmd.key)
 	if err != nil {
 		cmd.err<- err
 		return
@@ -165,20 +180,49 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 }
 
 func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
-	// TODO: implement forward for backup
-	a.store.Set(cmd.key, cmd.chunk, cmd.body)
+	// Intercept stream
+	interceptor := NewInterceptReader(cmd.bodyStream)
+	cmd.bodyStream = interceptor
+
+	reader, err := a.migrator.Send("set", cmd.bodyStream, "migrator", "proxy", cmd.chunk, cmd.key)
+	if err != nil {
+		cmd.err<- err
+		return
+	}
+
+	// Wait and read response
+	err = a.readGetResponse(reader, cmd)
+	if err != nil {
+		cmd.err<- err
+		return
+	}
+
+	// Hold until done streaming
+	interceptor.AllReadCloser.(resp.Holdable).Hold()
+	interceptor.Close()
+
+	// Hold released, check if any error exists
+	if err := interceptor.LastError(); err != nil {
+		log.Warn("Unexpected error on forward setting key %s: %v", cmd.key, err)
+		cmd.err<- err
+		return
+	}
+
+	log.Debug("Forwarding key %s(chunk %s): success", cmd.key, cmd.chunk)
+	a.store.Set(cmd.key, cmd.chunk, interceptor.Intercepted())
+	// a.store.Set(cmd.key, cmd.chunk, cmd.body)
 	cmd.err<- nil
 }
 
 func (a *StorageAdapter) migrateHandler(cmd *storageAdapterCommand) {
 	var err error
-	cmd.chunk, cmd.bodyStream, err = a.store.Get(cmd.key)
+	cmd.chunk, cmd.bodyStream, err = a.store.GetStream(cmd.key)
 	if err == nil {
 		cmd.err<- ErrSkip
 		return
 	}
 
-	reader, err := a.migrator.Send("get", "migrator", "migrate", "", cmd.key)
+	reader, err := a.migrator.Send("get", nil, "migrator", "migrate", "", cmd.key)
 	if err != nil {
 		cmd.err<- err
 		return
@@ -219,7 +263,8 @@ func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storag
 	}
 
 	// cmd
-	_, err = reader.ReadBulkString()
+	var cmdName string
+	cmdName, err = reader.ReadBulkString()
 	if err != nil {
 		return
 	}
@@ -237,6 +282,9 @@ func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storag
 	if err != nil {
 		return
 	}
-	cmd.bodyStream, err = reader.StreamBulk()
+
+	if strings.ToLower(cmdName) == "get" {
+		cmd.bodyStream, err = reader.StreamBulk()
+	}
 	return
 }

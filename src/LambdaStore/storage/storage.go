@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"fmt"
+	"errors"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/redeo/resp"
 	"sort"
@@ -16,19 +18,38 @@ func New() *Storage {
 	}
 }
 
-func (s *Storage) Get(key string) (string, resp.AllReadCloser, error) {
+func (s *Storage) Get(key string) (string, []byte, error) {
 	chunk, ok := s.repo[key]
 	if !ok {
 		return "", nil, types.ErrNotFound
 	}
 
-	return chunk.Id, resp.NewInlineReader(chunk.Access()), nil
+	return chunk.Id, chunk.Access(), nil
 }
 
-func (s *Storage) Set(key string, chunkId string, body []byte) {
-	chunk := types.NewChunk(chunkId, body)
+func (s *Storage) GetStream(key string) (string, resp.AllReadCloser, error) {
+	chunkId, val, err := s.Get(key)
+	if err != nil {
+		return chunkId, nil, err
+	}
+
+	return chunkId, resp.NewInlineReader(val), nil
+}
+
+func (s *Storage) Set(key string, chunkId string, val []byte) error {
+	chunk := types.NewChunk(chunkId, val)
 	chunk.Key = key
 	s.repo[key] = chunk
+	return nil
+}
+
+func (s *Storage) SetStream(key string, chunkId string, valReader resp.AllReadCloser) error {
+	val, err := valReader.ReadAll()
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error on read stream: %v", err))
+	}
+
+	return s.Set(key, chunkId, val)
 }
 
 func (s *Storage) Len() int {

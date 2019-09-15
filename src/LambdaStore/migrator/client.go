@@ -95,14 +95,26 @@ func (cli *Client) TriggerDestination(dest string, args interface{}) (err error)
 	return
 }
 
-func (cli *Client) Send(cmd string, args ...string) (resp.ResponseReader, error) {
+func (cli *Client) Send(cmd string, stream resp.AllReadCloser, args ...string) (resp.ResponseReader, error) {
 	if cli.w == nil && cli.r == nil {
 		cli.w = resp.NewRequestWriter(cli.cn)
 		cli.r = resp.NewResponseReader(cli.cn)
 	}
 
-	// init backup cmd
-	cli.w.WriteCmdString(cmd, args...)
+	if stream == nil {
+		cli.w.WriteMultiBulkSize(len(args) + 1)
+	} else {
+		cli.w.WriteMultiBulkSize(len(args) + 2)
+	}
+	cli.w.WriteBulkString(cmd)
+	for _, arg := range args {
+		cli.w.WriteBulkString(arg)
+	}
+	if stream != nil {
+		if err := cli.w.CopyBulk(stream, stream.Len()); err != nil {
+			return nil, err
+		}
+	}
 	if err := cli.w.Flush(); err != nil {
 		return nil, err
 	}
@@ -171,6 +183,16 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 }
 
 func (cli *Client) SetError(err error) {
+	select {
+	case err := <-cli.ready:
+		if err == nil {
+			// Client is ready and closed
+			return
+		}
+		// Or overwrite with new err
+	default:
+	}
+
 	cli.ready <- err
 }
 
