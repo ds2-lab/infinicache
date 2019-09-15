@@ -165,6 +165,7 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 }
 
 func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
+	// TODO: implement forward for backup
 	a.store.Set(cmd.key, cmd.chunk, cmd.body)
 	cmd.err<- nil
 }

@@ -16,3 +16,7 @@ start-server:
 
 stop-server:
 	kill -2 $(shell cat /tmp/lambdaproxy.pid)
+
+benchmark:
+	go run $(GOPATH)/src/github.com/wangaoone/redbench/bench.go -n 10 -c 1 -keymin 1 -keymax 10 -sz 1048576 -d 10 -p 2 -op 0
+	go run $(GOPATH)/src/github.com/wangaoone/redbench/bench.go -n 10 -c 1 -keymin 1 -keymax 10 -sz 1048576 -d 10 -p 2 -op 1 -i 2000
