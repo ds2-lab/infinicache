@@ -10,5 +10,5 @@ if [ "$1" == "" ] ; then
 fi
 
 mkdir -p $DOWNLOAD
-ssh -i ~/.ssh/tianium -t ubuntu@server.gmu.tianium.com "cd $DATA && tar -czf $1.tar.gz $1 $1.log"
+ssh -i ~/.ssh/tianium -t ubuntu@server.gmu.tianium.com "cd $DATA && tar -czf $1.tar.gz $1 $1.log logs/$1"
 scp -i ~/.ssh/tianium ubuntu@server.gmu.tianium.com:$DATA/$1.tar.gz $DOWNLOAD
