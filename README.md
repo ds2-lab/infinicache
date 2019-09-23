@@ -20,6 +20,12 @@ go get -u github.com/seiflotfy/cuckoofilter
 [ecRedis](https://github.com/wangaoone/ecRedis)  
 [redeo](https://github.com/wangaoone/redeo)  
 [redbench](https://github.com/tddg/redbench)
+
 ### Proxy Port
 Client facing port： 6379  
 Lambda facing port: 6380
+
+### Todos
+
+* minimize incremental backup cost, aiming for warmup cost.
+* on backup promote to serve, backup itself immiediately.
