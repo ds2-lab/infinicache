@@ -30,3 +30,4 @@ Lambda facing port: 6380
 * Minimize incremental backup cost, the minimize cost is equal to a warmup cost.
 * On backup promote to serve, backup itself immiediately.
 * Because of the warmup, we may discover lambda failure earlier, and recover data from inexpensive storage without compromising request latency if detected.
+* Add clock LRU.
