@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -22,14 +21,14 @@ type lambdaInstance struct {
 	//firstChange  string
 	//secondChange string
 	timeStamp []string
-	change    bool
+	//change    bool
 }
 
 var (
 	counter = 0
 	name    = flag.String("name", "reclaim", "lambda function name")
 	num     = flag.Int("count", 1, "lambda Count")
-	s       = flag.Int64("s", 30, "periodic warmup minute")
+	m       = flag.Int64("m", 1, "periodic warmup minute")
 	h       = flag.Int64("h", 2, "total time for exp")
 	pre     = flag.String("log", "log", "prefix for output log file")
 	LogData = nanolog.AddLogger("%s")
@@ -42,7 +41,7 @@ func main() {
 	var sum int32
 	lambdaGroup := make([]*lambdaInstance, *num)
 
-	nanoLogout, err := os.Create(fmt.Sprintf("%s_%d_%d.clog", *pre, *s, *h))
+	nanoLogout, err := os.Create(fmt.Sprintf("%s_%d_%d.clog", *pre, *m, *h))
 
 	if err != nil {
 		panic(err)
@@ -69,7 +68,7 @@ func main() {
 	log.Println("==================")
 
 	// get timer
-	duration1 := time.Duration(*s) * time.Second
+	duration1 := time.Duration(*m) * time.Minute
 	t := time.NewTimer(duration1)
 	duration2 := time.Duration(*h) * time.Minute
 	t2 := time.NewTimer(duration2)
@@ -86,7 +85,7 @@ func main() {
 			}
 			wg.Wait()
 			log.Println("=======================")
-			log.Println(counter, "interval finished", atomic.LoadInt32(&sum), "changed timeStamp")
+			log.Println(counter, "interval finished")
 			log.Println("=======================")
 			counter = counter + 1
 			t.Reset(duration1)
@@ -115,7 +114,7 @@ func newLambdaInstance(name string) *lambdaInstance {
 	return &lambdaInstance{
 		name:      name,
 		timeStamp: make([]string, 1, 100),
-		change:    false,
+		//change:    false,
 	}
 }
 
@@ -132,16 +131,16 @@ func lambdaTrigger(l *lambdaInstance, wg *sync.WaitGroup, s *int32) {
 
 	res := string(output.Payload)[1 : len(string(output.Payload))-1]
 
-	if l.timeStamp[0] == "" {
-		l.timeStamp[0] = res
-	} else if res != l.timeStamp[len(l.timeStamp)-1] {
-		l.change = true
-		atomic.AddInt32(s, 1)
-		l.timeStamp = append(l.timeStamp, res)
-	}
+	//if l.timeStamp[0] == "" {
+	//	l.timeStamp[0] = res
+	//} else if res != l.timeStamp[len(l.timeStamp)-1] {
+	//	l.change = true
+	//	atomic.AddInt32(s, 1)
+	//	l.timeStamp = append(l.timeStamp, res)
+	//}
 
 	//nanolog.Log(LogData, res, *output.StatusCode)
-	log.Println(l.name, "returned, status code is", *output.StatusCode, "timeStamp changed", l.change)
-	l.change = false
+	log.Println(res)
+	//l.change = false
 	wg.Done()
 }

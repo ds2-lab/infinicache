@@ -42,14 +42,15 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) (string, erro
 	//}
 	switch input.Cmd {
 	case "backup":
-		replicaRes := fmt.Sprintf("%d,%s,%d", srcCount, lambdacontext.FunctionName, t)
+		srcCount = 0
+		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
 		//srcCount = srcCount + 1
 		return replicaRes, nil
 	default:
-		srcRes := fmt.Sprintf("%d,%s,%d", srcCount, lambdacontext.FunctionName, t)
+		srcRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
 		if srcCount%5 == 0 && srcCount != 0 {
 			output := trigger(lambdacontext.FunctionName)
-			res := fmt.Sprintf("%s,%s", srcRes, output)
+			res := fmt.Sprintf("%s\n%s", srcRes, output)
 			srcCount = srcCount + 1
 			return res, nil
 		}
