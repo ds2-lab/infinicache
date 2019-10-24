@@ -32,7 +32,7 @@ var (
 	mem     = flag.Int64("mem", 256, "the memory of lambda")
 	subnet  = []*string{
 		aws.String("subnet-eeb536c0"),
-		aws.String("subnet-f94739f6"),
+		//aws.String("subnet-f94739f6"),
 		aws.String("subnet-f432faca"),
 	}
 	securityGroup = []*string{

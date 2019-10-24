@@ -29,33 +29,47 @@ var (
 //	}
 //	hostName = strings.Split(string(host), " #")[0]
 //}
+//func HandleRequest(ctx context.Context, input protocol.InputEvent) (string, error) {
+//	//// get first lambda info
+//	//res := fmt.Sprintf("%s,%s,%d", lambdacontext.FunctionName, hostName, t)
+//	//if input.Cmd == "trigger" {
+//	//	fmt.Println("going to trigger mySelf")
+//	//	output := trigger(lambdacontext.FunctionName)
+//	//	// get replica lambda info
+//	//	res = fmt.Sprintf("%s,%s", res, output)
+//	//	fmt.Println("me and my replica is", res)
+//	//	return res, nil
+//	//}
+//	switch input.Cmd {
+//	case "backup":
+//		srcCount = 0
+//		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+//		//srcCount = srcCount + 1
+//		return replicaRes, nil
+//	default:
+//		srcRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+//		if srcCount%5 == 0 && srcCount != 0 {
+//			output := trigger(lambdacontext.FunctionName)
+//			res := fmt.Sprintf("%s\n%s", srcRes, output)
+//			srcCount = srcCount + 1
+//			return res, nil
+//		}
+//		srcCount = srcCount + 1
+//		return srcRes, nil
+//	}
+//}
 func HandleRequest(ctx context.Context, input protocol.InputEvent) (string, error) {
-	//// get first lambda info
-	//res := fmt.Sprintf("%s,%s,%d", lambdacontext.FunctionName, hostName, t)
-	//if input.Cmd == "trigger" {
-	//	fmt.Println("going to trigger mySelf")
-	//	output := trigger(lambdacontext.FunctionName)
-	//	// get replica lambda info
-	//	res = fmt.Sprintf("%s,%s", res, output)
-	//	fmt.Println("me and my replica is", res)
-	//	return res, nil
-	//}
 	switch input.Cmd {
 	case "backup":
-		srcCount = 0
+		fmt.Println("this is destination lambda")
 		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
-		//srcCount = srcCount + 1
 		return replicaRes, nil
 	default:
+		fmt.Println("this is source lambda")
 		srcRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
-		if srcCount%5 == 0 && srcCount != 0 {
-			output := trigger(lambdacontext.FunctionName)
-			res := fmt.Sprintf("%s\n%s", srcRes, output)
-			srcCount = srcCount + 1
-			return res, nil
-		}
-		srcCount = srcCount + 1
-		return srcRes, nil
+		output := trigger(lambdacontext.FunctionName)
+		result := fmt.Sprintf("%s,%s", srcRes, output)
+		return result, nil
 	}
 }
 

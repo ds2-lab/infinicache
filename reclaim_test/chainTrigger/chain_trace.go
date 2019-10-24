@@ -3,25 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/ScottMansfield/nanolog"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type lambdaInstance struct {
-	name string
-	//touch        string
-	//firstChange  string
-	//secondChange string
-	timeStamp []string
-	//change    bool
+	init    bool
+	name    string
+	changed bool
+	srcTime string
+	dstTime string
 }
 
 var (
@@ -30,8 +28,6 @@ var (
 	num     = flag.Int("count", 1, "lambda Count")
 	m       = flag.Int64("m", 1, "periodic warmup minute")
 	h       = flag.Int64("h", 2, "total time for exp")
-	pre     = flag.String("log", "log", "prefix for output log file")
-	LogData = nanolog.AddLogger("%s")
 	errChan = make(chan error, 1)
 )
 
@@ -41,22 +37,12 @@ func main() {
 	var sum int32
 	lambdaGroup := make([]*lambdaInstance, *num)
 
-	nanoLogout, err := os.Create(fmt.Sprintf("%s_%d_%d.clog", *pre, *m, *h))
-
-	if err != nil {
-		panic(err)
-	}
-	err = nanolog.SetWriter(nanoLogout)
-	if err != nil {
-		panic(err)
-	}
-
 	for i := range lambdaGroup {
 		name := fmt.Sprintf("%s%s", *name, strconv.Itoa(i))
 		lambdaGroup[i] = newLambdaInstance(name)
 		log.Println("i is", name, i)
 	}
-	log.Println("initial lambda finish")
+	log.Println("create lambda instance finish")
 
 	for i := range lambdaGroup {
 		wg.Add(1)
@@ -74,7 +60,6 @@ func main() {
 	t2 := time.NewTimer(duration2)
 
 	// start testing
-
 	for {
 		select {
 		case <-t.C:
@@ -85,20 +70,20 @@ func main() {
 			}
 			wg.Wait()
 			log.Println("=======================")
-			log.Println(counter, "interval finished")
+			log.Println(counter, "interval finished", atomic.LoadInt32(&sum), "changed")
 			log.Println("=======================")
 			counter = counter + 1
 			t.Reset(duration1)
 		case <-t2.C:
-			for i := range lambdaGroup {
-				res := strings.Join(lambdaGroup[i].timeStamp, ",")
-				nanolog.Log(LogData, res)
-			}
+			//for i := range lambdaGroup {
+			//	res := strings.Join(lambdaGroup[i].timeStamp, ",")
+			//	nanolog.Log(LogData, res)
+			//}
 			log.Println("warm up finished")
-			err := nanolog.Flush()
-			if err != nil {
-				fmt.Println("flush err is", err)
-			}
+			//err := nanolog.Flush()
+			//if err != nil {
+			//	fmt.Println("flush err is", err)
+			//}
 			return
 		case <-errChan:
 			//nanolog.Flush()
@@ -112,9 +97,9 @@ func main() {
 
 func newLambdaInstance(name string) *lambdaInstance {
 	return &lambdaInstance{
-		name:      name,
-		timeStamp: make([]string, 1, 100),
-		//change:    false,
+		init:    true,
+		name:    name,
+		changed: false,
 	}
 }
 
@@ -128,19 +113,27 @@ func lambdaTrigger(l *lambdaInstance, wg *sync.WaitGroup, s *int32) {
 		fmt.Println("Error calling LambdaFunction", err)
 		errChan <- err
 	}
-
 	res := string(output.Payload)[1 : len(string(output.Payload))-1]
 
-	//if l.timeStamp[0] == "" {
-	//	l.timeStamp[0] = res
-	//} else if res != l.timeStamp[len(l.timeStamp)-1] {
-	//	l.change = true
-	//	atomic.AddInt32(s, 1)
-	//	l.timeStamp = append(l.timeStamp, res)
-	//}
+	// get returned timeStamp
+	ts := strings.Split(res, ",")
 
-	//nanolog.Log(LogData, res, *output.StatusCode)
-	log.Println(res)
-	//l.change = false
+	if l.init == true {
+		l.srcTime = ts[1]
+		l.dstTime = ts[3]
+		l.init = false
+	} else {
+		if l.srcTime != ts[1] && l.dstTime != ts[3] {
+			if l.srcTime != ts[3] && l.dstTime != ts[1] {
+				atomic.AddInt32(s, 1)
+				l.changed = true
+			}
+		}
+		// update timeStamp of src and dst
+		l.srcTime = ts[1]
+		l.dstTime = ts[3]
+	}
+	log.Println(res, l.changed)
+	l.changed = false
 	wg.Done()
 }
