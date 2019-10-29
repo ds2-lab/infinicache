@@ -3,21 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"time"
 )
 
-func gen(min int, max int) time.Duration {
-	rand.Seed(time.Now().UnixNano())
-	n := min + rand.Intn(max-1+min)
-	duration := time.Duration(n) * time.Second
-	return duration
-}
 func main() {
+	interval := []int{1, 2, 3, 4, 5}
+
 	log.Println("start")
 
-	duration1 := gen(1, 5)
+	duration1 := gen(interval)
 	t := time.NewTimer(duration1)
+
 	duration2 := time.Duration(30) * time.Second
 	t2 := time.NewTimer(duration2)
 
@@ -25,7 +21,8 @@ func main() {
 		select {
 		case <-t.C:
 			log.Println("timer1 expired")
-			duration1 := gen(1, 5)
+			duration1 := gen(interval)
+			log.Println("interval is (min)", duration1)
 			t.Reset(duration1)
 		case <-t2.C:
 			log.Println("warm up finished")

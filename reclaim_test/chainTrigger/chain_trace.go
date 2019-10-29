@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,9 +28,10 @@ var (
 	counter = 0
 	name    = flag.String("name", "reclaim", "lambda function name")
 	num     = flag.Int("count", 1, "lambda Count")
-	m       = flag.Int64("m", 1, "periodic warmup minute")
-	h       = flag.Int64("h", 2, "total time for exp")
-	errChan = make(chan error, 1)
+	//m       = flag.Int64("m", 1, "periodic warmup minute")
+	h        = flag.Int64("h", 2, "total time for exp")
+	errChan  = make(chan error, 1)
+	interval = []int{30, 60, 90, 120, 150, 180, 210, 240, 270, 300}
 )
 
 func main() {
@@ -55,7 +57,7 @@ func main() {
 	log.Println("==================")
 
 	// get timer
-	duration1 := time.Duration(*m) * time.Minute
+	duration1 := gen(interval)
 	t := time.NewTimer(duration1)
 	duration2 := time.Duration(*h) * time.Minute
 	t2 := time.NewTimer(duration2)
@@ -72,8 +74,10 @@ func main() {
 			wg.Wait()
 			log.Println("=======================")
 			log.Println(counter, "interval finished", atomic.LoadInt32(&sum), "changed")
-			log.Println("=======================")
 			counter = counter + 1
+			duration1 := gen(interval)
+			log.Println("next interval is (min)", duration1)
+			log.Println("=======================")
 			t.Reset(duration1)
 		case <-t2.C:
 			//for i := range lambdaGroup {
@@ -115,7 +119,7 @@ func lambdaTrigger(l *lambdaInstance, wg *sync.WaitGroup, s *int32) {
 		errChan <- err
 	}
 	res := string(output.Payload)[1 : len(string(output.Payload))-1]
-
+	log.Println(res)
 	// get returned timeStamp
 	ts := strings.Split(res, ",")
 
@@ -144,7 +148,13 @@ func lambdaTrigger(l *lambdaInstance, wg *sync.WaitGroup, s *int32) {
 		l.dst1Time = ts[3]
 		l.dst2Time = ts[5]
 	}
-	log.Println(res, l.changed)
+	log.Println(l.name, l.changed)
 	l.changed = false
 	wg.Done()
+}
+
+func gen(interval []int) time.Duration {
+	rand.Seed(time.Now().UnixNano())
+	duration := time.Duration(interval[rand.Intn(len(interval))]) * time.Second
+	return duration
 }
