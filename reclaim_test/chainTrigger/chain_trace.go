@@ -15,11 +15,12 @@ import (
 )
 
 type lambdaInstance struct {
-	init    bool
-	name    string
-	changed bool
-	srcTime string
-	dstTime string
+	init     bool
+	name     string
+	changed  bool
+	srcTime  string
+	dst1Time string
+	dst2Time string
 }
 
 var (
@@ -120,18 +121,28 @@ func lambdaTrigger(l *lambdaInstance, wg *sync.WaitGroup, s *int32) {
 
 	if l.init == true {
 		l.srcTime = ts[1]
-		l.dstTime = ts[3]
+		l.dst1Time = ts[3]
+		l.dst2Time = ts[5]
 		l.init = false
 	} else {
-		if l.srcTime != ts[1] && l.dstTime != ts[3] {
-			if l.srcTime != ts[3] && l.dstTime != ts[1] {
-				atomic.AddInt32(s, 1)
-				l.changed = true
-			}
+		//if l.srcTime != ts[1] && l.dst1Time != ts[3] && l.dst2Time != ts[5] {
+		//	if l.srcTime != ts[3] && l.dst1Time != ts[1] && l.dst2Time != ts[5] {
+		//		if l.srcTime != ts[3] && l.dst1Time != ts[1] && l.dst2Time != ts[5] {
+		//			atomic.AddInt32(s, 1)
+		//			l.changed = true
+		//		}
+		//	}
+		if l.srcTime == ts[1] || l.srcTime == ts[3] || l.srcTime == ts[5] ||
+			l.dst1Time == ts[1] || l.dst1Time == ts[3] || l.dst1Time == ts[5] ||
+			l.dst2Time == ts[1] || l.dst2Time == ts[3] || l.dst2Time == ts[5] {
+		} else {
+			atomic.AddInt32(s, 1)
+			l.changed = true
 		}
 		// update timeStamp of src and dst
 		l.srcTime = ts[1]
-		l.dstTime = ts[3]
+		l.dst1Time = ts[3]
+		l.dst2Time = ts[5]
 	}
 	log.Println(res, l.changed)
 	l.changed = false

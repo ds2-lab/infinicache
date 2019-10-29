@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	lambdaService "github.com/aws/aws-sdk-go/service/lambda"
 	protocol "github.com/wangaoone/LambdaObjectstore/reclaim_test/types"
+	"sync"
 	"time"
 )
 
@@ -60,8 +61,12 @@ var (
 //}
 func HandleRequest(ctx context.Context, input protocol.InputEvent) (string, error) {
 	switch input.Cmd {
-	case "backup":
-		fmt.Println("this is destination lambda")
+	case "backup1":
+		fmt.Println("this is destination lambda with backup1")
+		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+		return replicaRes, nil
+	case "backup2":
+		fmt.Println("this is destination lambda with backup2")
 		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
 		return replicaRes, nil
 	default:
@@ -77,24 +82,47 @@ func main() {
 	lambda.Start(HandleRequest)
 }
 
+func input(name string, cmd string) *lambdaService.InvokeInput {
+	event1 := &protocol.InputEvent{
+		Cmd: cmd,
+	}
+	payload1, _ := json.Marshal(event1)
+	input := &lambdaService.InvokeInput{
+		FunctionName: aws.String(name),
+		Payload:      payload1,
+	}
+	return input
+}
+
 func trigger(name string) string {
+	var res1 string
+	var res2 string
+	var wg sync.WaitGroup
+
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
-	event := &protocol.InputEvent{
-		Cmd: "backup",
-	}
-	payload, _ := json.Marshal(event)
-	input := &lambdaService.InvokeInput{
-		FunctionName: aws.String(name),
-		Payload:      payload,
-	}
-	output, err := client.Invoke(input)
-	if err != nil {
-		fmt.Println("Error calling LambdaFunction", err)
-	}
-	res := string(output.Payload)[1 : len(string(output.Payload))-1]
+	i1 := input(name, "backup1")
+	i2 := input(name, "backup2")
+	wg.Add(2)
+	go func() {
+		output1, err := client.Invoke(i1)
+		if err != nil {
+			fmt.Println("Error calling LambdaFunction", err)
+		}
+		res1 = string(output1.Payload)[1 : len(string(output1.Payload))-1]
+		wg.Done()
+	}()
 
-	return res
+	go func() {
+		output2, err := client.Invoke(i2)
+		if err != nil {
+			fmt.Println("Error calling LambdaFunction", err)
+		}
+		res2 = string(output2.Payload)[1 : len(string(output2.Payload))-1]
+		wg.Done()
+	}()
+	wg.Wait()
+	return fmt.Sprintf("%s,%s", res1, res2)
 }
