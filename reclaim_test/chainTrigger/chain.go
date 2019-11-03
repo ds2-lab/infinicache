@@ -19,6 +19,7 @@ var (
 	t = time.Now().UnixNano()
 	//hostName     string
 	srcCount = 0
+	client   = newClient()
 	//replicaCount = 0
 )
 
@@ -61,16 +62,20 @@ var (
 //}
 func HandleRequest(ctx context.Context, input protocol.InputEvent) (string, error) {
 	switch input.Cmd {
+	case "src":
+		res := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+		output := trigger_rep(lambdacontext.FunctionName)
+		result := fmt.Sprintf("%s,%s", res, output)
+		return result, nil
 	case "backup1":
-		fmt.Println("this is destination lambda with backup1")
 		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+		//time.Sleep(500 * time.Millisecond)
 		return replicaRes, nil
 	case "backup2":
-		fmt.Println("this is destination lambda with backup2")
 		replicaRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
+		//time.Sleep(500 * time.Millisecond)
 		return replicaRes, nil
 	default:
-		fmt.Println("this is source lambda")
 		srcRes := fmt.Sprintf("%s,%d", lambdacontext.FunctionName, t)
 		output := trigger(lambdacontext.FunctionName)
 		result := fmt.Sprintf("%s,%s", srcRes, output)
@@ -99,10 +104,10 @@ func trigger(name string) string {
 	var res2 string
 	var wg sync.WaitGroup
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	//sess := session.Must(session.NewSessionWithOptions(session.Options{
+	//	SharedConfigState: session.SharedConfigEnable,
+	//}))
+	//client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
 	i1 := input(name, "backup1")
 	i2 := input(name, "backup2")
 	wg.Add(2)
@@ -125,4 +130,28 @@ func trigger(name string) string {
 	}()
 	wg.Wait()
 	return fmt.Sprintf("%s,%s", res1, res2)
+}
+
+func trigger_rep(name string) string {
+	//sess := session.Must(session.NewSessionWithOptions(session.Options{
+	//	SharedConfigState: session.SharedConfigEnable,
+	//}))
+	//client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	i1 := input(name, "backup1")
+	output1, err := client.Invoke(i1)
+	if err != nil {
+		fmt.Println("Error calling LambdaFunction", err)
+	}
+	res1 := string(output1.Payload)[1 : len(string(output1.Payload))-1]
+
+	return res1
+}
+
+func newClient() *lambdaService.Lambda {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	client := lambdaService.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	return client
+
 }
