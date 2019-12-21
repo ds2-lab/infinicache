@@ -34,6 +34,7 @@ type StorageAdapter struct {
 	migrator     *Client
 	store        types.Storage
 	serializer   chan *storageAdapterCommand
+	lastError    error
 	done         chan struct{}
 }
 
@@ -249,7 +250,8 @@ func (a *StorageAdapter) migrateHandler(cmd *storageAdapterCommand) {
 func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storageAdapterCommand) (err error) {
 	respType, err := reader.PeekType()
 	if err != nil {
-		return
+		a.lastError = err
+		return ErrClosed
 	}
 
 	switch respType {
@@ -259,32 +261,32 @@ func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storag
 		if err == nil {
 			err = errors.New(fmt.Sprintf("Error in migration response: %s", strErr))
 		}
-		return
+		return err
 	}
 
 	// cmd
 	var cmdName string
 	cmdName, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	// connId
 	_, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	// reqId
 	_, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	cmd.chunk, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 
 	if strings.ToLower(cmdName) == "get" {
 		cmd.bodyStream, err = reader.StreamBulk()
 	}
-	return
+	return nil
 }
