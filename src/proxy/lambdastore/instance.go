@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	INSTANCE_DEAD = 0
-	INSTANCE_ALIVE = 1
+	INSTANCE_SLEEP = 0
+	INSTANCE_AWAKE = 1
 	INSTANCE_MAYBE = 2
 	MAX_RETRY = 3
 )
@@ -48,8 +48,8 @@ type Instance struct {
 
 	cn        *Connection
 	chanReq   chan interface{}
-	alive     int
-	aliveLock sync.Mutex
+	awake     int
+	awakeLock sync.Mutex
 	chanValidated chan struct{}
 	lastValidated *Connection
 	mu        sync.Mutex
@@ -69,7 +69,7 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 
 	return &Instance{
 		Deployment: dp,
-		alive:      INSTANCE_DEAD,
+		awake:      INSTANCE_SLEEP,
 		chanReq:    make(chan interface{}, 1),
 		chanValidated:  chanValidated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
@@ -106,14 +106,14 @@ func (ins *Instance) validate(warmUp bool) *Connection {
 
 		for {
 			ins.log.Debug("Validating...")
-			triggered := ins.alive == INSTANCE_DEAD && ins.tryTriggerLambda(warmUp)
+			triggered := ins.awake == INSTANCE_SLEEP && ins.tryTriggerLambda(warmUp)
 			if triggered {
 				return ins.validated()
 			} else if warmUp {
 				return ins.flagValidated(ins.cn)
 			}
 
-			// Ping is issued to ensure alive
+			// Ping is issued to ensure awake
 			ins.cn.Ping()
 
 			// Start timeout, ping may get stucked anytime.
@@ -130,7 +130,7 @@ func (ins *Instance) validate(warmUp bool) *Connection {
 			case <-timeout.C:
 				// Set status to dead and revalidate.
 				timeouts.Put(timeout)
-				ins.alive = INSTANCE_DEAD
+				ins.awake = INSTANCE_SLEEP
 				ins.log.Warn("Timeout on validating, assuming instance dead and retry...")
 			case <-ins.chanValidated:
 				timeouts.Put(timeout)
@@ -171,7 +171,7 @@ func (ins *Instance) HandleRequests() {
 				}
 				// Check lambda status first
 				validateStart := time.Now()
-				// Once active connection is confirmed, keep alive on serving.
+				// Once active connection is confirmed, keep awake on serving.
 				conn := ins.Validate()
 				validateDuration := time.Since(validateStart)
 
@@ -264,17 +264,17 @@ func (ins *Instance) IsClosed() bool {
 }
 
 func (ins *Instance) tryTriggerLambda(warmUp bool) bool {
-	ins.aliveLock.Lock()
-	defer ins.aliveLock.Unlock()
+	ins.awakeLock.Lock()
+	defer ins.awakeLock.Unlock()
 
-	if ins.alive == INSTANCE_ALIVE {
+	if ins.awake == INSTANCE_AWAKE {
 		return false
 	}
 
 	if warmUp {
-		ins.log.Info("[Lambda store is not alive, warming up...]")
+		ins.log.Info("[Lambda store is not awake, warming up...]")
 	} else {
-		ins.log.Info("[Lambda store is not alive, activating...]")
+		ins.log.Info("[Lambda store is not awake, activating...]")
 	}
 	go ins.triggerLambda(warmUp)
 
@@ -286,11 +286,11 @@ func (ins *Instance) triggerLambda(warmUp bool) {
 	for {
 		if !ins.IsValidating() {
 			// Don't overwrite the MAYBE status.
-			ins.aliveLock.Lock()
-			if ins.alive != INSTANCE_MAYBE {
-				ins.alive = INSTANCE_DEAD
+			ins.awakeLock.Lock()
+			if ins.awake != INSTANCE_MAYBE {
+				ins.awake = INSTANCE_SLEEP
 			}
-			ins.aliveLock.Unlock()
+			ins.awakeLock.Unlock()
 			return
 		}
 
@@ -348,15 +348,15 @@ func (ins *Instance) flagValidated(conn *Connection) *Connection {
 				// There are two possibilities for connectio switch:
 				// 1. Migration
 				// 2. Accidential concurrent triggering, usually after lambda returning and before it get reclaimed.
-				// In either case, the status is alive and it indicate the status of the old instance, it is not reliable.
-				ins.aliveLock.Lock()
-				defer ins.aliveLock.Unlock()
-				ins.alive = INSTANCE_MAYBE
+				// In either case, the status is awake and it indicate the status of the old instance, it is not reliable.
+				ins.awakeLock.Lock()
+				defer ins.awakeLock.Unlock()
+				ins.awake = INSTANCE_MAYBE
 			}
 		}
-		// No need to set alive for new connection, it has been set already.
-	} else {
-		ins.alive = INSTANCE_ALIVE
+		// No need to set awake for new connection, it has been set already.
+	} else if ins.awake != INSTANCE_MAYBE {   // For instance not invoked by proxy (INSTANCE_MAYBE), keep status.
+		ins.awake = INSTANCE_AWAKE
 	}
 
 	return ins.flagValidatedLocked(conn)
@@ -367,10 +367,10 @@ func (ins *Instance) bye(conn *Connection) {
 	defer ins.mu.Unlock()
 
 	if ins.cn == conn {
-		ins.aliveLock.Lock()
-		defer ins.aliveLock.Unlock()
+		ins.awakeLock.Lock()
+		defer ins.awakeLock.Unlock()
 
-		ins.alive = INSTANCE_DEAD
+		ins.awake = INSTANCE_SLEEP
 	}
 }
 

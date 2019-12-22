@@ -161,13 +161,13 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 
 	// Intercept stream
 	interceptor := NewInterceptReader(cmd.bodyStream)
+	interceptor.AllReadCloser.(resp.Holdable).Hold()	// Enable wait on closing.
 	cmd.bodyStream = interceptor
 
 	// return
 	cmd.err<- nil
 
-	// Hold until done streaming
-	interceptor.AllReadCloser.(resp.Holdable).Hold()
+	// Wait until done streaming.
 	interceptor.Close()
 
 	// Hold released, check if any error exists
@@ -183,6 +183,7 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
 	// Intercept stream
 	interceptor := NewInterceptReader(cmd.bodyStream)
+	interceptor.AllReadCloser.(resp.Holdable).Hold()	// Enable wait on closing.
 	cmd.bodyStream = interceptor
 
 	reader, err := a.migrator.Send("set", cmd.bodyStream, "migrator", "proxy", cmd.chunk, cmd.key)
@@ -198,8 +199,7 @@ func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
 		return
 	}
 
-	// Hold until done streaming
-	interceptor.AllReadCloser.(resp.Holdable).Hold()
+	// Streaming should done here, wait just in case.
 	interceptor.Close()
 
 	// Hold released, check if any error exists
