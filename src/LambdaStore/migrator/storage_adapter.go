@@ -34,6 +34,7 @@ type StorageAdapter struct {
 	migrator     *Client
 	store        types.Storage
 	serializer   chan *storageAdapterCommand
+	lastError    error
 	done         chan struct{}
 }
 
@@ -160,13 +161,13 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 
 	// Intercept stream
 	interceptor := NewInterceptReader(cmd.bodyStream)
+	interceptor.AllReadCloser.(resp.Holdable).Hold()	// Enable wait on closing.
 	cmd.bodyStream = interceptor
 
 	// return
 	cmd.err<- nil
 
-	// Hold until done streaming
-	interceptor.AllReadCloser.(resp.Holdable).Hold()
+	// Wait until done streaming.
 	interceptor.Close()
 
 	// Hold released, check if any error exists
@@ -182,6 +183,7 @@ func (a *StorageAdapter) getHandler(cmd *storageAdapterCommand) {
 func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
 	// Intercept stream
 	interceptor := NewInterceptReader(cmd.bodyStream)
+	interceptor.AllReadCloser.(resp.Holdable).Hold()	// Enable wait on closing.
 	cmd.bodyStream = interceptor
 
 	reader, err := a.migrator.Send("set", cmd.bodyStream, "migrator", "proxy", cmd.chunk, cmd.key)
@@ -197,8 +199,7 @@ func (a *StorageAdapter) setHandler(cmd *storageAdapterCommand) {
 		return
 	}
 
-	// Hold until done streaming
-	interceptor.AllReadCloser.(resp.Holdable).Hold()
+	// Streaming should done here, wait just in case.
 	interceptor.Close()
 
 	// Hold released, check if any error exists
@@ -249,7 +250,8 @@ func (a *StorageAdapter) migrateHandler(cmd *storageAdapterCommand) {
 func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storageAdapterCommand) (err error) {
 	respType, err := reader.PeekType()
 	if err != nil {
-		return
+		a.lastError = err
+		return ErrClosed
 	}
 
 	switch respType {
@@ -259,32 +261,32 @@ func (a *StorageAdapter) readGetResponse(reader resp.ResponseReader, cmd *storag
 		if err == nil {
 			err = errors.New(fmt.Sprintf("Error in migration response: %s", strErr))
 		}
-		return
+		return err
 	}
 
 	// cmd
 	var cmdName string
 	cmdName, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	// connId
 	_, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	// reqId
 	_, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 	cmd.chunk, err = reader.ReadBulkString()
 	if err != nil {
-		return
+		return err
 	}
 
 	if strings.ToLower(cmdName) == "get" {
 		cmd.bodyStream, err = reader.StreamBulk()
 	}
-	return
+	return nil
 }

@@ -25,6 +25,7 @@ var (
 	}
 	MigrationTimeout = 30 * time.Second
 	ErrClosedPrematurely = errors.New("Client closed before ready.")
+	ErrClosed = errors.New("Client closed.")
 )
 
 type Client struct {
@@ -69,6 +70,7 @@ func (cli *Client) Connect(addr string) (err error) {
 	}
 
 	// FIXME: Time out not working.
+	// Fix attemption 20191221(To be confirm): Read timeout not return in StorageAdapter::readGetResponse.
 	cli.cn.SetDeadline(time.Now().Add(MigrationTimeout))
 	return
 }
@@ -148,7 +150,7 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 	strLen, err := reader.ReadBulkString()
 	len := 0
 	if err != nil {
-		log.Error("Failed to read length of data from lambda: %v", err)
+		log.Error("Failed to read length of data from migrator: %v", err)
 		return
 	} else {
 		len, err = strconv.Atoi(strLen)
@@ -173,6 +175,9 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 		chunk, err := store.(*StorageAdapter).Migrate(key)
 		if err == ErrSkip {
 			log.Debug("Migrating key %s: %v", key, err)
+		} else if err == ErrClosed {
+			log.Warn("Migration connection closed unexpectedly: %v", store.(*StorageAdapter).lastError)
+			return
 		} else if err != nil {
 			log.Warn("Migrating key %s: %v", key, err)
 		} else {
