@@ -23,7 +23,25 @@ fi
 
 for (( i=$FROM; i<=$TO; i++ ))
 do
-    echo "exporting $LAMBDA$LOG_PREFIX$i"
-    aws logs create-export-task --log-group-name $LAMBDA$LOG_PREFIX$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$LOG_PREFIX$i
-    sleep 2s
+  # Wait for the end the last task
+  for j in {0..15}
+  do
+    RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+    if [ "$RUNNING" != "" ]; then
+      sleep 2s
+    else
+      break
+    fi
+  done
+
+  # Abandon
+  if [ "$RUNNING" != "" ]; then
+    echo "Detect running task and wait timeout, killing task \"$RUNNING\"..."
+    aws logs --profile CWLExportUser cancel-export-task --task-id \"$RUNNING\"
+    echo "Done"
+  fi
+
+  echo "exporting $LAMBDA$LOG_PREFIX$i"
+  aws logs create-export-task --log-group-name $LAMBDA$LOG_PREFIX$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$LOG_PREFIX$i
+  sleep 2s
 done

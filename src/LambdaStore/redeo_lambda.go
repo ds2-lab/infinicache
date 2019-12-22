@@ -90,7 +90,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	collector.Prefix = input.Prefix
 	log.Level = input.Log
 
-	log.Debug("New lambda invocation: %v", input.Cmd)
+	log.Info("New lambda invocation: %v", input.Cmd)
 
 	// migration triggered lambda
 	if input.Cmd == "migrate" {
