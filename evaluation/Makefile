@@ -1,6 +1,6 @@
 deploy:
 	aws configure
-	aws s3api put-bucket-policy --bucket tianium.default --policy file:///home/ubuntu/go/src/github.com/wangaoone/LambdaObjectstore/evaluation/cloudwatch/policy.json
+	aws s3api put-bucket-policy --bucket tianium.default --policy file://$(GOPATH)/src/github.com/wangaoone/LambdaObjectstore/evaluation/cloudwatch/policy.json
 
 microbench:
 	./slap.sh 1>./log 2>&1 &
