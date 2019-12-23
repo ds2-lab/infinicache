@@ -7,6 +7,11 @@ import (
 	"sync/atomic"
 )
 
+type Command interface {
+	Retriable() bool
+	Flush() error
+}
+
 type Request struct {
 	Id           Id
 	Cmd          string
@@ -17,6 +22,10 @@ type Request struct {
 
 	w *resp.RequestWriter
 	responded    uint32
+}
+
+func (req *Request) Retriable() bool {
+	return req.BodyStream == nil
 }
 
 func (req *Request) PrepareForSet(w *resp.RequestWriter) {
