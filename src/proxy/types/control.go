@@ -14,6 +14,10 @@ type Control struct {
 	w          *resp.RequestWriter
 }
 
+func (req *Control) Retriable() bool {
+	return true
+}
+
 func (ctrl *Control) PrepareForData(w *resp.RequestWriter) {
 	w.WriteCmdString(ctrl.Cmd)
 	ctrl.w = w

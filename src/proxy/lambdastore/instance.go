@@ -47,7 +47,7 @@ type Instance struct {
 	*Deployment
 
 	cn        *Connection
-	chanReq   chan interface{}
+	chanReq   chan types.Command
 	awake     int
 	awakeLock sync.Mutex
 	chanValidated chan struct{}
@@ -70,7 +70,7 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 	return &Instance{
 		Deployment: dp,
 		awake:      INSTANCE_SLEEP,
-		chanReq:    make(chan interface{}, 1),
+		chanReq:    make(chan types.Command, 1),
 		chanValidated:  chanValidated, // Initialize with a closed channel.
 		closed:     make(chan struct{}),
 		coolTimer:  time.NewTimer(WarmTimout),
@@ -82,7 +82,7 @@ func NewInstance(name string, id uint64, replica bool) *Instance {
 	return NewInstanceFromDeployment(NewDeployment(name, id, replica))
 }
 
-func (ins *Instance) C() chan interface{} {
+func (ins *Instance) C() chan types.Command {
 	return ins.chanReq
 }
 
@@ -165,7 +165,11 @@ func (ins *Instance) HandleRequests() {
 			return
 		case req := <-ins.chanReq: /*blocking on lambda facing channel*/
 			var err error
-			for i := 0; i < MAX_RETRY; i++ {
+			var retries = MAX_RETRY
+			if !req.Retriable() {
+				retries = 1
+			}
+			for i := 0; i < retries; i++ {
 				if i > 0 {
 					ins.log.Debug("Attempt %d", i)
 				}
@@ -185,7 +189,11 @@ func (ins *Instance) HandleRequests() {
 				}
 			}
 			if err != nil {
-				ins.log.Error("Max retry reaches, give up")
+				if req.Retriable() {
+					ins.log.Error("Max retry reaches, give up")
+				} else {
+					ins.log.Error("Can not retry a streaming request, give up")
+				}
 				if request, ok := req.(*types.Request); ok {
 					request.SetResponse(err)
 				}
@@ -393,7 +401,7 @@ func (ins *Instance) validated() *Connection {
 	return ins.lastValidated
 }
 
-func (ins *Instance) handleRequest(conn *Connection, req interface{}, validateDuration time.Duration) error {
+func (ins *Instance) handleRequest(conn *Connection, req types.Command, validateDuration time.Duration) error {
 	switch req.(type) {
 	case *types.Request:
 		req := req.(*types.Request)

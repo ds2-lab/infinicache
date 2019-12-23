@@ -182,9 +182,6 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 
 func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
 	switch rsp := r.(type) {
-	case error:
-		w.AppendError(rsp.Error())
-		w.Flush()
 	case *types.Response:
 		t := time.Now()
 
@@ -206,6 +203,10 @@ func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
 		if err := collector.Collect(collector.LogServer2Client, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, int64(tgg.Sub(t)), int64(d1), int64(d2), tgg.UnixNano()); err != nil {
 			p.log.Warn("LogServer2Client err %v", err)
 		}
+	// Use more general way to deal error
+	default:
+		w.AppendErrorf("%v", rsp)
+		w.Flush()
 	}
 }
 
