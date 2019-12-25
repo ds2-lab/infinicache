@@ -148,6 +148,8 @@ func (conn *Connection) ServeLambda() {
 				conn.getHandler(start)
 			case "set":
 				conn.setHandler(start)
+			case "del":
+				conn.delHandler()
 			case "data":
 				conn.receiveData()
 			case "initMigrate":
@@ -332,6 +334,20 @@ func (conn *Connection) setHandler(start time.Time) {
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
+}
+
+
+func (conn *Connection) delHandler() {
+	conn.log.Debug("DEL from lambda.")
+
+	rsp := &types.Response{ Cmd: "del", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10)) }
+	connId, _ := conn.r.ReadBulkString()
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
+	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
+
+	conn.log.Debug("DEL %v, confirmed.", rsp.Id)
+	conn.SetResponse(rsp)
 }
 
 func (conn *Connection) receiveData() {

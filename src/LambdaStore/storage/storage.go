@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/redeo/resp"
 	"sort"
@@ -25,6 +25,16 @@ func (s *Storage) Get(key string) (string, []byte, error) {
 	}
 
 	return chunk.Id, chunk.Access(), nil
+}
+
+func (s *Storage) Del(key string) (string, error) {
+	chunk, ok := s.repo[key]
+	if !ok {
+		return "", types.ErrNotFound
+	}
+	chunk.Body = nil
+	return "Del Success", nil
+
 }
 
 func (s *Storage) GetStream(key string) (string, resp.AllReadCloser, error) {

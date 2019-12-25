@@ -15,8 +15,8 @@ type Request struct {
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
 
-	w *resp.RequestWriter
-	responded    uint32
+	w         *resp.RequestWriter
+	responded uint32
 }
 
 func (req *Request) PrepareForSet(w *resp.RequestWriter) {
@@ -47,6 +47,15 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 //	w.WriteBulkString(req.Cmd)
 //	req.w = w
 //}
+
+func (req *Request) PrepareForDel(w *resp.RequestWriter) {
+	w.WriteMultiBulkSize(4)
+	w.WriteBulkString(req.Cmd)
+	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
+	w.WriteBulkString(req.Id.ReqId)
+	w.WriteBulkString(req.Key)
+	req.w = w
+}
 
 func (req *Request) Flush() (err error) {
 	if req.w == nil {

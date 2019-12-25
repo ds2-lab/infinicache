@@ -26,6 +26,7 @@ type Storage interface {
 	Set(string, string, []byte) error
 	SetStream(string, string, resp.AllReadCloser) error
 	Len() int
+	Del(string) (string,error)
 	Keys()  <-chan string
 }
 
