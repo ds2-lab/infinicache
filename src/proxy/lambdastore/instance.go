@@ -45,6 +45,7 @@ type InstanceRegistry interface {
 
 type Instance struct {
 	*Deployment
+	Meta
 
 	cn        *Connection
 	chanReq   chan types.Command

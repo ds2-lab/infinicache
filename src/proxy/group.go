@@ -7,14 +7,6 @@ import(
 	"sync/atomic"
 )
 
-var (
-	slicePool = sync.Pool{
-		New: func() interface{} {
-				return &Slice{}
-		},
-	}
-)
-
 type Group struct {
 	All         []*GroupInstance
 
@@ -39,11 +31,10 @@ func (g *Group) Len() int {
 	return g.size
 }
 
-func (g *Group) Slice(sliceSize uint64) *Slice {
-	slice := slicePool.Get().(*Slice)
-	slice.group = g
-	slice.size = sliceSize
-	return slice
+func (g *Group) InitMeta(meta *Meta, sliceSize int) *Meta {
+	meta.slice.group = g
+	meta.slice.size = sliceSize
+	return meta
 }
 
 func (g *Group) Reserve(idx int, d types.LambdaDeployment) *GroupInstance {
@@ -73,15 +64,16 @@ func (g *Group) Instance(idx int) *lambdastore.Instance {
 	return g.All[idx].LambdaDeployment.(*lambdastore.Instance)
 }
 
-func (g *Group) nextSlice(sliceSize uint64) uint64 {
-	return (atomic.AddUint64(&g.sliceBase, sliceSize) - sliceSize) % uint64(g.size)
+func (g *Group) nextSlice(sliceSize int) int {
+	return int((atomic.AddUint64(&g.sliceBase, uint64(sliceSize)) - uint64(sliceSize)) % uint64(g.size))
 }
 
 type Slice struct {
-	once sync.Once
-	group *Group
-	size uint64
-	base int
+	once        sync.Once
+	initialized bool
+	group       *Group
+	size        int
+	base        int
 }
 
 func (s *Slice) GetIndex(idx int) int {
@@ -89,10 +81,7 @@ func (s *Slice) GetIndex(idx int) int {
 	return (s.base + idx) % s.group.size
 }
 
-func (s *Slice) Close() {
-	slicePool.Put(s)
-}
-
 func (s *Slice) get() {
-	s.base = int(s.group.nextSlice(s.size))
+	s.base = s.group.nextSlice(s.size)
+	s.initialized = true
 }
