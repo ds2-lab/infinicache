@@ -21,7 +21,7 @@ import (
 
 var (
 	log = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_WARN,
+		Level: logger.LOG_LEVEL_INFO,
 	}
 	MigrationTimeout = 30 * time.Second
 	ErrClosedPrematurely = errors.New("Client closed before ready.")
@@ -170,7 +170,7 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 	}
 
 	// Start migration
-	log.Debug("Start migrating %d keys", len)
+	log.Info("Start migrating %d keys", len)
 	for _, key := range keys {
 		chunk, err := store.(*StorageAdapter).Migrate(key)
 		if err == ErrSkip {
@@ -184,7 +184,7 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 			log.Debug("Migrating key %s(chunk %s): success", key, chunk)
 		}
 	}
-	log.Debug("End migration")
+	log.Info("End migration")
 }
 
 func (cli *Client) SetError(err error) {

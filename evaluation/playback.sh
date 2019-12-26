@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$GOPATH" == "" ] ; then
-  echo "No \$GOPATH defined. Install go and set \$GOPATH first."
+	echo "No \$GOPATH defined. Install go and set \$GOPATH first."
 fi
 
 PWD=`dirname $0`
@@ -14,8 +14,10 @@ source $PWD/util.sh
 function perform(){
 	FILE=$1
 	CLUSTER=$2
-	SCALE=$3
-	COMPACT=$4
+	DATANUM=$3
+	PARITYNUM=$4
+	SCALE=$5
+	COMPACT=$6
 
 	PREPROXY=$PWD/$ENTRY/simulate-$CLUSTER$COMPACT
 
@@ -28,7 +30,7 @@ function perform(){
 	cat /tmp/lambdaproxy.pid
 	#        set
 	sleep 1s
-	playback 10 2 $SCALE $CLUSTER $FILE $COMPACT
+	playback $DATANUM $PARITYNUM $SCALE $CLUSTER $FILE $COMPACT
 	kill -2 `cat /tmp/lambdaproxy.pid`
   # Wait for proxy cleaned up
   while [ -f /tmp/lambdaproxy.pid ]
@@ -37,12 +39,27 @@ function perform(){
 	done
 }
 
-mkdir -p $PWD/$ENTRY
+function dry_perform(){
+	FILE=$1
+	CLUSTER=$2
+	DATANUM=$3
+	PARITYNUM=$4
+	SCALE=$5
+	COMPACT=$6
 
-START=`date +"%Y-%m-%d %H:%M:%S"`
-perform $1 $2 $3 $4
-mv $PWD/log $PWD/$ENTRY.log
-END=`date +"%Y-%m-%d %H:%M:%S"`
+	dryrun $DATANUM $PARITYNUM $SCALE $CLUSTER $FILE $COMPACT
+}
 
-echo "Transfering logs from CloudWatch to S3: $START - $END ..."
-cloudwatch/export_ubuntu.sh $DATE/ "$START" "$END"
+if [ "$7" == "dryrun" ]; then
+	dry_perform $1 $2 $3 $4 $5 $6
+else
+	mkdir -p $PWD/$ENTRY
+
+	START=`date +"%Y-%m-%d %H:%M:%S"`
+	perform $1 $2 $3 $4 $5 $6
+	mv $PWD/log $PWD/$ENTRY.log
+	END=`date +"%Y-%m-%d %H:%M:%S"`
+
+	echo "Transfering logs from CloudWatch to S3: $START - $END ..."
+	cloudwatch/export_ubuntu.sh $DATE/ "$START" "$END"
+fi

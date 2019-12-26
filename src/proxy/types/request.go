@@ -7,6 +7,11 @@ import (
 	"sync/atomic"
 )
 
+type Command interface {
+	Retriable() bool
+	Flush() error
+}
+
 type Request struct {
 	Id           Id
 	Cmd          string
@@ -15,8 +20,13 @@ type Request struct {
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
 
-	w         *resp.RequestWriter
-	responded uint32
+	w                *resp.RequestWriter
+	responded        uint32
+	streamingStarted bool
+}
+
+func (req *Request) Retriable() bool {
+	return req.BodyStream == nil || !req.streamingStarted
 }
 
 func (req *Request) PrepareForSet(w *resp.RequestWriter) {
@@ -57,20 +67,26 @@ func (req *Request) PrepareForDel(w *resp.RequestWriter) {
 	req.w = w
 }
 
-func (req *Request) Flush() (err error) {
+func (req *Request) Flush() error {
 	if req.w == nil {
 		return errors.New("Writer for request not set.")
 	}
 	w := req.w
 	req.w = nil
 
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
 	if req.BodyStream != nil {
+		req.streamingStarted = true
 		if err := w.CopyBulk(req.BodyStream, req.BodyStream.Len()); err != nil {
 			return err
 		}
+		return w.Flush()
 	}
 
-	return w.Flush()
+	return nil
 }
 
 func (req *Request) IsResponse(rsp *Response) bool {
