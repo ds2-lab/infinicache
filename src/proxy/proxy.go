@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"fmt"
 	"github.com/cornelk/hashmap"
+//	"github.com/google/uuid"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
@@ -136,7 +136,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	if postProcess != nil {
 		postProcess(p.dropEvicted)
 	}
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
+	chunkKey := meta.ChunkKey(int(dChunkId))
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send chunk to the corresponding lambda instance in group
@@ -169,15 +169,15 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0})
 
 	// key is "key"+"chunkId"
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
 	meta, ok := p.metaStore.Get(key, int(dChunkId))
 	if ok || meta.Deleted {
 		// Object may be deleted.
-		p.log.Warn("KEY %s not found in lambda store, please set first.", chunkKey)
-		w.AppendErrorf("KEY %s not found in lambda store, please set first.", chunkKey)
+		p.log.Warn("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
 		w.Flush()
 		return
 	}
+	chunkKey := meta.ChunkKey(int(dChunkId))
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send request to lambda channel
@@ -236,5 +236,13 @@ func (p *Proxy) CollectData() {
 }
 
 func (p *Proxy) dropEvicted(meta *Meta) {
-
+	// reqId := uuid.New().String()
+	// for i, lambdaId := range meta.Placement {
+	// 	TODO: implement del
+	// 	p.group.Instance(lambdaId).C() <- &types.Control{
+	// 		Id:           types.Id{0, reqId, strconv.Itoa(i)},
+	// 		Cmd:          "del",
+	// 		Key:          meta.ChunkKey(i),
+	// 	}
+	// }
 }

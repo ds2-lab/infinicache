@@ -1,6 +1,7 @@
 package proxy
 
 import(
+	"fmt"
 	"sync"
 )
 
@@ -44,6 +45,10 @@ func NewMeta(key string, numChunks int, chunkSize int64) *Meta {
 
 func (m *Meta) close() {
 	metaPool.Put(m)
+}
+
+func (m *Meta) ChunkKey(chunkId int) string {
+	return fmt.Sprintf("%d@%s", chunkId, m.Key)
 }
 
 type Placement []int

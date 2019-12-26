@@ -23,13 +23,16 @@ type PlacerMeta struct {
 }
 
 func (pm *PlacerMeta) postProcess(action MetaDoPostProcess) {
+	if pm.once == nil {
+		return
+	}
 	pm.action = action
 	pm.once.Do(pm.doPostProcess)
-	pm.evicts = nil
 }
 
 func (pm *PlacerMeta) doPostProcess() {
 	pm.action(pm.evicts)
+	pm.evicts = nil
 }
 
 // Placer implements a Clock LRU for object eviction. Because objects (or metas) are constantly added to the system
@@ -103,7 +106,7 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		meta.Placement[chunk] = assigned
 		meta.placerMeta.confirmed[chunk] = true
 		if meta.placerMeta.pos[p.primary] == 0 {
-			p.addObject(meta)
+			p.AddObject(meta)
 		}
 		return meta, got, nil
 	}
@@ -116,7 +119,7 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	}
 
 	// Try find a replacement
-	for !p.nextAvailableObject(meta) {}
+	for !p.NextAvailableObject(meta) {}
 
 	meta.Placement[chunk] = meta.placerMeta.swapMap[chunk]
 	meta.placerMeta.confirmed[chunk] = true
@@ -150,12 +153,12 @@ func (p *Placer) Get(key string, chunk int) (*Meta, bool) {
 		return meta, ok
 	}
 
-	p.touchObject(meta)
+	p.TouchObject(meta)
 	return meta, ok
 }
 
 // Object management implementation: Clock LRU
-func (p *Placer) addObject(meta *Meta) {
+func (p *Placer) AddObject(meta *Meta) {
 	meta.placerMeta.pos[p.primary] = len(p.objects[p.primary])
 	// meta.placerMeta.visited = false    // For new object in list, visited is set to false to avoid Useless First Round,
 	meta.placerMeta.visitedAt = time.Now()
@@ -163,12 +166,12 @@ func (p *Placer) addObject(meta *Meta) {
 	p.objects[p.primary] = append(p.objects[p.primary], meta)
 }
 
-func (p *Placer) touchObject(meta *Meta) {
+func (p *Placer) TouchObject(meta *Meta) {
 	meta.placerMeta.visited = true
 	meta.placerMeta.visitedAt = time.Now()
 }
 
-func (p *Placer) nextAvailableObject(meta *Meta) bool {
+func (p *Placer) NextAvailableObject(meta *Meta) bool {
 	// Position 0 is reserved, cursor iterates from 1
 	if p.cursor == 0 {
 		if p.objects[p.secondary] == nil || cap(p.objects[p.secondary]) < len(p.objects[p.primary]) {
