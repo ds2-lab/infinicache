@@ -9,7 +9,7 @@ build-simulator:
 	go build $(GOPATH)/src/github.com/wangaoone/redbench/simulator/playback/
 	mv playback $(GOPATH)/src/github.com/wangaoone/redbench/simulator/playback/
 
-simulate: build-simulator
+dryrun: build-simulator
 	./playback.sh /trace/docker_traces/data_centers/csv/dal09_10mb_50h.csv 400 10 2 0.1 -compact dryrun
 
 simulate: build-simulator
