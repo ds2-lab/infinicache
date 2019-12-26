@@ -21,27 +21,74 @@ if [ "$5" != "" ] ; then
   TO=$5
 fi
 
+# Wait for the end the last task
+for j in {0..15}
+do
+  RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+  if [ "$RUNNING" != "" ]; then
+    sleep 2s
+  else
+    break
+  fi
+done
+
+# Abandon
+if [ "$RUNNING" != "" ]; then
+  echo "Detect running task and wait timeout, killing task \"$RUNNING\"..."
+  aws logs cancel-export-task --task-id \"$RUNNING\"
+
+fi
+
+# Wait another 30 seconds for the abandon procedure
+for j in {0..15}
+do
+  RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+  if [ "$RUNNING" != "" ]; then
+    sleep 2s
+  else
+    break
+    echo "Done"
+  fi
+done
+
 for (( i=$FROM; i<=$TO; i++ ))
 do
-  # Wait for the end the last task
-  for j in {0..15}
+  # try 3 times
+  for k in {0..2}
   do
-    RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+    echo "exporting $LAMBDA$LOG_PREFIX$i"
+    aws logs create-export-task --log-group-name $LAMBDA$LOG_PREFIX$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$LOG_PREFIX$i
+    sleep 2s
+
+    # Wait for the end the last task
+    for j in {0..15}
+    do
+      RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+      if [ "$RUNNING" != "" ]; then
+        sleep 2s
+      else
+        break
+      fi
+    done
+
+    # Abandon
     if [ "$RUNNING" != "" ]; then
-      sleep 2s
+      echo "Detect running task and wait timeout, killing task \"$RUNNING\"..."
+      aws logs cancel-export-task --task-id \"$RUNNING\"
     else
       break
     fi
+
+    # Wait another 30 seconds for the abandon procedure
+    for j in {0..15}
+    do
+      RUNNING=`aws logs describe-export-tasks --status-code "RUNNING" | grep taskId | awk -F \" '{ print $4 }'`
+      if [ "$RUNNING" != "" ]; then
+        sleep 2s
+      else
+        break
+        echo "Done"
+      fi
+    done
   done
-
-  # Abandon
-  if [ "$RUNNING" != "" ]; then
-    echo "Detect running task and wait timeout, killing task \"$RUNNING\"..."
-    aws logs --profile CWLExportUser cancel-export-task --task-id \"$RUNNING\"
-    echo "Done"
-  fi
-
-  echo "exporting $LAMBDA$LOG_PREFIX$i"
-  aws logs create-export-task --log-group-name $LAMBDA$LOG_PREFIX$i --from ${startTime} --to ${endTime} --destination "tianium.default" --destination-prefix $FILE$PREFIX$LOG_PREFIX$i
-  sleep 2s
 done
