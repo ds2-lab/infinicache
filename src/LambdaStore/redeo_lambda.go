@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
@@ -479,26 +480,38 @@ func main() {
 
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
-		key := c.Arg(2).String()
+		chunkId := c.Arg(2).String()
+		key := c.Arg(3).String()
 
-		res, err := store.Del(key)
-		log.Debug("Del res is ", res)
-		if err != nil {
-			log.Error("%v", err)
-		}
+		err := store.Del(key, chunkId)
+		if err == nil {
+			// write Key, clientId, chunkId, body back to proxy
+			response := &types.Response{
+				ResponseWriter: w,
+				Cmd:            "del",
+				ConnId:         connId,
+				ReqId:          reqId,
+				ChunkId:        chunkId,
+			}
+			response.Prepare()
+			if err := response.Flush(); err != nil {
+				log.Error("Error on del::flush(set key %s): %v", key, err)
+				return
+			}
+		} else {
+			var respError *types.ResponseError
+			if err == types.ErrNotFound {
+				// Not found
+				respError = types.NewResponseError(404, err)
+			} else {
+				respError = types.NewResponseError(500, err)
+			}
 
-		// write Key, clientId, chunkId, body back to proxy
-		response := &types.Response{
-			ResponseWriter: w,
-			Cmd:            "del",
-			ConnId:         connId,
-			ReqId:          reqId,
-			ChunkId:        "",
-		}
-		response.Prepare()
-		if err := response.Flush(); err != nil {
-			log.Error("Error on del::flush(set key %s): %v", key, err)
-			return
+			log.Warn("Failed to del %s: %v", key, respError)
+			w.AppendErrorf("Failed to del %s: %v", key, respError)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush: %v", err)
+			}
 		}
 
 	})
@@ -624,9 +637,27 @@ func main() {
 		// Send key list by access time
 		w.AppendBulkString("mhello")
 		w.AppendBulkString(strconv.Itoa(store.Len()))
+
+		keys := store.Keys()
+
+		delList := make([]*string, 0, 2*len(keys))
+		getList := delList[len(keys):len(keys)]
 		for key := range store.Keys() {
-			w.AppendBulkString(key)
+			_, _, err := store.Get(key)
+			if err == types.ErrNotFound {
+				delList = append(delList, &key)
+			} else {
+				getList = append(getList, &key)
+			}
 		}
+
+		for _, key := range delList {
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_DEL, *key))
+		}
+		for _, key := range getList {
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_GET, *key))
+		}
+
 		if err := w.Flush(); err != nil {
 			log.Error("Error on mhello::flush: %v", err)
 			return

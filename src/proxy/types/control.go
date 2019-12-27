@@ -11,6 +11,7 @@ type Control struct {
 	Addr       string
 	Deployment string
 	Id         uint64
+	*Request
 	w          *resp.RequestWriter
 }
 
@@ -28,6 +29,11 @@ func (ctrl *Control) PrepareForMigrate(w *resp.RequestWriter) {
 	ctrl.w = w
 }
 
+func (ctrl *Control) PrepareForDel(w *resp.RequestWriter) {
+	ctrl.Request.PrepareForDel(w)
+	ctrl.w = w
+}
+
 func (ctrl *Control) Flush() (err error) {
 	if ctrl.w == nil {
 		return errors.New("Writer for request not set.")
@@ -37,3 +43,4 @@ func (ctrl *Control) Flush() (err error) {
 
 	return w.Flush()
 }
+

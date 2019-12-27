@@ -20,20 +20,22 @@ func New() *Storage {
 
 func (s *Storage) Get(key string) (string, []byte, error) {
 	chunk, ok := s.repo[key]
-	if !ok {
+	if !ok || chunk == nil {
 		return "", nil, types.ErrNotFound
 	}
 
 	return chunk.Id, chunk.Access(), nil
 }
 
-func (s *Storage) Del(key string) (string, error) {
+func (s *Storage) Del(key string, chunkId string) error {
 	chunk, ok := s.repo[key]
 	if !ok {
-		return "", types.ErrNotFound
+		return types.ErrNotFound
 	}
+	chunk.Access()
+
 	chunk.Body = nil
-	return "Del Success", nil
+	return nil
 
 }
 

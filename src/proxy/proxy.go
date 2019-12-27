@@ -2,13 +2,15 @@ package proxy
 
 import (
 	"github.com/cornelk/hashmap"
-//	"github.com/google/uuid"
+	"github.com/google/uuid"
+
+	//	"github.com/google/uuid"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
-	"strings"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -37,7 +39,7 @@ func New(replica bool) *Proxy {
 			Color:  true,
 		},
 		group:     group,
-		metaStore: NewPlacer(&MetaStore{ metaMap: hashmap.New(1024) }, group),
+		metaStore: NewPlacer(&MetaStore{metaMap: hashmap.New(1024)}, group),
 		ready:     make(chan struct{}),
 	}
 
@@ -131,7 +133,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 
 	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
 	prepared := p.metaStore.NewMeta(
-		key, int(randBase), int(dataChunks + parityChunks), int(dChunkId), int(lambdaId), bodyStream.Len())
+		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), bodyStream.Len())
 	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
 	if postProcess != nil {
 		postProcess(p.dropEvicted)
@@ -236,13 +238,14 @@ func (p *Proxy) CollectData() {
 }
 
 func (p *Proxy) dropEvicted(meta *Meta) {
-	// reqId := uuid.New().String()
-	// for i, lambdaId := range meta.Placement {
-	// 	TODO: implement del
-	// 	p.group.Instance(lambdaId).C() <- &types.Control{
-	// 		Id:           types.Id{0, reqId, strconv.Itoa(i)},
-	// 		Cmd:          "del",
-	// 		Key:          meta.ChunkKey(i),
-	// 	}
-	// }
+	reqId := uuid.New().String()
+	for i, lambdaId := range meta.Placement {
+		p.group.Instance(lambdaId).C() <- &types.Control{
+			Request: &types.Request{
+				Id:  types.Id{0, reqId, strconv.Itoa(i)},
+				Cmd: "del",
+				Key: meta.ChunkKey(i),
+			},
+		}
+	}
 }

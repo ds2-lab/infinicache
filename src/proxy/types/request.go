@@ -59,10 +59,11 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 //}
 
 func (req *Request) PrepareForDel(w *resp.RequestWriter) {
-	w.WriteMultiBulkSize(4)
+	w.WriteMultiBulkSize(5)
 	w.WriteBulkString(req.Cmd)
 	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
 	w.WriteBulkString(req.Id.ReqId)
+	w.WriteBulkString(req.Id.ChunkId)
 	w.WriteBulkString(req.Key)
 	req.w = w
 }

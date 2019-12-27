@@ -94,6 +94,7 @@ var _ = Describe("Placer", func() {
 		container = append(container, newTestMeta(idx))
 
 		placer.AddObject(container[idx])
+		Expect(dumpPlacer(placer)).To(Equal(fmt.Sprintf("0-1,1-1,2-1,3-1,4-0,5-1,6-1,7-1,8-1,9-1,%d-0", idx)))
 		Expect(container[idx].placerMeta.pos).To(Equal([2]int{idx + 1, 0}))
 
 		found := placer.NextAvailableObject(container[idx])

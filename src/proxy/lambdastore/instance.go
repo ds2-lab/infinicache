@@ -450,6 +450,8 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 			isDataRequest = true
 		case "migrate":
 			ctrl.PrepareForMigrate(conn.w)
+		case "del":
+			ctrl.PrepareForDel(conn.w)
 		default:
 			ins.log.Error("Unexpected control command: %s", cmd)
 			// Unrecoverable

@@ -23,7 +23,7 @@ var (
 		Color:  true,
 	}
 	ErrConnectionClosed = errors.New("Connection closed")
-	ErrMissingResponse = errors.New("Missing response")
+	ErrMissingResponse  = errors.New("Missing response")
 )
 
 type Connection struct {
@@ -43,8 +43,8 @@ func NewConnection(c net.Conn) *Connection {
 		log: defaultConnectionLog,
 		cn:  c,
 		// wrap writer and reader
-		w:      resp.NewRequestWriter(c),
-		r:      resp.NewResponseReader(c),
+		w:        resp.NewRequestWriter(c),
+		r:        resp.NewResponseReader(c),
 		chanWait: make(chan *types.Request, 1),
 		respType: make(chan interface{}),
 		closed:   make(chan struct{}),
@@ -280,7 +280,7 @@ func (conn *Connection) getHandler(start time.Time) {
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
-		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards + counter.(*types.ClientReqCounter).ParityShards {
+		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
 			global.ReqMap.Del(reqId)
 		}
 	}
@@ -323,7 +323,7 @@ func (conn *Connection) getHandler(start time.Time) {
 func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
-	rsp := &types.Response{ Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10)) }
+	rsp := &types.Response{Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10))}
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
@@ -336,18 +336,18 @@ func (conn *Connection) setHandler(start time.Time) {
 	}
 }
 
-
 func (conn *Connection) delHandler() {
 	conn.log.Debug("DEL from lambda.")
 
-	rsp := &types.Response{ Cmd: "del", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10)) }
+	rsp := &types.Response{Cmd: "del"}
+	
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("DEL %v, confirmed.", rsp.Id)
-	conn.SetResponse(rsp)
+	conn.SetResponse(rsp) // if del is control cmd, should return False
 }
 
 func (conn *Connection) receiveData() {
