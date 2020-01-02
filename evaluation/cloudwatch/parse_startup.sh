@@ -26,7 +26,7 @@ do
 	for zip in ${file}/*/*/*
     do
 		TS=`head -n 1 ${zip} | awk '{print $1}'`
-        FUNC=`echo "$zip" | awk -F / '{print $3}'`
+        FUNC=`echo "$zip" | awk -F / '{print $4}'`
         echo "$FUNC,$TS" >> ${PWD}/${LOGSET}_startup.csv
 	done
 done
