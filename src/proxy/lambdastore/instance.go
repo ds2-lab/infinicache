@@ -48,7 +48,7 @@ type Instance struct {
 	Meta
 
 	cn            *Connection
-	chanReq       chan interface{}
+	chanReq       chan types.Command
 	awake         int
 	awakeLock     sync.Mutex
 	chanValidated chan struct{}
