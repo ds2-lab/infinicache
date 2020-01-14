@@ -82,10 +82,11 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   	}
   ```
 
-  Run to deploy lambda functions
+  Run script to deploy lambda functions
 
   ```shell
   cd $GOPATH/src/github.com/wangaoone/LambdaObjectstore
+  go get
   ./s3_updatecode.sh 60
   ```
 
@@ -100,4 +101,4 @@ make start-server
 
 Client Library [ecRedis](https://github.com/wangaoone/ecRedis)  
 Redis Protocol [redeo](https://github.com/wangaoone/redeo)  
-Benchmark tool [redbench](https://github.com/tddg/redbench)
+Benchmark tool [redbench](https://github.com/wangaoone/redbench)
