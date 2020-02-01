@@ -1,6 +1,10 @@
 package proxy
 
 import (
+	"fmt"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
+	"strings"
 	"sync"
 	"time"
 )
@@ -11,15 +15,15 @@ const (
 
 type PlacerMeta struct {
 	// Object management properties
-	pos         [2]int        // Positions on both primary and secondary array.
-	visited     bool
-	visitedAt   time.Time
-	confirmed   []bool
-	swapMap     Placement     // For decision from LRU
-	evicts      *Meta
-	suggestMap  Placement     // For decision from balancer
-	once        *sync.Once
-	action      MetaDoPostProcess
+	pos        [2]int // Positions on both primary and secondary array.
+	visited    bool
+	visitedAt  time.Time
+	confirmed  []bool
+	swapMap    Placement // For decision from LRU
+	evicts     *Meta
+	suggestMap Placement // For decision from balancer
+	once       *sync.Once
+	action     MetaDoPostProcess
 }
 
 func (pm *PlacerMeta) postProcess(action MetaDoPostProcess) {
@@ -40,19 +44,26 @@ func (pm *PlacerMeta) doPostProcess() {
 // eviction of another object (older). In this case, we evict the older in whole based on Clock LRU algorithm, and set the
 // original position of the newer to nil, which a compact operation is needed later. We use a secondary array for online compact.
 type Placer struct {
-	store       *MetaStore
-	group       *Group
-	objects     [2][]*Meta   // We use a secondary array for online compact, the first element is reserved.
-	cursor      int          // Cursor of primary array that indicate where the LRU checks.
-	primary     int
-	secondary   int
-	mu          sync.RWMutex
+	log       logger.ILogger
+	store     *MetaStore
+	group     *Group
+	objects   [2][]*Meta // We use a secondary array for online compact, the first element is reserved.
+	cursor    int        // Cursor of primary array that indicate where the LRU checks.
+	cursorBound int      // The largest index the cursor can reach in current iteration.
+	primary   int
+	secondary int
+	mu        sync.RWMutex
 }
 
 func NewPlacer(store *MetaStore, group *Group) *Placer {
 	placer := &Placer{
-		store: store,
-		group: group,
+		log: &logger.ColorLogger{
+			Prefix: "Placer ",
+			Level:  global.Log.GetLevel(),
+			Color:  true,
+		},
+		store:     store,
+		group:     group,
 		secondary: 1,
 	}
 	placer.objects[0] = make([]*Meta, 1, INIT_LRU_CAPACITY)
@@ -82,14 +93,22 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	if got {
 		newMeta.close()
 	}
-
 	meta.mu.Lock()
 	defer meta.mu.Unlock()
 
+	// Check if it is "evicted".
+	if meta.Deleted {
+		meta.placerMeta = nil
+		meta.Deleted = false
+	}
+
+	// Usually this should always be false for SET operation, flag RESET if true.
 	if meta.placerMeta != nil && meta.placerMeta.confirmed[chunk] {
+		meta.Reset = true
 		return meta, got, nil
 	}
 
+	// Initialize placerMeta if not.
 	if meta.placerMeta == nil {
 		meta.placerMeta = &PlacerMeta{
 			confirmed: make([]bool, len(meta.Placement)),
@@ -100,14 +119,8 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	assigned := meta.slice.GetIndex(lambdaId)
-	instance := p.group.Instance(assigned)
-	if instance.Meta.Size + uint64(meta.ChunkSize) < instance.Meta.Capacity {
-		meta.Placement[chunk] = assigned
-		meta.placerMeta.confirmed[chunk] = true
-		if meta.placerMeta.pos[p.primary] == 0 {
-			p.AddObject(meta)
-		}
+	// Double check if it is evicted.
+	if meta.Deleted {
 		return meta, got, nil
 	}
 
@@ -118,9 +131,26 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		return meta, got, nil
 	}
 
-	// Try find a replacement
-	for !p.NextAvailableObject(meta) {}
+	assigned := meta.slice.GetIndex(lambdaId)
+	instance := p.group.Instance(assigned)
+	if instance.Meta.Size() + uint64(meta.ChunkSize) < instance.Meta.Capacity {
+		meta.Placement[chunk] = assigned
+		meta.placerMeta.confirmed[chunk] = true
+		// If the object has not seen.
+		if meta.placerMeta.pos[p.primary] == 0 {
+			p.AddObject(meta)
+		}
+		return meta, got, nil
+	}
 
+	// Try find a replacement
+	// p.log.Warn("lambda %d overweight triggered by %d@%s, meta: %v", assigned, chunk, meta.Key, meta)
+	// p.log.Info(p.dumpPlacer())
+	for !p.NextAvailableObject(meta) {
+		// p.log.Warn("lambda %d overweight triggered by %d@%s, meta: %v", assigned, chunk, meta.Key, meta)
+		// p.log.Info(p.dumpPlacer())
+	}
+	// p.log.Debug("meta key is: %s, chunk is %d, evicted, evicted key: %s, placement: %v", meta.Key, chunk, meta.placerMeta.evicts.Key, meta.placerMeta.evicts.Placement)
 	meta.Placement[chunk] = meta.placerMeta.swapMap[chunk]
 	meta.placerMeta.confirmed[chunk] = true
 	meta.placerMeta.once = &sync.Once{}
@@ -160,7 +190,7 @@ func (p *Placer) Get(key string, chunk int) (*Meta, bool) {
 // Object management implementation: Clock LRU
 func (p *Placer) AddObject(meta *Meta) {
 	meta.placerMeta.pos[p.primary] = len(p.objects[p.primary])
-	// meta.placerMeta.visited = false    // For new object in list, visited is set to false to avoid Useless First Round,
+	meta.placerMeta.visited = true
 	meta.placerMeta.visitedAt = time.Now()
 
 	p.objects[p.primary] = append(p.objects[p.primary], meta)
@@ -175,31 +205,35 @@ func (p *Placer) NextAvailableObject(meta *Meta) bool {
 	// Position 0 is reserved, cursor iterates from 1
 	if p.cursor == 0 {
 		if p.objects[p.secondary] == nil || cap(p.objects[p.secondary]) < len(p.objects[p.primary]) {
-			p.objects[p.secondary] = make([]*Meta, 1, 2 * len(p.objects[p.primary]))
+			p.objects[p.secondary] = make([]*Meta, 1, 2*len(p.objects[p.primary]))
 		} else {
 			p.objects[p.secondary] = p.objects[p.secondary][:1] // Alwarys append from the 2nd position.
 		}
+		p.cursorBound = len(p.objects[p.primary]) // CusorBound is fixed once start iteration.
 		p.cursor = 1
 	}
 
 	found := false
-	for _, m := range p.objects[p.primary][p.cursor:] {
+	for _, m := range p.objects[p.primary][p.cursor:p.cursorBound] {
 		if m == nil {
 			// skip empty slot.
 			p.cursor++
 			continue
 		}
 
-		if m.placerMeta.visited {
+		if m == meta {
+			// Ignore meta itself
+		} else if m.placerMeta.visited {
 			m.placerMeta.visited = false
 		} else {
 			// Found
 			m.Deleted = true
-			m.placerMeta = nil
+			// Don't reset placerMeta here, reset on recover object.
+			// m.placerMeta = nil
 			meta.placerMeta.swapMap = copyPlacement(meta.placerMeta.swapMap, m.Placement)
 			meta.placerMeta.evicts = m
 
-			p.objects[p.primary][meta.placerMeta.pos[p.primary]] = nil  // unset old position
+			p.objects[p.primary][meta.placerMeta.pos[p.primary]] = nil // unset old position
 			meta.placerMeta.pos[p.primary] = p.cursor
 			p.objects[p.primary][p.cursor] = meta // replace
 			m = meta
@@ -219,11 +253,52 @@ func (p *Placer) NextAvailableObject(meta *Meta) bool {
 		}
 	}
 
+	// Reach end of the primary array(cursorBound), reset cursor and switch arraies.
 	if !found {
-		// Reach end of the primary array, reset cursor and switch arraies.
+		// Add new objects to the secondary array for compact purpose.
+		if len(p.objects[p.primary]) > p.cursor {
+			for _, m := range p.objects[p.primary][p.cursor:] {
+				if m == nil {
+					continue
+				}
+
+				m.placerMeta.pos[p.secondary] = len(p.objects[p.secondary])
+				p.objects[p.secondary] = append(p.objects[p.secondary], m)
+			}
+		}
+		// Reset cursor and switch
 		p.cursor = 0
 		p.primary, p.secondary = p.secondary, p.primary
 	}
 
 	return found
+}
+
+func (p *Placer) dumpPlacer(args ...bool) string {
+	if len(args) > 0 && args[0] {
+		return p.dump(p.objects[p.secondary])
+	} else {
+		return p.dump(p.objects[p.primary])
+	}
+}
+
+func (p *Placer) dump(metas []*Meta) string {
+	if metas == nil || len(metas) < 1 {
+		return ""
+	}
+
+	elem := make([]string, len(metas)-1)
+	for i, meta := range metas[1:] {
+		if meta == nil {
+			elem[i] = "nil"
+			continue
+		}
+
+		visited := 0
+		if meta.placerMeta.visited {
+			visited = 1
+		}
+		elem[i] = fmt.Sprintf("%s-%d", meta.Key, visited)
+	}
+	return strings.Join(elem, ",")
 }

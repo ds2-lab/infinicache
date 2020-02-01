@@ -19,6 +19,8 @@ type Request struct {
 	Body         []byte
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
+	ChunkSize    int64
+	Reset        bool
 
 	w                *resp.RequestWriter
 	responded        uint32
@@ -100,11 +102,12 @@ func (req *Request) SetResponse(rsp interface{}) bool {
 	if !atomic.CompareAndSwapUint32(&req.responded, 0, 1) {
 		return false
 	}
+	if req.ChanResponse != nil {
+		req.ChanResponse <- rsp
 
-	req.ChanResponse <- rsp
-
-	// Release reference so chan can be garbage collected.
-	req.ChanResponse = nil
+		// Release reference so chan can be garbage collected.
+		req.ChanResponse = nil
+	}
 
 	return true
 }

@@ -175,15 +175,16 @@ func (conn *Connection) Ping() {
 	}
 }
 
-func (conn *Connection) SetResponse(rsp *types.Response) bool {
+func (conn *Connection) SetResponse(rsp *types.Response) (*types.Request, bool) {
 	if len(conn.chanWait) == 0 {
 		conn.log.Error("Unexpected response: %v", rsp)
-		return false
+		return nil, false
 	}
 	for req := range conn.chanWait {
 		if req.IsResponse(rsp) {
 			conn.log.Debug("response matched: %v", req.Id)
-			return req.SetResponse(rsp)
+
+			return req, req.SetResponse(rsp)
 		}
 		conn.log.Warn("passing req: %v, got %v", req, rsp)
 		req.SetResponse(ErrMissingResponse)
@@ -192,7 +193,7 @@ func (conn *Connection) SetResponse(rsp *types.Response) bool {
 			break
 		}
 	}
-	return false
+	return nil, false
 }
 
 func (conn *Connection) SetErrorResponse(err error) {
@@ -311,7 +312,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
-	if !conn.SetResponse(rsp) {
+	if _, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response, release hold.
 		rsp.BodyStream.(resp.Holdable).Unhold()
 	}
@@ -330,7 +331,13 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("SET %v, confirmed.", rsp.Id)
-	conn.SetResponse(rsp)
+	req, ok := conn.SetResponse(rsp)
+	// To avoid duplicated calculation, count only if succeed to set response and the request is not a reset (if any).
+	if ok && !req.Reset {
+		size := conn.instance.Meta.IncreaseSize(uint64(req.ChunkSize))
+		conn.log.Debug("Lambda size updated (size %d of %d).", size, conn.instance.Meta.Capacity)
+	}
+
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
@@ -340,7 +347,7 @@ func (conn *Connection) delHandler() {
 	conn.log.Debug("DEL from lambda.")
 
 	rsp := &types.Response{Cmd: "del"}
-	
+
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()

@@ -19,6 +19,7 @@ type Meta struct {
 	NumChunks   int
 	Placement
 	ChunkSize   int64
+	Reset       bool
 	Deleted     bool
 
 	slice       Slice

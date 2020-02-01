@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"github.com/cornelk/hashmap"
 	"github.com/google/uuid"
 
 	//	"github.com/google/uuid"
@@ -39,7 +38,7 @@ func New(replica bool) *Proxy {
 			Color:  true,
 		},
 		group:     group,
-		metaStore: NewPlacer(&MetaStore{metaMap: hashmap.New(1024)}, group),
+		metaStore: NewPlacer(NewMataStore(), group),
 		ready:     make(chan struct{}),
 	}
 
@@ -53,7 +52,7 @@ func New(replica bool) *Proxy {
 		}
 		node := scheduler.GetForGroup(p.group, i)
 		node.Meta.Capacity = InstanceCapacity
-		node.Meta.Size = InstanceOverhead
+		node.Meta.IncreaseSize(InstanceOverhead)
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go func() {
@@ -123,7 +122,7 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	}
 	bodyStream.(resp.Holdable).Hold()
 
-	// Start couting time.
+	// Start counting time.
 	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
@@ -134,7 +133,18 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
 	prepared := p.metaStore.NewMeta(
 		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), bodyStream.Len())
+
 	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
+	if meta.Deleted {
+		// Object may be evicted in somecase:
+		// 1: Some chunks were set.
+		// 2: Placer evicted this object (unlikely).
+		// 3: We got evicted meta.
+		p.log.Warn("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.Flush()
+		return
+	}
 	if postProcess != nil {
 		postProcess(p.dropEvicted)
 	}
@@ -149,6 +159,8 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		Key:          chunkKey,
 		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
+		ChunkSize:    bodyStream.Len(),
+		Reset:        meta.Reset,
 	}
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
@@ -240,12 +252,19 @@ func (p *Proxy) CollectData() {
 func (p *Proxy) dropEvicted(meta *Meta) {
 	reqId := uuid.New().String()
 	for i, lambdaId := range meta.Placement {
-		p.group.Instance(lambdaId).C() <- &types.Control{
-			Request: &types.Request{
-				Id:  types.Id{0, reqId, strconv.Itoa(i)},
-				Cmd: "del",
-				Key: meta.ChunkKey(i),
-			},
+		// Check if lambdaId is confirmed.
+		if !meta.placerMeta.confirmed[i] {
+			continue
 		}
+
+		p.group.Instance(lambdaId).C() <- &types.Request{
+			Id:  types.Id{0, reqId, strconv.Itoa(i)},
+			Cmd: "del",
+			Key: meta.ChunkKey(i),
+		}
+
+		size := p.group.Instance(lambdaId).Meta.DecreaseSize(uint64(meta.ChunkSize))
+		capacity := p.group.Instance(lambdaId).Meta.Capacity
+		p.log.Debug("Evicting %s from lambda %d (size %d of %d)...", meta.Key, lambdaId, size, capacity)
 	}
 }

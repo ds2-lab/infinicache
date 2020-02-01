@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"strconv"
@@ -10,9 +11,17 @@ import (
 //	"log"
 
 //	"github.com/wangaoone/LambdaObjectstore/src/proxy"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
+	"github.com/wangaoone/LambdaObjectstore/src/proxy/lambdastore"
 )
 
 var container []*Meta
+
+func init() {
+	global.Log = &logger.ColorLogger{
+		Level: logger.LOG_LEVEL_ALL,
+	}
+}
 
 func newTestMeta(i int) *Meta {
 	return &Meta{
@@ -22,7 +31,7 @@ func newTestMeta(i int) *Meta {
 	}
 }
 
-func initPlacer() *Placer {
+func initPlacer(caseCode int) *Placer {
 	container = make([]*Meta, 0, 15)
 	placer := NewPlacer(nil, nil)
 
@@ -30,13 +39,27 @@ func initPlacer() *Placer {
 		container = append(container, newTestMeta(i))
 		placer.AddObject(container[i])
 	}
-	for i := 0; i < 4; i++ {
-		placer.TouchObject(container[i])
-	}
-	for i := 5; i < 10; i++ {
-		placer.TouchObject(container[i])
+	switch (caseCode) {
+	case 1:
+		placer.NextAvailableObject(container[0])
+		for i := 0; i < 4; i++ {
+			placer.TouchObject(container[i])
+		}
+		for i := 5; i < 10; i++ {
+			placer.TouchObject(container[i])
+		}
 	}
 	return placer
+}
+
+func initGroupPlacer(numCluster int, capacity int) *Placer {
+	group := NewGroup(numCluster)
+	for i := 0; i < numCluster; i++ {
+		ins := lambdastore.NewInstance("TestInstance", uint64(i), false)
+		ins.Meta.Capacity = uint64(capacity)
+		group.Set(group.Reserve(i, ins))
+	}
+	return NewPlacer(NewMataStore(), group)
 }
 
 func dumpPlacer(p *Placer, args ...bool) string {
@@ -68,15 +91,71 @@ func dump(metas []*Meta) string {
 	return strings.Join(elem, ",")
 }
 
+func proxySimulator(incomes chan *Meta, p *Placer, doPostProcess MetaDoPostProcess, handler func(*Meta, int), done *sync.WaitGroup) {
+	for income := range incomes {
+		chunk := income.lastChunk
+		meta, _, postProcess := p.GetOrInsert(income.Key, income)
+		if meta.Deleted {
+			continue
+		}
+		if postProcess != nil {
+			postProcess(doPostProcess)
+		}
+		fmt.Printf("Set %d@%s: %v\n", chunk, meta.Key, meta.Placement)
+		handler(meta, chunk)
+	}
+	done.Done()
+}
+
+type requestHandle struct {
+	*Meta
+	chunk     int
+}
+
+func getConcurrentHandler(p *Placer) func(*Meta, int) {
+	chanHandle := make(chan *requestHandle)
+	go func() {
+		for handle := range chanHandle {
+			lambdaId := handle.Meta.Placement[handle.chunk]
+			instance := p.group.Instance(lambdaId)
+			size := instance.Meta.IncreaseSize(uint64(handle.Meta.ChunkSize))
+			fmt.Printf("Lambda %d size updated (size %d of %d).\n", lambdaId, size, instance.Meta.Capacity)
+		}
+	}()
+
+	return func(meta *Meta, chunk int) {
+		if meta == nil {
+			close(chanHandle)
+			return
+		}
+
+		chanHandle <- &requestHandle{ meta, chunk }
+	}
+}
+
+func getConcurrentDoPostProcess(p *Placer) func(*Meta) {
+	return func(meta *Meta) {
+		for i, lambdaId := range meta.Placement {
+			if !meta.placerMeta.confirmed[i] {
+				continue
+			}
+
+			instance := p.group.Instance(lambdaId)
+			size := instance.Meta.DecreaseSize(uint64(meta.ChunkSize))
+			fmt.Printf("Evicting %s from lambda %d (size %d of %d)...\n", meta.Key, lambdaId, size, instance.Meta.Capacity)
+		}
+	}
+}
+
 var _ = Describe("Placer", func() {
-	It("should visited be initialized with false", func() {
-		placer := initPlacer()
-		Expect(dumpPlacer(placer)).To(Equal("0-1,1-1,2-1,3-1,4-0,5-1,6-1,7-1,8-1,9-1"))
+	It("should visited be initialized with true", func() {
+		placer := initPlacer(0)
+		Expect(dumpPlacer(placer)).To(Equal("0-1,1-1,2-1,3-1,4-1,5-1,6-1,7-1,8-1,9-1"))
 		Expect(dumpPlacer(placer, true)).To(Equal(""))
 	})
 
 	It("should replace the unvisited object", func() {
-		placer := initPlacer()
+		placer := initPlacer(1)
 		idx := len(container)
 		container = append(container, newTestMeta(idx))
 
@@ -89,13 +168,13 @@ var _ = Describe("Placer", func() {
 	})
 
 	It("should replace the unvisited object even the newer has been appended to the list", func() {
-		placer := initPlacer()
+		placer := initPlacer(1)
 		idx := len(container)
 		container = append(container, newTestMeta(idx))
 
 		placer.AddObject(container[idx])
-		Expect(dumpPlacer(placer)).To(Equal(fmt.Sprintf("0-1,1-1,2-1,3-1,4-0,5-1,6-1,7-1,8-1,9-1,%d-0", idx)))
-		Expect(container[idx].placerMeta.pos).To(Equal([2]int{idx + 1, 0}))
+		Expect(dumpPlacer(placer)).To(Equal(fmt.Sprintf("0-1,1-1,2-1,3-1,4-0,5-1,6-1,7-1,8-1,9-1,%d-1", idx)))
+		Expect(container[idx].placerMeta.pos).To(Equal([2]int{0, idx + 1}))
 
 		found := placer.NextAvailableObject(container[idx])
 		Expect(found).To(Equal(true))
@@ -106,7 +185,7 @@ var _ = Describe("Placer", func() {
 	})
 
 	It("should a second call and compact works if the first call failed", func() {
-		placer := initPlacer()
+		placer := initPlacer(1)
 		idx := len(container)
 		container = append(container, newTestMeta(idx), newTestMeta(idx + 1))
 
@@ -138,6 +217,43 @@ var _ = Describe("Placer", func() {
 		meta.placerMeta.postProcess(cb)
 
 		Expect(called).To(Equal("2"))
+	})
+
+	It("should basic LRU works", func() {
+		numCluster := 10
+		capacity := 1000
+
+		n := 10
+		shards := 6
+		chunkSize := 400
+
+		placer := initGroupPlacer(numCluster, capacity)
+		queues := make([]chan *Meta, numCluster)
+		doPostProcess := getConcurrentDoPostProcess(placer)
+		handler := getConcurrentHandler(placer)
+		var done sync.WaitGroup
+		for i := 0; i < numCluster; i++ {
+			queues[i] = make(chan *Meta)
+			done.Add(1)
+			go proxySimulator(queues[i], placer, doPostProcess, handler, &done)
+		}
+
+		sess := 0
+		for i := 0; i < n; i++ {
+			for j := 0; j < shards; j++ {
+				lambdaId := sess % numCluster
+				queues[lambdaId] <- placer.NewMeta(strconv.Itoa(i), numCluster, shards, j, lambdaId, int64(chunkSize))
+				sess++
+			}
+		}
+
+		for i := 0; i < numCluster; i++ {
+			close(queues[i])
+		}
+		done.Wait()
+		handler(nil, 0)
+
+		Expect(false).To(Equal(true))
 	})
 
 })

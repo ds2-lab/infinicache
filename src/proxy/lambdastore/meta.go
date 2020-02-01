@@ -1,6 +1,7 @@
 package lambdastore
 
 import (
+	"sync/atomic"
 	"time"
 )
 
@@ -42,9 +43,21 @@ type Meta struct {
 	Capacity        uint64
 
 	// Size of the instance.
-	Size            uint64
+	size            uint64
 
 	chunks map[string]*ChunkMeta
 	head ChunkMeta
 	anchor *ChunkMeta
+}
+
+func (m *Meta) Size() uint64 {
+	return atomic.LoadUint64(&m.size)
+}
+
+func (m *Meta) IncreaseSize(inc uint64) uint64 {
+	return atomic.AddUint64(&m.size, inc)
+}
+
+func (m *Meta) DecreaseSize(dec uint64) uint64 {
+	return atomic.AddUint64(&m.size, -dec)
 }

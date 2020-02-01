@@ -12,6 +12,14 @@ type MetaStore struct {
 	metaMap *hashmap.HashMap
 }
 
+func NewMataStore() *MetaStore {
+	return &MetaStore{ metaMap: hashmap.New(1024) }
+}
+
+func NewMataStoreWithCapacity(size uintptr) *MetaStore {
+	return &MetaStore{ metaMap: hashmap.New(size) }
+}
+
 func (ms *MetaStore) GetOrInsert(key string, insert *Meta) (*Meta, bool, MetaPostProcess) {
 	meta, ok := ms.metaMap.GetOrInsert(key, insert)
 	return meta.(*Meta), ok, nil
