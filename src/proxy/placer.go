@@ -19,11 +19,18 @@ type PlacerMeta struct {
 	visited    bool
 	visitedAt  time.Time
 	confirmed  []bool
+	numConfirmed int
 	swapMap    Placement // For decision from LRU
 	evicts     *Meta
 	suggestMap Placement // For decision from balancer
 	once       *sync.Once
 	action     MetaDoPostProcess
+}
+
+func newPlacerMeta(numChunks int) *PlacerMeta {
+	return &PlacerMeta {
+		confirmed: make([]bool, numChunks),
+	}
 }
 
 func (pm *PlacerMeta) postProcess(action MetaDoPostProcess) {
@@ -37,6 +44,17 @@ func (pm *PlacerMeta) postProcess(action MetaDoPostProcess) {
 func (pm *PlacerMeta) doPostProcess() {
 	pm.action(pm.evicts)
 	pm.evicts = nil
+}
+
+func (pm *PlacerMeta) confirm(chunk int) {
+	if !pm.confirmed[chunk] {
+		pm.confirmed[chunk] = true
+		pm.numConfirmed++
+	}
+}
+
+func (pm *PlacerMeta) allConfirmed() bool {
+	return pm.numConfirmed == len(pm.confirmed)
 }
 
 // Placer implements a Clock LRU for object eviction. Because objects (or metas) are constantly added to the system
@@ -105,14 +123,13 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	// Usually this should always be false for SET operation, flag RESET if true.
 	if meta.placerMeta != nil && meta.placerMeta.confirmed[chunk] {
 		meta.Reset = true
+		// No size update is required, reserved on setting.
 		return meta, got, nil
 	}
 
 	// Initialize placerMeta if not.
 	if meta.placerMeta == nil {
-		meta.placerMeta = &PlacerMeta{
-			confirmed: make([]bool, len(meta.Placement)),
-		}
+		meta.placerMeta = newPlacerMeta(len(meta.Placement))
 	}
 
 	// Check availability
@@ -127,7 +144,10 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	// Check if a replacement decision has been made.
 	if !IsPlacementEmpty(meta.placerMeta.swapMap) {
 		meta.Placement[chunk] = meta.placerMeta.swapMap[chunk]
-		meta.placerMeta.confirmed[chunk] = true
+		meta.placerMeta.confirm(chunk)
+
+		// No size update is required, reserved on eviction.
+
 		return meta, got, nil
 	}
 
@@ -135,11 +155,16 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	instance := p.group.Instance(assigned)
 	if instance.Meta.Size() + uint64(meta.ChunkSize) < instance.Meta.Capacity {
 		meta.Placement[chunk] = assigned
-		meta.placerMeta.confirmed[chunk] = true
+		meta.placerMeta.confirm(chunk)
 		// If the object has not seen.
 		if meta.placerMeta.pos[p.primary] == 0 {
 			p.AddObject(meta)
 		}
+		// We can add size to instance safely, the allocated space is reserved for this chunk even set operation may fail.
+		// This allow the client to reset the chunk without affecting the placement.
+		size := instance.Meta.IncreaseSize(uint64(meta.ChunkSize))
+		p.log.Debug("Lambda %d size updated: %d of %d (key:%s, change:%d).",
+								lambdaId, size, instance.Meta.Capacity, key, meta.ChunkSize)
 		return meta, got, nil
 	}
 
@@ -151,8 +176,21 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		// p.log.Info(p.dumpPlacer())
 	}
 	// p.log.Debug("meta key is: %s, chunk is %d, evicted, evicted key: %s, placement: %v", meta.Key, chunk, meta.placerMeta.evicts.Key, meta.placerMeta.evicts.Placement)
+
+	for i, tbe := range meta.placerMeta.swapMap {	// To be evicted
+		if !meta.placerMeta.confirmed[i] {
+			// Confirmed chunk will not move
+			instance := p.group.Instance(tbe)
+			// The size can be replaced safely, too.
+			size := instance.Meta.IncreaseSize(uint64(meta.ChunkSize - meta.placerMeta.evicts.ChunkSize))
+			p.log.Debug("Lambda %d size updated: %d of %d (key:%s, evict:%s, Δ:%d).",
+									tbe, size, instance.Meta.Capacity, key, meta.placerMeta.evicts.Key,
+									meta.ChunkSize - meta.placerMeta.evicts.ChunkSize)
+		}
+	}
+
 	meta.Placement[chunk] = meta.placerMeta.swapMap[chunk]
-	meta.placerMeta.confirmed[chunk] = true
+	meta.placerMeta.confirm(chunk)
 	meta.placerMeta.once = &sync.Once{}
 	return meta, got, meta.placerMeta.postProcess
 }
@@ -223,10 +261,11 @@ func (p *Placer) NextAvailableObject(meta *Meta) bool {
 
 		if m == meta {
 			// Ignore meta itself
-		} else if m.placerMeta.visited {
+		} else if m.placerMeta.visited && m.placerMeta.allConfirmed() {
+			// Only switch to unvisited for complete object.
 			m.placerMeta.visited = false
-		} else {
-			// Found
+		} else if !m.placerMeta.visited {
+			// Found candidate
 			m.Deleted = true
 			// Don't reset placerMeta here, reset on recover object.
 			// m.placerMeta = nil

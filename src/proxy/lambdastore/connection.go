@@ -331,13 +331,7 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("SET %v, confirmed.", rsp.Id)
-	req, ok := conn.SetResponse(rsp)
-	// To avoid duplicated calculation, count only if succeed to set response and the request is not a reset (if any).
-	if ok && !req.Reset {
-		size := conn.instance.Meta.IncreaseSize(uint64(req.ChunkSize))
-		conn.log.Debug("Lambda size updated (size %d of %d).", size, conn.instance.Meta.Capacity)
-	}
-
+	conn.SetResponse(rsp)
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}

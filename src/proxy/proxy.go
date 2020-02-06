@@ -159,8 +159,6 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 		Key:          chunkKey,
 		BodyStream:   bodyStream,
 		ChanResponse: client.Responses(),
-		ChunkSize:    bodyStream.Len(),
-		Reset:        meta.Reset,
 	}
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
@@ -205,7 +203,8 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 }
 
 func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
-	switch rsp := r.(type) {
+	wrapper := r.(types.ProxyResponse)
+	switch rsp := wrapper.Response.(type) {
 	case *types.Response:
 		t := time.Now()
 
@@ -252,19 +251,11 @@ func (p *Proxy) CollectData() {
 func (p *Proxy) dropEvicted(meta *Meta) {
 	reqId := uuid.New().String()
 	for i, lambdaId := range meta.Placement {
-		// Check if lambdaId is confirmed.
-		if !meta.placerMeta.confirmed[i] {
-			continue
-		}
-
-		p.group.Instance(lambdaId).C() <- &types.Request{
+		instance := p.group.Instance(lambdaId)
+		instance.C() <- &types.Request{
 			Id:  types.Id{0, reqId, strconv.Itoa(i)},
 			Cmd: "del",
 			Key: meta.ChunkKey(i),
 		}
-
-		size := p.group.Instance(lambdaId).Meta.DecreaseSize(uint64(meta.ChunkSize))
-		capacity := p.group.Instance(lambdaId).Meta.Capacity
-		p.log.Debug("Evicting %s from lambda %d (size %d of %d)...", meta.Key, lambdaId, size, capacity)
 	}
 }

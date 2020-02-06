@@ -91,60 +91,13 @@ func dump(metas []*Meta) string {
 	return strings.Join(elem, ",")
 }
 
-func proxySimulator(incomes chan *Meta, p *Placer, doPostProcess MetaDoPostProcess, handler func(*Meta, int), done *sync.WaitGroup) {
+func proxySimulator(incomes chan *Meta, p *Placer, done *sync.WaitGroup) {
 	for income := range incomes {
 		chunk := income.lastChunk
-		meta, _, postProcess := p.GetOrInsert(income.Key, income)
-		if meta.Deleted {
-			continue
-		}
-		if postProcess != nil {
-			postProcess(doPostProcess)
-		}
+		meta, _, _ := p.GetOrInsert(income.Key, income)
 		fmt.Printf("Set %d@%s: %v\n", chunk, meta.Key, meta.Placement)
-		handler(meta, chunk)
 	}
 	done.Done()
-}
-
-type requestHandle struct {
-	*Meta
-	chunk     int
-}
-
-func getConcurrentHandler(p *Placer) func(*Meta, int) {
-	chanHandle := make(chan *requestHandle)
-	go func() {
-		for handle := range chanHandle {
-			lambdaId := handle.Meta.Placement[handle.chunk]
-			instance := p.group.Instance(lambdaId)
-			size := instance.Meta.IncreaseSize(uint64(handle.Meta.ChunkSize))
-			fmt.Printf("Lambda %d size updated (size %d of %d).\n", lambdaId, size, instance.Meta.Capacity)
-		}
-	}()
-
-	return func(meta *Meta, chunk int) {
-		if meta == nil {
-			close(chanHandle)
-			return
-		}
-
-		chanHandle <- &requestHandle{ meta, chunk }
-	}
-}
-
-func getConcurrentDoPostProcess(p *Placer) func(*Meta) {
-	return func(meta *Meta) {
-		for i, lambdaId := range meta.Placement {
-			if !meta.placerMeta.confirmed[i] {
-				continue
-			}
-
-			instance := p.group.Instance(lambdaId)
-			size := instance.Meta.DecreaseSize(uint64(meta.ChunkSize))
-			fmt.Printf("Evicting %s from lambda %d (size %d of %d)...\n", meta.Key, lambdaId, size, instance.Meta.Capacity)
-		}
-	}
 }
 
 var _ = Describe("Placer", func() {
@@ -223,19 +176,17 @@ var _ = Describe("Placer", func() {
 		numCluster := 10
 		capacity := 1000
 
-		n := 10
+		n := 50
 		shards := 6
 		chunkSize := 400
 
 		placer := initGroupPlacer(numCluster, capacity)
 		queues := make([]chan *Meta, numCluster)
-		doPostProcess := getConcurrentDoPostProcess(placer)
-		handler := getConcurrentHandler(placer)
 		var done sync.WaitGroup
 		for i := 0; i < numCluster; i++ {
 			queues[i] = make(chan *Meta)
 			done.Add(1)
-			go proxySimulator(queues[i], placer, doPostProcess, handler, &done)
+			go proxySimulator(queues[i], placer, &done)
 		}
 
 		sess := 0
@@ -251,9 +202,8 @@ var _ = Describe("Placer", func() {
 			close(queues[i])
 		}
 		done.Wait()
-		handler(nil, 0)
 
-		Expect(false).To(Equal(true))
+		Expect(true).To(Equal(true))
 	})
 
 })

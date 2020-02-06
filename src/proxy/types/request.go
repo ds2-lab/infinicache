@@ -19,8 +19,6 @@ type Request struct {
 	Body         []byte
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
-	ChunkSize    int64
-	Reset        bool
 
 	w                *resp.RequestWriter
 	responded        uint32
@@ -103,7 +101,7 @@ func (req *Request) SetResponse(rsp interface{}) bool {
 		return false
 	}
 	if req.ChanResponse != nil {
-		req.ChanResponse <- rsp
+		req.ChanResponse <- &ProxyResponse{ rsp, req }
 
 		// Release reference so chan can be garbage collected.
 		req.ChanResponse = nil
