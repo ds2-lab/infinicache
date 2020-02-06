@@ -1,4 +1,4 @@
-package proxy_test
+package proxy
 
 import (
 	"testing"

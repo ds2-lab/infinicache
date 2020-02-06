@@ -20,8 +20,8 @@ type Request struct {
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
 
-	w *resp.RequestWriter
-	responded    uint32
+	w                *resp.RequestWriter
+	responded        uint32
 	streamingStarted bool
 }
 
@@ -58,6 +58,16 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 //	req.w = w
 //}
 
+func (req *Request) PrepareForDel(w *resp.RequestWriter) {
+	w.WriteMultiBulkSize(5)
+	w.WriteBulkString(req.Cmd)
+	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
+	w.WriteBulkString(req.Id.ReqId)
+	w.WriteBulkString(req.Id.ChunkId)
+	w.WriteBulkString(req.Key)
+	req.w = w
+}
+
 func (req *Request) Flush() error {
 	if req.w == nil {
 		return errors.New("Writer for request not set.")
@@ -90,11 +100,12 @@ func (req *Request) SetResponse(rsp interface{}) bool {
 	if !atomic.CompareAndSwapUint32(&req.responded, 0, 1) {
 		return false
 	}
+	if req.ChanResponse != nil {
+		req.ChanResponse <- &ProxyResponse{ rsp, req }
 
-	req.ChanResponse <- rsp
-
-	// Release reference so chan can be garbage collected.
-	req.ChanResponse = nil
+		// Release reference so chan can be garbage collected.
+		req.ChanResponse = nil
+	}
 
 	return true
 }

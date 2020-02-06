@@ -23,7 +23,7 @@ var (
 		Color:  true,
 	}
 	ErrConnectionClosed = errors.New("Connection closed")
-	ErrMissingResponse = errors.New("Missing response")
+	ErrMissingResponse  = errors.New("Missing response")
 )
 
 type Connection struct {
@@ -43,8 +43,8 @@ func NewConnection(c net.Conn) *Connection {
 		log: defaultConnectionLog,
 		cn:  c,
 		// wrap writer and reader
-		w:      resp.NewRequestWriter(c),
-		r:      resp.NewResponseReader(c),
+		w:        resp.NewRequestWriter(c),
+		r:        resp.NewResponseReader(c),
 		chanWait: make(chan *types.Request, 1),
 		respType: make(chan interface{}),
 		closed:   make(chan struct{}),
@@ -148,6 +148,8 @@ func (conn *Connection) ServeLambda() {
 				conn.getHandler(start)
 			case "set":
 				conn.setHandler(start)
+			case "del":
+				conn.delHandler()
 			case "data":
 				conn.receiveData()
 			case "initMigrate":
@@ -173,15 +175,16 @@ func (conn *Connection) Ping() {
 	}
 }
 
-func (conn *Connection) SetResponse(rsp *types.Response) bool {
+func (conn *Connection) SetResponse(rsp *types.Response) (*types.Request, bool) {
 	if len(conn.chanWait) == 0 {
 		conn.log.Error("Unexpected response: %v", rsp)
-		return false
+		return nil, false
 	}
 	for req := range conn.chanWait {
 		if req.IsResponse(rsp) {
 			conn.log.Debug("response matched: %v", req.Id)
-			return req.SetResponse(rsp)
+
+			return req, req.SetResponse(rsp)
 		}
 		conn.log.Warn("passing req: %v, got %v", req, rsp)
 		req.SetResponse(ErrMissingResponse)
@@ -190,7 +193,7 @@ func (conn *Connection) SetResponse(rsp *types.Response) bool {
 			break
 		}
 	}
-	return false
+	return nil, false
 }
 
 func (conn *Connection) SetErrorResponse(err error) {
@@ -278,7 +281,7 @@ func (conn *Connection) getHandler(start time.Time) {
 		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 			conn.log.Warn("LogProxy err %v", err)
 		}
-		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards + counter.(*types.ClientReqCounter).ParityShards {
+		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
 			global.ReqMap.Del(reqId)
 		}
 	}
@@ -309,7 +312,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
-	if !conn.SetResponse(rsp) {
+	if _, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response, release hold.
 		rsp.BodyStream.(resp.Holdable).Unhold()
 	}
@@ -321,7 +324,7 @@ func (conn *Connection) getHandler(start time.Time) {
 func (conn *Connection) setHandler(start time.Time) {
 	conn.log.Debug("SET from lambda.")
 
-	rsp := &types.Response{ Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10)) }
+	rsp := &types.Response{Cmd: "set", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10))}
 	connId, _ := conn.r.ReadBulkString()
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
@@ -332,6 +335,20 @@ func (conn *Connection) setHandler(start time.Time) {
 	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
 		conn.log.Warn("LogProxy err %v", err)
 	}
+}
+
+func (conn *Connection) delHandler() {
+	conn.log.Debug("DEL from lambda.")
+
+	rsp := &types.Response{Cmd: "del"}
+
+	connId, _ := conn.r.ReadBulkString()
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
+	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
+
+	conn.log.Debug("DEL %v, confirmed.", rsp.Id)
+	conn.SetResponse(rsp) // if del is control cmd, should return False
 }
 
 func (conn *Connection) receiveData() {

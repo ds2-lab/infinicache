@@ -11,6 +11,7 @@ import (
 const (
 	OP_SET         = 0
 	OP_GET         = 1
+	OP_DEL		   = 2
 	OP_WARMUP      = 90
 	OP_MIGRATION   = 91
 )
@@ -26,6 +27,7 @@ type Storage interface {
 	Set(string, string, []byte) error
 	SetStream(string, string, resp.AllReadCloser) error
 	Len() int
+	Del(string,string) error
 	Keys()  <-chan string
 }
 

@@ -9,10 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/collector"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
-	"reflect"
 
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/global"
 	"github.com/wangaoone/LambdaObjectstore/src/proxy/types"
@@ -23,16 +23,16 @@ const (
 	INSTANCE_SLEEP = 0
 	INSTANCE_AWAKE = 1
 	INSTANCE_MAYBE = 2
-	MAX_RETRY = 3
+	MAX_RETRY      = 3
 )
 
 var (
-	Registry InstanceRegistry
-	TimeoutNever = make(<-chan time.Time)
-	WarmTimout = 1 * time.Minute
+	Registry       InstanceRegistry
+	TimeoutNever   = make(<-chan time.Time)
+	WarmTimout     = 1 * time.Minute
 	ConnectTimeout = 20 * time.Millisecond // Just above average triggering cost.
 	RequestTimeout = 10 * time.Second
-	timeouts  = sync.Pool{
+	timeouts       = sync.Pool{
 		New: func() interface{} {
 			return time.NewTimer(0)
 		},
@@ -45,16 +45,17 @@ type InstanceRegistry interface {
 
 type Instance struct {
 	*Deployment
+	Meta
 
-	cn        *Connection
-	chanReq   chan types.Command
-	awake     int
-	awakeLock sync.Mutex
+	cn            *Connection
+	chanReq       chan types.Command
+	awake         int
+	awakeLock     sync.Mutex
 	chanValidated chan struct{}
 	lastValidated *Connection
-	mu        sync.Mutex
-	closed    chan struct{}
-	coolTimer *time.Timer
+	mu            sync.Mutex
+	closed        chan struct{}
+	coolTimer     *time.Timer
 }
 
 func NewInstanceFromDeployment(dp *Deployment) *Instance {
@@ -68,12 +69,12 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 	close(chanValidated)
 
 	return &Instance{
-		Deployment: dp,
-		awake:      INSTANCE_SLEEP,
-		chanReq:    make(chan types.Command, 1),
-		chanValidated:  chanValidated, // Initialize with a closed channel.
-		closed:     make(chan struct{}),
-		coolTimer:  time.NewTimer(WarmTimout),
+		Deployment:    dp,
+		awake:         INSTANCE_SLEEP,
+		chanReq:       make(chan types.Command, 1),
+		chanValidated: chanValidated, // Initialize with a closed channel.
+		closed:        make(chan struct{}),
+		coolTimer:     time.NewTimer(WarmTimout),
 	}
 }
 
@@ -126,7 +127,7 @@ func (ins *Instance) validate(warmUp bool) *Connection {
 			}
 			timeout.Reset(ConnectTimeout)
 
-			select{
+			select {
 			case <-timeout.C:
 				// Set status to dead and revalidate.
 				timeouts.Put(timeout)
@@ -363,7 +364,7 @@ func (ins *Instance) flagValidated(conn *Connection) *Connection {
 			}
 		}
 		// No need to set awake for new connection, it has been set already.
-	} else if ins.awake != INSTANCE_MAYBE {   // For instance not invoked by proxy (INSTANCE_MAYBE), keep status.
+	} else if ins.awake != INSTANCE_MAYBE { // For instance not invoked by proxy (INSTANCE_MAYBE), keep status.
 		ins.awake = INSTANCE_AWAKE
 	}
 
@@ -416,6 +417,8 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 			req.PrepareForSet(conn.w)
 		case "get": /*get or one argument cmd*/
 			req.PrepareForGet(conn.w)
+		case "del":
+			req.PrepareForDel(conn.w)
 		default:
 			req.SetResponse(errors.New(fmt.Sprintf("Unexpected request command: %s", cmd)))
 			// Unrecoverable
@@ -424,7 +427,7 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 
 		// In case there is a request already, wait to be consumed (for response).
 		conn.chanWait <- req
-		conn.cn.SetWriteDeadline(time.Now().Add(RequestTimeout))  // Set deadline for write
+		conn.cn.SetWriteDeadline(time.Now().Add(RequestTimeout)) // Set deadline for write
 		defer conn.cn.SetWriteDeadline(time.Time{})
 		if err := req.Flush(); err != nil {
 			ins.log.Warn("Flush pipeline error: %v", err)
@@ -447,6 +450,8 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 			isDataRequest = true
 		case "migrate":
 			ctrl.PrepareForMigrate(conn.w)
+		case "del":
+			ctrl.PrepareForDel(conn.w)
 		default:
 			ins.log.Error("Unexpected control command: %s", cmd)
 			// Unrecoverable
@@ -483,7 +488,7 @@ func (ins *Instance) isClosedLocked() bool {
 
 func (ins *Instance) warmUp() {
 	if !ins.coolTimer.Stop() {
-		select{
+		select {
 		case <-ins.coolTimer.C:
 		default:
 		}

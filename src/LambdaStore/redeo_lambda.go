@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
@@ -16,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
-	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/collector"
 	lambdaLife "github.com/wangaoone/LambdaObjectstore/src/LambdaStore/lifetime"
-	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/storage"
 	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/migrator"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/storage"
+	"github.com/wangaoone/LambdaObjectstore/src/LambdaStore/types"
+	protocol "github.com/wangaoone/LambdaObjectstore/src/types"
 )
 
 const (
@@ -31,22 +32,22 @@ const (
 
 var (
 	// Track how long the store has lived, migration is required before timing up.
-	lifetime                       = lambdaLife.New(LIFESPAN)
+	lifetime = lambdaLife.New(LIFESPAN)
 
 	// Data storage
-	store          types.Storage   = storage.New()
-	storeId        uint64
+	store   types.Storage = storage.New()
+	storeId uint64
 
 	// Proxy that links stores as a system
-	proxy          string                                   // Passed from proxy dynamically.
-	proxyConn      net.Conn
-	srv                            = redeo.NewServer(nil)   // Serve requests from proxy
+	proxy     string // Passed from proxy dynamically.
+	proxyConn net.Conn
+	srv       = redeo.NewServer(nil) // Serve requests from proxy
 
-	mu             sync.RWMutex
-	log                            = &logger.ColorLogger{ Level: logger.LOG_LEVEL_WARN }
+	mu  sync.RWMutex
+	log = &logger.ColorLogger{Level: logger.LOG_LEVEL_WARN}
 	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
 	// at the same time.
-	pongLimiter                    = make(chan struct{}, 1)
+	pongLimiter = make(chan struct{}, 1)
 )
 
 func init() {
@@ -94,7 +95,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 	// migration triggered lambda
 	if input.Cmd == "migrate" {
-		collector.Send(&types.DataEntry{ Op: types.OP_MIGRATION, Session: session.Id })
+		collector.Send(&types.DataEntry{Op: types.OP_MIGRATION, Session: session.Id})
 
 		if len(input.Addr) == 0 {
 			log.Error("No migrator set.")
@@ -199,7 +200,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	}
 	if input.Cmd == "warmup" {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
-		collector.Send(&types.DataEntry{ Op: types.OP_WARMUP, Session: session.Id })
+		collector.Send(&types.DataEntry{Op: types.OP_WARMUP, Session: session.Id})
 	} else {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 	}
@@ -464,6 +465,56 @@ func main() {
 		collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
 	})
 
+	srv.HandleFunc("del", func(w resp.ResponseWriter, c *resp.Command) {
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
+		}
+		defer session.Timeout.DoneBusyWithReset(extension)
+
+		//t := time.Now()
+		log.Debug("In Del Handler")
+
+		connId := c.Arg(0).String()
+		reqId := c.Arg(1).String()
+		chunkId := c.Arg(2).String()
+		key := c.Arg(3).String()
+
+		err := store.Del(key, chunkId)
+		if err == nil {
+			// write Key, clientId, chunkId, body back to proxy
+			response := &types.Response{
+				ResponseWriter: w,
+				Cmd:            "del",
+				ConnId:         connId,
+				ReqId:          reqId,
+				ChunkId:        chunkId,
+			}
+			response.Prepare()
+			if err := response.Flush(); err != nil {
+				log.Error("Error on del::flush(set key %s): %v", key, err)
+				return
+			}
+		} else {
+			var respError *types.ResponseError
+			if err == types.ErrNotFound {
+				// Not found
+				respError = types.NewResponseError(404, err)
+			} else {
+				respError = types.NewResponseError(500, err)
+			}
+
+			log.Warn("Failed to del %s: %v", key, respError)
+			w.AppendErrorf("Failed to del %s: %v", key, respError)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush: %v", err)
+			}
+		}
+
+	})
 	srv.HandleFunc("data", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
 		session.Timeout.Halt()
@@ -532,12 +583,12 @@ func main() {
 		}
 
 		if err := session.Migrator.TriggerDestination(deployment, &protocol.InputEvent{
-			Cmd:   "migrate",
-			Id:    uint64(newId),
-			Proxy: proxy,
-			Addr:  addr,
+			Cmd:    "migrate",
+			Id:     uint64(newId),
+			Proxy:  proxy,
+			Addr:   addr,
 			Prefix: collector.Prefix,
-			Log:   log.GetLevel(),
+			Log:    log.GetLevel(),
 		}); err != nil {
 			return
 		}
@@ -586,9 +637,27 @@ func main() {
 		// Send key list by access time
 		w.AppendBulkString("mhello")
 		w.AppendBulkString(strconv.Itoa(store.Len()))
+
+		keys := store.Keys()
+
+		delList := make([]*string, 0, 2*len(keys))
+		getList := delList[len(keys):len(keys)]
 		for key := range store.Keys() {
-			w.AppendBulkString(key)
+			_, _, err := store.Get(key)
+			if err == types.ErrNotFound {
+				delList = append(delList, &key)
+			} else {
+				getList = append(getList, &key)
+			}
 		}
+
+		for _, key := range delList {
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_DEL, *key))
+		}
+		for _, key := range getList {
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_GET, *key))
+		}
+
 		if err := w.Flush(); err != nil {
 			log.Error("Error on mhello::flush: %v", err)
 			return

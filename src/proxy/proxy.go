@@ -1,12 +1,14 @@
 package proxy
 
 import (
-	"fmt"
-	"github.com/cornelk/hashmap"
+	"github.com/google/uuid"
+
+	//	"github.com/google/uuid"
 	"github.com/wangaoone/LambdaObjectstore/lib/logger"
 	"github.com/wangaoone/redeo"
 	"github.com/wangaoone/redeo/resp"
 	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,9 +20,9 @@ import (
 )
 
 type Proxy struct {
-	log     logger.ILogger
-	group   *Group
-	metaMap *hashmap.HashMap
+	log       logger.ILogger
+	group     *Group
+	metaStore *Placer
 
 	initialized int32
 	ready       chan struct{}
@@ -28,15 +30,16 @@ type Proxy struct {
 
 // initial lambda group
 func New(replica bool) *Proxy {
+	group := NewGroup(NumLambdaClusters)
 	p := &Proxy{
 		log: &logger.ColorLogger{
 			Prefix: "Proxy ",
 			Level:  global.Log.GetLevel(),
 			Color:  true,
 		},
-		group:   NewGroup(NumLambdaClusters),
-		metaMap: hashmap.New(1024),
-		ready:   make(chan struct{}),
+		group:     group,
+		metaStore: NewPlacer(NewMataStore(), group),
+		ready:     make(chan struct{}),
 	}
 
 	for i := range p.group.All {
@@ -48,6 +51,8 @@ func New(replica bool) *Proxy {
 			p.log.Info("[Registering lambda store %s%d]", name, i)
 		}
 		node := scheduler.GetForGroup(p.group, i)
+		node.Meta.Capacity = InstanceCapacity
+		node.Meta.IncreaseSize(InstanceOverhead)
 
 		// Initialize instance, this is not neccessary if the start time of the instance is acceptable.
 		go func() {
@@ -100,14 +105,15 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 
 	// Get args
 	key, _ := c.NextArg().String()
-	chunkId, _ := c.NextArg().String()
+	dChunkId, _ := c.NextArg().Int()
+	chunkId := strconv.FormatInt(dChunkId, 10)
 	lambdaId, _ := c.NextArg().Int()
 	randBase, _ := c.NextArg().Int()
 	reqId, _ := c.NextArg().String()
-	_, _ = c.NextArg().Int()
-	_, _ = c.NextArg().Int()
-	// dataShards, _ := c.NextArg().Int()
-	// parityShards, _ := c.NextArg().Int()
+	// _, _ = c.NextArg().Int()
+	// _, _ = c.NextArg().Int()
+	dataChunks, _ := c.NextArg().Int()
+	parityChunks, _ := c.NextArg().Int()
 
 	bodyStream, err := c.Next()
 	if err != nil {
@@ -116,26 +122,38 @@ func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	}
 	bodyStream.(resp.Holdable).Hold()
 
-	// Start couting time.
+	// Start counting time.
 	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
 
 	// We don't use this for now
-	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataShards), int(parityShards), 0})
+	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataChunks), int(parityChunks), 0})
 
 	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
-	tbInserted := p.group.Slice(uint64(randBase))
-	slice, got := p.metaMap.GetOrInsert(key, tbInserted)
-	if got {
-		tbInserted.Close()
+	prepared := p.metaStore.NewMeta(
+		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), bodyStream.Len())
+
+	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
+	if meta.Deleted {
+		// Object may be evicted in somecase:
+		// 1: Some chunks were set.
+		// 2: Placer evicted this object (unlikely).
+		// 3: We got evicted meta.
+		p.log.Warn("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.Flush()
+		return
 	}
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
-	lambdaDest, got := p.metaMap.GetOrInsert(chunkKey, slice.(*Slice).GetIndex(int(lambdaId)))
+	if postProcess != nil {
+		postProcess(p.dropEvicted)
+	}
+	chunkKey := meta.ChunkKey(int(dChunkId))
+	lambdaDest := meta.Placement[dChunkId]
 
 	// Send chunk to the corresponding lambda instance in group
-	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest.(int))
-	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
+	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest)
+	p.group.Instance(lambdaDest).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
 		Key:          chunkKey,
@@ -149,30 +167,34 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 	client := redeo.GetClient(c.Context())
 	connId := int(client.ID())
 	key := c.Arg(0).String()
-	chunkId := c.Arg(1).String()
+	dChunkId, _ := c.Arg(1).Int()
+	chunkId := strconv.FormatInt(dChunkId, 10)
 	reqId := c.Arg(2).String()
-	dataShards, _ := c.Arg(3).Int()
-	parityShards, _ := c.Arg(4).Int()
+	dataChunks, _ := c.Arg(3).Int()
+	parityChunks, _ := c.Arg(4).Int()
 
 	// Start couting time.
 	if err := collector.Collect(collector.LogStart, "get", reqId, chunkId, time.Now().UnixNano()); err != nil {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
 
-	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataShards), int(parityShards), 0})
+	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0})
 
 	// key is "key"+"chunkId"
-	chunkKey := fmt.Sprintf("%s@%s", chunkId, key)
-	lambdaDest, ok := p.metaMap.Get(chunkKey)
-	if !ok {
-		p.log.Warn("KEY %s not found in lambda store, please set first.", chunkKey)
-		w.AppendErrorf("KEY %s not found in lambda store, please set first.", chunkKey)
+	meta, ok := p.metaStore.Get(key, int(dChunkId))
+	if ok || meta.Deleted {
+		// Object may be deleted.
+		p.log.Warn("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
 		w.Flush()
 		return
 	}
+	chunkKey := meta.ChunkKey(int(dChunkId))
+	lambdaDest := meta.Placement[dChunkId]
+
 	// Send request to lambda channel
-	p.log.Debug("Requesting to get %s: %d", chunkKey, lambdaDest.(int))
-	p.group.Instance(lambdaDest.(int)).C() <- &types.Request{
+	p.log.Debug("Requesting to get %s: %d", chunkKey, lambdaDest)
+	p.group.Instance(lambdaDest).C() <- &types.Request{
 		Id:           types.Id{connId, reqId, chunkId},
 		Cmd:          strings.ToLower(c.Name),
 		Key:          chunkKey,
@@ -181,7 +203,8 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 }
 
 func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
-	switch rsp := r.(type) {
+	wrapper := r.(types.ProxyResponse)
+	switch rsp := wrapper.Response.(type) {
 	case *types.Response:
 		t := time.Now()
 
@@ -222,5 +245,17 @@ func (p *Proxy) CollectData() {
 		p.log.Error("Failed to save data from lambdas: %v", err)
 	} else {
 		p.log.Info("Data collected.")
+	}
+}
+
+func (p *Proxy) dropEvicted(meta *Meta) {
+	reqId := uuid.New().String()
+	for i, lambdaId := range meta.Placement {
+		instance := p.group.Instance(lambdaId)
+		instance.C() <- &types.Request{
+			Id:  types.Id{0, reqId, strconv.Itoa(i)},
+			Cmd: "del",
+			Key: meta.ChunkKey(i),
+		}
 	}
 }

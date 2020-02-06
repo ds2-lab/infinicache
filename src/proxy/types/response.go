@@ -5,6 +5,11 @@ import (
 	"github.com/wangaoone/redeo/resp"
 )
 
+type ProxyResponse struct {
+	Response interface{}
+	Request *Request
+}
+
 type Response struct {
 	Id   Id
 	Cmd  string

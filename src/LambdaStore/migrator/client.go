@@ -1,9 +1,9 @@
 package migrator
 
 import (
-	"fmt"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -23,18 +23,18 @@ var (
 	log = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_INFO,
 	}
-	MigrationTimeout = 30 * time.Second
+	MigrationTimeout     = 30 * time.Second
 	ErrClosedPrematurely = errors.New("Client closed before ready.")
-	ErrClosed = errors.New("Client closed.")
+	ErrClosed            = errors.New("Client closed.")
 )
 
 type Client struct {
-	addr         string
-	cn           net.Conn
-	ready        chan error
-	mu           sync.Mutex
-	w            *resp.RequestWriter
-	r            resp.ResponseReader
+	addr  string
+	cn    net.Conn
+	ready chan error
+	mu    sync.Mutex
+	w     *resp.RequestWriter
+	r     resp.ResponseReader
 }
 
 func NewClient() *Client {
@@ -50,7 +50,7 @@ func (cli *Client) Initiate(initiator func() error) error {
 	}
 
 	// Test ready and reset if neccessary
-	select{
+	select {
 	case err := <-cli.ready:
 		if err == nil {
 			// closed, reopen
@@ -169,9 +169,18 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 		}
 	}
 
+	// only determine del or get for now.
+	opDel := strconv.Itoa(types.OP_DEL)
+
 	// Start migration
 	log.Info("Start migrating %d keys", len)
 	for _, key := range keys {
+
+		if opDel == string(key[0]) {
+			store.(*StorageAdapter).LocalDel(string(key[1:]))
+			continue
+		}
+
 		chunk, err := store.(*StorageAdapter).Migrate(key)
 		if err == ErrSkip {
 			log.Debug("Migrating key %s: %v", key, err)
