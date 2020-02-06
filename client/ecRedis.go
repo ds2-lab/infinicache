@@ -1,4 +1,4 @@
-package ecRedis
+package client
 
 import (
 	"bytes"

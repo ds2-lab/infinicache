@@ -1,4 +1,4 @@
-package ecRedis
+package client
 
 import (
 	"github.com/buraksezer/consistent"
