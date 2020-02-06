@@ -25,7 +25,7 @@ var (
 	timeout = flag.Int64("timeout", 100, "function timeout")
 	prefix  = flag.String("prefix", "Proxy1Node", "function name prefix")
 	vpc     = flag.Bool("vpc", false, "vpc config")
-	key     = flag.String("key", "redeo_lambda", "key for handler and file name")
+	key     = flag.String("key", "lambda", "key for handler and file name")
 	from    = flag.Int64("from", 0, "the number of lambda deployment involved")
 	to      = flag.Int64("to", 400, "the number of lambda deployment involved")
 	batch   = flag.Int64("batch", 5, "batch Number, no need to modify")

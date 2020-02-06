@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	lambdaService "github.com/aws/aws-sdk-go/service/lambda"
-	protocol "github.com/wangaoone/LambdaObjectstore/reclaim_test/types"
+	protocol "github.com/mason-leap-lab/infinicache/reclaim_test/types"
 	"log"
 	"math/rand"
 	"strconv"

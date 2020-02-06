@@ -9,8 +9,8 @@ AWS IAM console -> Create role -> Lambda -> AWSLambdaBasicExecutionRole
 #### Package
 ```golang
 go get -u github.com/aws/aws-sdk-go/...
-go get -u github.com/wangaoone/redeo
-go get -u github.com/wangaoone/redeo/resp
+go get -u github.com/mason-leap-lab/redeo
+go get -u github.com/mason-leap-lab/redeo/resp
 go get -u github.com/wangaoone/s3gof3r
 go get -u github.com/buraksezer/consistent
 go get -u github.com/cespare/xxhash
@@ -18,7 +18,7 @@ go get -u github.com/seiflotfy/cuckoofilter
 ```
 #### Related repo
 [ecRedis](https://github.com/wangaoone/ecRedis)  
-[redeo](https://github.com/wangaoone/redeo)  
+[redeo](https://github.com/mason-leap-lab/redeo)  
 [redbench](https://github.com/tddg/redbench)
 
 ### Proxy Port

@@ -23,17 +23,17 @@ function perform(){
 
 	start_proxy $PREPROXY &
   # Wait for proxy is ready
-	while [ ! -f /tmp/lambdaproxy.pid ]
+	while [ ! -f /tmp/infinicache.pid ]
 	do
 		sleep 1s
 	done
-	cat /tmp/lambdaproxy.pid
+	cat /tmp/infinicache.pid
 	#        set
 	sleep 1s
 	playback $DATANUM $PARITYNUM $SCALE $CLUSTER $FILE $COMPACT
-	kill -2 `cat /tmp/lambdaproxy.pid`
+	kill -2 `cat /tmp/infinicache.pid`
   # Wait for proxy cleaned up
-  while [ -f /tmp/lambdaproxy.pid ]
+  while [ -f /tmp/infinicache.pid ]
 	do
 		sleep 1s
 	done
