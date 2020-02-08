@@ -91,11 +91,17 @@ func dump(metas []*Meta) string {
 	return strings.Join(elem, ",")
 }
 
-func proxySimulator(incomes chan *Meta, p *Placer, done *sync.WaitGroup) {
+func proxySimulator(incomes chan interface{}, p *Placer, done *sync.WaitGroup) {
 	for income := range incomes {
-		chunk := income.lastChunk
-		meta, _, _ := p.GetOrInsert(income.Key, income)
-		fmt.Printf("Set %d@%s: %v\n", chunk, meta.Key, meta.Placement)
+		switch m := income.(type) {
+		case *Meta:
+			chunk := m.lastChunk
+			meta, _, _ := p.GetOrInsert(m.Key, m)
+			fmt.Printf("Set %d@%s: %v\n", chunk, meta.Key, meta.Placement)
+		case func():
+			m()
+		}
+
 	}
 	done.Done()
 }
@@ -181,10 +187,10 @@ var _ = Describe("Placer", func() {
 		chunkSize := 400
 
 		placer := initGroupPlacer(numCluster, capacity)
-		queues := make([]chan *Meta, numCluster)
+		queues := make([]chan interface{}, numCluster)
 		var done sync.WaitGroup
 		for i := 0; i < numCluster; i++ {
-			queues[i] = make(chan *Meta)
+			queues[i] = make(chan interface{})
 			done.Add(1)
 			go proxySimulator(queues[i], placer, &done)
 		}
@@ -204,6 +210,51 @@ var _ = Describe("Placer", func() {
 		done.Wait()
 
 		Expect(true).To(Equal(true))
+	})
+
+	It("should GET request return same placement", func() {
+		numCluster := 10
+		capacity := 1000
+
+		shards := 6
+		chunkSize := 400
+
+		placer := initGroupPlacer(numCluster, capacity)
+		queues := make([]chan interface{}, numCluster)
+		var simulators sync.WaitGroup
+		for i := 0; i < numCluster; i++ {
+			queues[i] = make(chan interface{})
+			simulators.Add(1)
+			go proxySimulator(queues[i], placer, &simulators)
+		}
+
+		var conns sync.WaitGroup
+		sess := 0
+		for i := 0; i < 1; i++ {
+			for j := 0; j < shards; j++ {
+				conns.Add(1)
+				lambdaId := sess % numCluster
+				queues[lambdaId] <- func(m *Meta) func() {
+					return func() {
+						meta, _, _ := placer.GetOrInsert(m.Key, m)
+						fmt.Printf("Set %d@%s: %v\n", m.lastChunk, meta.Key, meta.Placement)
+						conns.Done()
+					}
+				}(placer.NewMeta(strconv.Itoa(i), numCluster, shards, j, lambdaId, int64(chunkSize)))
+				sess++
+			}
+		}
+
+		for i := 0; i < numCluster; i++ {
+			close(queues[i])
+		}
+		simulators.Wait()
+
+		conns.Wait()
+		meta, ok := placer.Get("0", 0)
+		Expect(ok).To(Equal(true))
+		Expect(meta.Key).To(Equal("0"))
+		Expect(meta.placerMeta.confirmed).To(Equal([]bool{true, true, true, true, true, true}))
 	})
 
 })

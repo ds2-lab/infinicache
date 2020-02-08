@@ -182,7 +182,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 
 	// key is "key"+"chunkId"
 	meta, ok := p.metaStore.Get(key, int(dChunkId))
-	if ok || meta.Deleted {
+	if !ok || meta.Deleted {
 		// Object may be deleted.
 		p.log.Warn("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
 		w.AppendErrorf("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
@@ -203,7 +203,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 }
 
 func (p *Proxy) HandleCallback(w resp.ResponseWriter, r interface{}) {
-	wrapper := r.(types.ProxyResponse)
+	wrapper := r.(*types.ProxyResponse)
 	switch rsp := wrapper.Response.(type) {
 	case *types.Response:
 		t := time.Now()
