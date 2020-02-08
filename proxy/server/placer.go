@@ -164,7 +164,7 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		// This allow the client to reset the chunk without affecting the placement.
 		size := instance.Meta.IncreaseSize(uint64(meta.ChunkSize))
 		p.log.Debug("Lambda %d size updated: %d of %d (key:%s, change:%d).",
-								lambdaId, size, instance.Meta.Capacity, key, meta.ChunkSize)
+								assigned, size, instance.Meta.Capacity, key, meta.ChunkSize)
 		return meta, got, nil
 	}
 

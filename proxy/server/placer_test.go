@@ -219,7 +219,7 @@ var _ = Describe("Placer", func() {
 		shards := 6
 		chunkSize := 400
 
-		placer := initGroupPlacer(numCluster, capacity)
+		placer := initGroupPlacer(numCluster * 2, capacity)
 		queues := make([]chan interface{}, numCluster)
 		var simulators sync.WaitGroup
 		for i := 0; i < numCluster; i++ {
@@ -230,7 +230,7 @@ var _ = Describe("Placer", func() {
 
 		var conns sync.WaitGroup
 		sess := 0
-		for i := 0; i < 1; i++ {
+		for i := 0; i < 2; i++ {
 			for j := 0; j < shards; j++ {
 				conns.Add(1)
 				lambdaId := sess % numCluster
@@ -251,10 +251,11 @@ var _ = Describe("Placer", func() {
 		simulators.Wait()
 
 		conns.Wait()
-		meta, ok := placer.Get("0", 0)
+		meta, ok := placer.Get("1", 0)
 		Expect(ok).To(Equal(true))
-		Expect(meta.Key).To(Equal("0"))
+		Expect(meta.Key).To(Equal("1"))
 		Expect(meta.placerMeta.confirmed).To(Equal([]bool{true, true, true, true, true, true}))
+		Expect(meta.Placement).To(Equal(Placement{16, 17, 18, 19, 10, 11}))
 	})
 
 })
