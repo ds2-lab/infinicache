@@ -638,24 +638,22 @@ func main() {
 		w.AppendBulkString("mhello")
 		w.AppendBulkString(strconv.Itoa(store.Len()))
 
-		keys := store.Keys()
-
-		delList := make([]*string, 0, 2*len(keys))
-		getList := delList[len(keys):len(keys)]
+		delList := make([]string, 0, 2 * store.Len())
+		getList := delList[store.Len():store.Len()]
 		for key := range store.Keys() {
 			_, _, err := store.Get(key)
 			if err == types.ErrNotFound {
-				delList = append(delList, &key)
+				delList = append(delList, key)
 			} else {
-				getList = append(getList, &key)
+				getList = append(getList, key)
 			}
 		}
 
 		for _, key := range delList {
-			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_DEL, *key))
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_DEL, key))
 		}
 		for _, key := range getList {
-			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_GET, *key))
+			w.AppendBulkString(fmt.Sprintf("%d%s", types.OP_GET, key))
 		}
 
 		if err := w.Flush(); err != nil {

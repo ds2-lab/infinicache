@@ -20,7 +20,7 @@ func New() *Storage {
 
 func (s *Storage) Get(key string) (string, []byte, error) {
 	chunk, ok := s.repo[key]
-	if !ok || chunk == nil {
+	if !ok || chunk.Body == nil {
 		return "", nil, types.ErrNotFound
 	}
 
@@ -36,7 +36,6 @@ func (s *Storage) Del(key string, chunkId string) error {
 
 	chunk.Body = nil
 	return nil
-
 }
 
 func (s *Storage) GetStream(key string) (string, resp.AllReadCloser, error) {

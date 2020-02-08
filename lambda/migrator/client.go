@@ -174,10 +174,11 @@ func (cli *Client) Migrate(reader resp.ResponseReader, store types.Storage) {
 
 	// Start migration
 	log.Info("Start migrating %d keys", len)
-	for _, key := range keys {
-
-		if opDel == string(key[0]) {
-			store.(*StorageAdapter).LocalDel(string(key[1:]))
+	for _, cmdkey := range keys {
+		key := string(cmdkey[1:])
+		if opDel == string(cmdkey[0]) {
+			store.(*StorageAdapter).LocalDel(key)
+			log.Debug("Flaging %s deleted", key)
 			continue
 		}
 
