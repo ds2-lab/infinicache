@@ -277,9 +277,12 @@ func (conn *Connection) getHandler(start time.Time) {
 	if int(reqCounter) > counter.(*types.ClientReqCounter).DataShards {
 		abandon = true
 		conn.log.Debug("GOT %v, abandon.", rsp.Id)
-		conn.SetResponse(rsp)
-		if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
-			conn.log.Warn("LogProxy err %v", err)
+		req, ok := conn.SetResponse(rsp)
+		if ok && req.EnableCollector {
+			err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+			if err != nil {
+				conn.log.Warn("LogProxy err %v", err)
+			}
 		}
 		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
 			global.ReqMap.Del(reqId)
@@ -312,12 +315,14 @@ func (conn *Connection) getHandler(start time.Time) {
 	defer rsp.BodyStream.Close()
 
 	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
-	if _, ok := conn.SetResponse(rsp); !ok {
+	if req, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response, release hold.
 		rsp.BodyStream.(resp.Holdable).Unhold()
-	}
-	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
-		conn.log.Warn("LogProxy err %v", err)
+	} else if req.EnableCollector {
+		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+		if err != nil {
+			conn.log.Warn("LogProxy err %v", err)
+		}
 	}
 }
 
@@ -331,9 +336,12 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("SET %v, confirmed.", rsp.Id)
-	conn.SetResponse(rsp)
-	if err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0)); err != nil {
-		conn.log.Warn("LogProxy err %v", err)
+	req, ok := conn.SetResponse(rsp)
+	if ok && req.EnableCollector {
+		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+		if err != nil {
+			conn.log.Warn("LogProxy err %v", err)
+		}
 	}
 }
 

@@ -18,7 +18,7 @@ import (
 
 var (
 	replica       = flag.Bool("replica", false, "Enable lambda replica deployment")
-	isPrint       = flag.Bool("isPrint", false, "Enable log printing")
+	debug         = flag.Bool("debug", false, "Enable debug and print debug logs")
 	prefix        = flag.String("prefix", "log", "log file prefix")
 	log           = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
@@ -48,12 +48,12 @@ func main() {
 	collector.Create(global.Prefix)
 
 	// Initialize log
-	if *isPrint {
+	if *debug {
 		log.Level = logger.LOG_LEVEL_ALL
 	}
 
 	log.Info("======================================")
-	log.Info("replica: %v || isPrint: %v", *replica, *isPrint)
+	log.Info("replica: %v || debug: %v", *replica, *debug)
 	log.Info("======================================")
 	clientLis, err := net.Listen("tcp", fmt.Sprintf(":%d", global.BasePort))
 	if err != nil {

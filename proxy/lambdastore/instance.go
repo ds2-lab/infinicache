@@ -408,8 +408,11 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 		req := req.(*types.Request)
 
 		cmd := strings.ToLower(req.Cmd)
-		if err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration)); err != nil {
-			ins.log.Warn("Fail to record validate duration: %v", err)
+		if req.EnableCollector {
+			err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration));
+			if err != nil {
+				ins.log.Warn("Fail to record validate duration: %v", err)
+			}
 		}
 
 		switch cmd {

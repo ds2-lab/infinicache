@@ -19,6 +19,7 @@ type Request struct {
 	Body         []byte
 	BodyStream   resp.AllReadCloser
 	ChanResponse chan interface{}
+	EnableCollector bool
 
 	w                *resp.RequestWriter
 	responded        uint32

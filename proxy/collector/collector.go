@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ScottMansfield/nanolog"
 	"os"
@@ -20,6 +21,7 @@ var (
 	LogStart    nanolog.Handle = 10003
 	LogLambda   nanolog.Handle = 10004
 	LogValidate nanolog.Handle = 10005
+	ErrorNoEntry     = errors.New("No collector log entry found.")
 
 	logMu   sync.Mutex
 	ticker  *time.Ticker
@@ -113,9 +115,12 @@ func Collect(handle nanolog.Handle, args ...interface{}) error {
 	} else if handle == LogProxy {
 		key := fmt.Sprintf("%s-%s-%s", args[0], args[1], args[2])
 		logMu.Lock()
-		entry := reqMap[key]
+		entry, exist := reqMap[key]
 		logMu.Unlock()
 
+		if !exist {
+			return ErrorNoEntry
+		}
 		entry.firstByte = args[3].(int64) - entry.start
 		args[3] = entry.firstByte
 		entry.lambda2Server = args[4].(int64)
@@ -124,10 +129,13 @@ func Collect(handle nanolog.Handle, args ...interface{}) error {
 	} else if handle == LogServer2Client {
 		key := fmt.Sprintf("%s-%s-%s", args[0], args[1], args[2])
 		logMu.Lock()
-		entry := reqMap[key]
+		entry, exist := reqMap[key]
 		//delete(reqMap, key)
 		logMu.Unlock()
 
+		if !exist {
+			return ErrorNoEntry
+		}
 		entry.server2Client = args[3].(int64)
 		entry.appendBulk = args[4].(int64)
 		entry.flush = args[5].(int64)
@@ -140,9 +148,12 @@ func Collect(handle nanolog.Handle, args ...interface{}) error {
 	} else if handle == LogValidate {
 		key := fmt.Sprintf("%s-%s-%s", args[0], args[1], args[2])
 		logMu.Lock()
-		entry := reqMap[key]
+		entry, exist := reqMap[key]
 		logMu.Unlock()
 
+		if !exist {
+			return ErrorNoEntry
+		}
 		entry.validate = args[3].(int64)
 		return nil
 	}
