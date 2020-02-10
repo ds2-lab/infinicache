@@ -1,6 +1,5 @@
-LambdaStore.zip
-Lambda2SmallJPG.zip
-redeo_lambda
+proxy/proxy
+lambda/lambda
 lambda.zip
 *.gz
 *.iml

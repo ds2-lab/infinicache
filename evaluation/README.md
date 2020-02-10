@@ -16,8 +16,7 @@ echo "export GOPATH=$HOME/go" >> $HOME/.bashrc
 mkdir -p $HOME/go/src/github.com/wangaoone
 cd $HOME/go/src/github.com/wangaoone
 git clone https://github.com/wangaoone/LambdaObjectstore.git LambdaObjectstore
-git clone https://github.com/wangaoone/redeo.git redeo
-git clone https://github.com/wangaoone/ecRedis.git ecRedis
+git clone https://github.com/mason-leap-lab/redeo.git redeo
 git clone https://github.com/wangaoone/redbench.git redbench
 
 cd LambdaObjectstore/
