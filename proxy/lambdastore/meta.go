@@ -54,10 +54,10 @@ func (m *Meta) Size() uint64 {
 	return atomic.LoadUint64(&m.size)
 }
 
-func (m *Meta) IncreaseSize(inc uint64) uint64 {
-	return atomic.AddUint64(&m.size, inc)
+func (m *Meta) IncreaseSize(inc int64) uint64 {
+	return atomic.AddUint64(&m.size, uint64(inc))
 }
 
-func (m *Meta) DecreaseSize(dec uint64) uint64 {
-	return atomic.AddUint64(&m.size, -dec)
+func (m *Meta) DecreaseSize(dec int64) uint64 {
+	return atomic.AddUint64(&m.size, ^uint64(dec-1))
 }

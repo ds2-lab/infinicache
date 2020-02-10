@@ -162,9 +162,9 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		}
 		// We can add size to instance safely, the allocated space is reserved for this chunk even set operation may fail.
 		// This allow the client to reset the chunk without affecting the placement.
-		size := instance.Meta.IncreaseSize(uint64(meta.ChunkSize))
-		p.log.Debug("Lambda %d size updated: %d of %d (key:%s, change:%d).",
-								assigned, size, instance.Meta.Capacity, key, meta.ChunkSize)
+		size := instance.Meta.IncreaseSize(meta.ChunkSize)
+		p.log.Debug("Lambda %d size updated: %d of %d (key:%d@%s, Δ:%d).",
+								assigned, size, instance.Meta.Capacity, chunk, key, meta.ChunkSize)
 		return meta, got, nil
 	}
 
@@ -178,14 +178,20 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 	// p.log.Debug("meta key is: %s, chunk is %d, evicted, evicted key: %s, placement: %v", meta.Key, chunk, meta.placerMeta.evicts.Key, meta.placerMeta.evicts.Placement)
 
 	for i, tbe := range meta.placerMeta.swapMap {	// To be evicted
+		instance := p.group.Instance(tbe)
 		if !meta.placerMeta.confirmed[i] {
 			// Confirmed chunk will not move
-			instance := p.group.Instance(tbe)
+
 			// The size can be replaced safely, too.
-			size := instance.Meta.IncreaseSize(uint64(meta.ChunkSize - meta.placerMeta.evicts.ChunkSize))
-			p.log.Debug("Lambda %d size updated: %d of %d (key:%s, evict:%s, Δ:%d).",
-									tbe, size, instance.Meta.Capacity, key, meta.placerMeta.evicts.Key,
+			size := instance.Meta.IncreaseSize(meta.ChunkSize - meta.placerMeta.evicts.ChunkSize)
+			p.log.Debug("Lambda %d size updated: %d of %d (key:%d@%s, evict:%d@%s, Δ:%d).",
+									tbe, size, instance.Meta.Capacity, i, key, i, meta.placerMeta.evicts.Key,
 									meta.ChunkSize - meta.placerMeta.evicts.ChunkSize)
+		} else {
+			size := instance.Meta.DecreaseSize(meta.placerMeta.evicts.ChunkSize)
+			p.log.Debug("Lambda %d size updated: %d of %d (evict:%d@%s, Δ:%d).",
+									tbe, size, instance.Meta.Capacity, i, meta.placerMeta.evicts.Key,
+									-meta.placerMeta.evicts.ChunkSize)
 		}
 	}
 
