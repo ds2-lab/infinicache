@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	S3BUCKET                       = "tianium.default"
+	S3BUCKET                       = "ao.cloudwatch"
 )
 
 var (

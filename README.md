@@ -1,6 +1,6 @@
 # InfiniCache
 
-**InfiniCache** is a first-of-its-kind, cost-effective, object cache that is built atop ephemeral cloud funtions. InfiniCache is 31X cheaper than traditional cloud cache services.
+**InfiniCache** is a first-of-its-kind, cost-effective, object cache that is built atop ephemeral cloud funtions. InfiniCache is 31X cheaper than traditional cloud cache services. 
 
 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
@@ -26,7 +26,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   ```go
   go get -u github.com/aws/aws-sdk-go/...
   go get -u github.com/aws/aws-lambda-go/lambda
-  go get -u github.com/wangaoone/redeo
+  go get -u github.com/mason-leap-lab/redeo
   go get -u github.com/wangaoone/ecRedis
   go get -u github.com/wangaoone/LambdaObjectstore
   ```
@@ -100,5 +100,5 @@ make start-server
 ### Related repo
 
 Client Library [ecRedis](https://github.com/wangaoone/ecRedis)  
-Redis Protocol [redeo](https://github.com/wangaoone/redeo)  
+Redis Protocol [redeo](https://github.com/mason-leap-lab/redeo)  
 Benchmark tool [redbench](https://github.com/wangaoone/redbench)
