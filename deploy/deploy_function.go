@@ -20,22 +20,22 @@ var (
 	code    = flag.Bool("code", false, "update function code")
 	config  = flag.Bool("config", false, "update function config")
 	create  = flag.Bool("create", false, "create function")
-	timeout = flag.Int64("timeout", 100, "function timeout")
-	prefix  = flag.String("prefix", "Proxy1Node", "function name prefix")
+	timeout = flag.Int64("timeout", 60, "function timeout")
+	prefix  = flag.String("prefix", "CacheNode", "function name prefix")
 	vpc     = flag.Bool("vpc", false, "vpc config")
 	key     = flag.String("key", "lambda", "key for handler and file name")
 	from    = flag.Int64("from", 0, "the number of lambda deployment involved")
 	to      = flag.Int64("to", 400, "the number of lambda deployment involved")
 	batch   = flag.Int64("batch", 5, "batch Number, no need to modify")
-	mem     = flag.Int64("mem", 256, "the memory of lambda")
-	bucket  = flag.String("S3", "ao.lambda.code", "S3 bucket for lambda code")
+	mem     = flag.Int64("mem", 1024, "the memory of lambda")
+	bucket  = flag.String("S3", "mason-leap-lab.infinicache", "S3 bucket for lambda code")
 
 	subnet = []*string{
-		aws.String("subnet-eeb536c0"),
-		aws.String("subnet-f432faca"),
+		aws.String("subnet-yours-1"),
+		aws.String("subnet-yours-2"),
 	}
 	securityGroup = []*string{
-		aws.String("sg-0281863209f428cb2"), aws.String("sg-d5b37d99"),
+		aws.String("sg-your-security-group"),
 	}
 )
 
@@ -206,6 +206,11 @@ func main() {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	if *create {
+		for i := *from; i < *to; i++ {
+			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)
+		}
+	}
 	if *code {
 		for j := int64(0); j < group; j++ {
 			fmt.Println(j)
@@ -229,11 +234,6 @@ func main() {
 			}
 			wg.Wait()
 			time.Sleep(1 * time.Second)
-		}
-	}
-	if *create {
-		for i := *from; i < *to; i++ {
-			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)
 		}
 	}
 }

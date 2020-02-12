@@ -1,6 +1,6 @@
 # InfiniCache
 
-**InfiniCache** is a first-of-its-kind, cost-effective, object cache that is built atop ephemeral cloud funtions. InfiniCache is 31X cheaper than traditional cloud cache services. 
+**InfiniCache** is a first-of-its-kind, cost-effective, object cache that is built atop ephemeral cloud funtions. InfiniCache is 31X cheaper than traditional cloud cache services.
 
 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
@@ -10,7 +10,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   Amazon EC2 AMI: ubuntu-xenial-16.04
   Golang: 1.12
 
-  Be sure the port of **6378 - 6380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
+  Be sure the port of **6378 - 7380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
 
   #### Golang install
 
@@ -24,11 +24,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   ```
 
   ```go
-  go get -u github.com/aws/aws-sdk-go/...
-  go get -u github.com/aws/aws-lambda-go/lambda
-  go get -u github.com/mason-leap-lab/redeo
-  go get -u github.com/wangaoone/ecRedis
-  go get -u github.com/wangaoone/LambdaObjectstore
+  go get -u github.com/mason-leap-lab/infinicache
   ```
 
 - ### Lambda Runtime
@@ -45,13 +41,19 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
 
 - ### S3
 
-  Create a S3 bucket which is for storing the zip file of the Lambda code (and the cost log from Cloudwatch)
+  Create a S3 bucket for storing the zip file of the Lambda code and data output by Lambda functions.
+
+  Run `aws configure` to config your AWS credential.
+
+  ```shell
+  aws configure
+  ```
 
 - ### Configuration
 
   #### Lambda function create and config
 
-  Edit LambdaObjectstore/src/LambdaStore/s3_updatecode.sh
+  Edit deploy/create_function.sh and deploy/update_function.sh
 
   ```shell
   PREFIX="your lambda function prefix"
@@ -60,45 +62,44 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   mem=1536
   ```
 
-  Edit destination S3 in LambdaObjectstore/src/LambdaStore/collector/collector.go, this bucket is for the bill durtion log from Cloudwatch
+  Edit destination S3 in lambda/collector/collector.go, this bucket is for the bill duration log from Cloudwatch
 
   ```go
   S3BUCKET = "your bucket name"
   ```
 
-  Edit the Lambda execution role and the VPC configuration in LambdaObjectstore/sbin/deploy_function.go
+  Edit the Lambda execution role and the VPC configuration in deploy/deploy_function.go
 
   ```go
   ROLE = "your lambda exection role"
   ...
   ...
   subnet = []*string{
-  		aws.String("your subnet 1"),
-  		aws.String("your subnet 2"),
-  		aws.String("your subnet 3"),
-  	}
-  	securityGroup = []*string{
-  		aws.String("your security group")
-  	}
+    aws.String("your subnet 1"),
+    aws.String("your subnet 2"),
+  }
+  securityGroup = []*string{
+    aws.String("your security group")
+  }
   ```
 
   Run script to deploy lambda functions
 
   ```shell
-  cd $GOPATH/src/github.com/wangaoone/LambdaObjectstore
   go get
-  ./s3_updatecode.sh 60
+  deploy/create_function.sh 60
   ```
 
-## Execute
+## Execution
+
+Run `make start` to start proxy server. To stop proxy server, run `make stop`
 
 ```
-cd LambdaObjectstore/evaluation
-make start-server
+make start
 ```
 
 ### Related repo
 
-Client Library [ecRedis](https://github.com/wangaoone/ecRedis)  
+Client Library [ecRedis](https://github.com/mason-leap-lab/infinicache/client)  
 Redis Protocol [redeo](https://github.com/mason-leap-lab/redeo)  
-Benchmark tool [redbench](https://github.com/wangaoone/redbench)
+Benchmark tool [redbench](https://github.com/wangaoone/redbench)  

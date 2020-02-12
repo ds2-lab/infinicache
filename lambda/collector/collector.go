@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	S3BUCKET                       = "ao.cloudwatch"
+	S3BUCKET                       = "mason-leap-lab.infinicache"
 )
 
 var (
