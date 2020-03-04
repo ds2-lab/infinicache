@@ -1,6 +1,6 @@
 # InfiniCache
 
-**InfiniCache** is the first-of-its-kind, cost-effectiveness and high-performance object cache that is built atop ephemeral cloud funtions. InfiniCache is 31x - 96x cheaper than traditional cloud cache services.
+**InfiniCache** is the first-of-its-kind, cost-effectiveness and high-performance object cache that is built atop ephemeral cloud functions. InfiniCache is 31x - 96x cheaper than traditional cloud cache services.
 
 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
@@ -10,7 +10,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   Amazon EC2 AMI: ubuntu-xenial-16.04
   Golang: 1.12
 
-  Be sure the port of **6378 - 7380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
+  Be sure the port of **6378 - 7380** is available on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
 
   #### Golang install
 
@@ -43,7 +43,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
 
   Create a S3 bucket for storing the zip file of the Lambda code and data output by Lambda functions.
 
-  Run `aws configure` to config your AWS credential.
+  Run `aws configure` to configure your AWS credentials.
 
   ```shell
   aws configure
@@ -53,7 +53,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
 
   #### Lambda function create and config
 
-  Edit deploy/create_function.sh and deploy/update_function.sh
+  Edit `deploy/create_function.sh` and `deploy/update_function.sh`
 
   ```shell
   PREFIX="your lambda function prefix"
@@ -68,7 +68,7 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
   S3BUCKET = "your bucket name"
   ```
 
-  Edit the Lambda execution role and the VPC configuration in deploy/deploy_function.go
+  Edit the Lambda execution role and the VPC configuration in `deploy/deploy_function.go`
 
   ```go
   ROLE = "your lambda exection role"
