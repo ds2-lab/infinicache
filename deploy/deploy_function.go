@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	ROLE = "arn:aws:iam::037862857942:role/ProxyNoVPC"
+	ROLE = "Your Lambda function execution role"
 )
 
 var (
@@ -31,8 +31,8 @@ var (
 	bucket  = flag.String("S3", "mason-leap-lab.infinicache", "S3 bucket for lambda code")
 
 	subnet = []*string{
-		aws.String("subnet-yours-1"),
-		aws.String("subnet-yours-2"),
+		aws.String("sb-your-subnet-1"),
+		aws.String("sb-your-subnet-2"),
 	}
 	securityGroup = []*string{
 		aws.String("sg-your-security-group"),
