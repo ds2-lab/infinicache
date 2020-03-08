@@ -20,6 +20,8 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   Be sure the port of **6378 - 7380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
 
+  We recommend you deploy InfiniCache on the EC2 instance with powerful CPU resource and high bandwidth (`c5n` family maybe a good choice).
+
 - ### Golang Install
 
   ```bash
@@ -89,7 +91,13 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   Go to AWS IAM console and create a role for the lambda cache node (Lambda function).
 
-  AWS IAM console -> Roles -> Create Role -> Lambda -> **`AWSLambdaFullAccess, AWSLambdaVPCAccessExecutionRole, AWSLambdaENIManagementAccess`**
+  AWS IAM console -> Roles -> Create Role -> Lambda -> 
+
+  **`AWSLambdaFullAccess, `**
+
+  **`AWSLambdaVPCAccessExecutionRole, `**
+
+  **`AWSLambdaENIManagementAccess`**
 
   #### Enable Lambda internet access under VPC
 
@@ -97,7 +105,7 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
 - ### S3
 
-  Create the S3 bucket to store the zip file of the Lambda code and data output from Lambda functions and remember the name of this bucket for the configuration.
+  Create the S3 bucket to store the zip file of the Lambda code and data output from Lambda functions. Remember the name of this bucket for the configuration in next step.
 
 
 - ### Configuration
@@ -137,10 +145,11 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   Run script to deploy lambda functions
 
   ```shell
+  export GO111MODULE="on"
   go get
   deploy/create_function.sh 60
   ```
-  Edit the proxy config in `proxy/config.go`, Also you could modify the number of lambda cache node in `LambdaMaxDeployments` and `NumLambdaClusters`
+  Edit the proxy config in `proxy/server/config.go`, Also you could modify the number of lambda cache node in `LambdaMaxDeployments` and `NumLambdaClusters`
     ```go
     const LambdaPrefix = "Your Lambda Function Prefix"
     ```
@@ -148,14 +157,33 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
 ## Execution
 
-Run `make start` to start proxy server. To stop proxy server, run `make stop`
+- Proxy server
 
-```
-make start
-```
+  Run `make start` to start proxy server.  `make start` would print nothing to the console. If you want to check the log message, you need to set the `debug` flag to be true in the `proxy/proxy.go`.
 
-If `make stop` is not working, you could use `pgrep proxy` and check the `infinicache pid` and kill them.
-### Related repo
+  ```bash
+  make start
+  ```
+
+  To stop proxy server, run `make stop`. If `make stop` is not working, you could use `pgrep proxy`, `pgrep go` and check the `infinicache pid` and kill them.
+
+- Client library
+
+  The toy demo for Client Library
+
+  ```go
+  go run client/example/main.go
+  ```
+
+  The result should be
+
+  ```bash
+  go run main.go
+  2020/03/08 05:05:19 EcRedis Set foo 14630930
+  2020/03/08 05:05:19 EcRedis Got foo 3551124 ( 2677371 865495 )
+  ```
+
+## Related repo
 
 Client Library [ecRedis](https://github.com/mason-leap-lab/infinicache/tree/master/client)  
 Redis Protocol [redeo](https://github.com/mason-leap-lab/redeo)  
