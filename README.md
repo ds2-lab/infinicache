@@ -22,58 +22,20 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   We recommend you deploy InfiniCache on the EC2 instance with powerful CPU resource and high bandwidth (`c5n` family maybe a good choice).
 
-- ### Golang Install
+- ### Golang install
 
-  ```bash
-  sudo apt-get update
-  sudo apt-get -y upgrade
-  ```
+  Jump to [install_go.md](https://github.com/mason-leap-lab/infinicache/blob/master/depoly_go.md)
 
-  Download the Go language binary archive.
-
-  ```bash
-  wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
-  sudo tar -xvf go1.12.linux-amd64.tar.gz
-  sudo mv go /usr/local
-  ```
-
-  Setup Go environment, including `GOROOT` and `GOPATH`.
-
-  ```
-  export GOROOT=/usr/local/go
-  mkdir $HOME/project
-  export GOPATH=$HOME/project
-  export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-  ```
-
-  Verify installation
-
-  ```
-  ~$ go version
-  ~$ go version go1.12 linux/amd64
-  
-  ~$ go env
-  ...
-  GOOS="linux"
-  GOPATH="/home/ubuntu/project"
-  GOPROXY=""
-  GORACE=""
-  GOROOT="/usr/local/go"
-  ...
-  ```
-
-  [Ubuntu AMI](https://tecadmin.net/install-go-on-ubuntu/) or [Amazon AMI](https://hackernoon.com/deploying-a-go-application-on-aws-ec2-76390c09c2c5). We recommend the Ubuntu AMI.
-
-  #### Package install
+- ### Package install
 
   Install basic package
   ```shell
   sudo apt-get update
   sudo apt-get -y upgrade
-  sudo apt install awscli
+sudo apt install awscli
   sudo apt install zip
-  ```
-
+```
+  
   Clone this repo
   ```go
   go get -u github.com/mason-leap-lab/infinicache
@@ -84,10 +46,10 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   ```shell
   aws configure
   ```
-
+  
 - ### Lambda Runtime
 
-  #### Lambda Role
+  #### Lambda Role setup
 
   Go to AWS IAM console and create a role for the lambda cache node (Lambda function).
 
@@ -101,7 +63,7 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   #### Enable Lambda internet access under VPC
 
-  [refer to this article](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/)
+  Plese [refer to this article](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/). (You could skip this step if you do not want to run InfiniCache under VPC).
 
 - ### S3
 
@@ -127,7 +89,7 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   S3BUCKET = "your bucket name"
   ```
 
-  Edit the Lambda execution role and the VPC configuration in `deploy/deploy_function.go`
+  Edit the Lambda execution role and the VPC configuration in `deploy/deploy_function.go`. If you do not want to run InfiniCache under VPC, you do not need to modify the `subnet` and `securityGroup` settings.
 
   ```go
   ROLE = "your lambda exection role"
@@ -142,16 +104,16 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   }
   ```
 
-  Run script to deploy lambda functions
+  Run script to create and deploy lambda functions (Also, if you do not want to run InfiniCache under VPC, you need to set the `vpc` flag to be `false` in `deploy/create_function.sh`).
 
   ```shell
   export GO111MODULE="on"
   go get
   deploy/create_function.sh 60
   ```
-  Edit the proxy config in `proxy/server/config.go`, Also you could modify the number of lambda cache node in `LambdaMaxDeployments` and `NumLambdaClusters`
+  Edit the `LambdaPrefix` config in `proxy/server/config.go`, also you could modify the number of lambda cache node in `LambdaMaxDeployments` and `NumLambdaClusters`
     ```go
-    const LambdaPrefix = "Your Lambda Function Prefix"
+  const LambdaPrefix = "Your Lambda Function Prefix"
     ```
 
 
@@ -159,26 +121,26 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
 - Proxy server
 
-  Run `make start` to start proxy server.  `make start` would print nothing to the console. If you want to check the log message, you need to set the `debug` flag to be true in the `proxy/proxy.go`.
+  Run `make start` to start proxy server.  `make start` would print nothing to the console. If you want to check the log message, you need to set the `debug` flag to be `true` in the `proxy/proxy.go`.
 
   ```bash
   make start
   ```
 
-  To stop proxy server, run `make stop`. If `make stop` is not working, you could use `pgrep proxy`, `pgrep go` and check the `infinicache pid` and kill them.
+  To stop proxy server, run `make stop`. If `make stop` is not working, you could use `pgrep proxy`, `pgrep go` to find the pid, and check the `infinicache pid` and kill them.
 
 - Client library
 
   The toy demo for Client Library
 
-  ```go
+  ```bash
   go run client/example/main.go
   ```
 
   The result should be
 
   ```bash
-  go run main.go
+  ~$ go run client/example/main.go
   2020/03/08 05:05:19 EcRedis Set foo 14630930
   2020/03/08 05:05:19 EcRedis Got foo 3551124 ( 2677371 865495 )
   ```
