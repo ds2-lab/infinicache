@@ -24,7 +24,7 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
 - ### Golang install
 
-  Jump to [install_go.md](https://github.com/mason-leap-lab/infinicache/blob/master/depoly_go.md)
+  Jump to [install_go.md](https://github.com/mason-leap-lab/infinicache/blob/master/install_go.md)
 
 - ### Package install
 
