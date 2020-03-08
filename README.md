@@ -20,32 +20,32 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   Be sure the port of **6378 - 7380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
 
-  #### Golang install
+- ### Golang Install
 
   ```bash
-sudo apt-get update
+  sudo apt-get update
   sudo apt-get -y upgrade
   ```
-  
+
   Download the Go language binary archive.
-  
+
   ```bash
   wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
   sudo tar -xvf go1.12.linux-amd64.tar.gz
   sudo mv go /usr/local
-```
-  
+  ```
+
   Setup Go environment, including `GOROOT` and `GOPATH`.
-  
+
   ```
   export GOROOT=/usr/local/go
   mkdir $HOME/project
-export GOPATH=$HOME/project
+  export GOPATH=$HOME/project
   export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
   ```
-  
+
   Verify installation
-  
+
   ```
   ~$ go version
   ~$ go version go1.12 linux/amd64
@@ -59,11 +59,11 @@ export GOPATH=$HOME/project
   GOROOT="/usr/local/go"
   ...
   ```
-  
+
   [Ubuntu AMI](https://tecadmin.net/install-go-on-ubuntu/) or [Amazon AMI](https://hackernoon.com/deploying-a-go-application-on-aws-ec2-76390c09c2c5). We recommend the Ubuntu AMI.
-  
+
   #### Package install
-  
+
   Install basic package
   ```shell
   sudo apt-get update
@@ -71,18 +71,18 @@ export GOPATH=$HOME/project
   sudo apt install awscli
   sudo apt install zip
   ```
-  
+
   Clone this repo
   ```go
   go get -u github.com/mason-leap-lab/infinicache
   ```
-  
+
   Run `aws configure` to config your AWS credential.
-  
+
   ```shell
   aws configure
   ```
-  
+
 - ### Lambda Runtime
 
   #### Lambda Role
