@@ -6,7 +6,13 @@ Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-E
 
 
 IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You Store](https://spectrum.ieee.org/tech-talk/computing/networks/pay-cloud-services-data-tool-news)
+
+## Change log
+
+- **03/07/2020:** Updated deploy procedure and fix the bug (incorrect path) in the scripts under `deploy/`.
+
 ## Prepare
+
 - ### EC2 Proxy
 
   Amazon EC2 AMI: ubuntu-xenial-16.04
