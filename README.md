@@ -16,11 +16,12 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 - ### EC2 Proxy
 
   Amazon EC2 AMI: ubuntu-xenial-16.04
-  Golang: 1.12
+  
+  Golang version: 1.12
 
-  Be sure the port of **6378 - 7380** is avaiable on the proxy and EC2 proxy should be under the same VPC group with Lambda function.
+  Be sure the port **6378 - 7380** is avaiable on the proxy
 
-  We recommend you deploy InfiniCache on the EC2 instance with powerful CPU resource and high bandwidth (`c5n` family maybe a good choice).
+  We recommend that EC2 proxy and Lambda functions are under the same VPC network, and deploy InfiniCache on a EC2 instance with powerful CPU and high bandwidth (`c5n` family maybe a good choice).
 
 - ### Golang install
 
@@ -32,16 +33,16 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   ```shell
   sudo apt-get update
   sudo apt-get -y upgrade
-sudo apt install awscli
+  sudo apt install awscli
   sudo apt install zip
-```
+  ```
   
   Clone this repo
   ```go
   go get -u github.com/mason-leap-lab/infinicache
   ```
 
-  Run `aws configure` to config your AWS credential.
+  Run `aws configure` to setup your AWS credential.
 
   ```shell
   aws configure
