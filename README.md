@@ -9,7 +9,7 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
 ## Change log
 
-- **03/07/2020:** Updated deploy procedure and fix the bug (incorrect path) in the scripts under `deploy/`.
+- **03/07/2020:** Updated deploy procedure and fixed the bug (incorrect path) in the scripts under `deploy/`.
 
 ## Prepare
 
@@ -22,8 +22,46 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
 
   #### Golang install
 
+  ```bash
+sudo apt-get update
+  sudo apt-get -y upgrade
+  ```
+  
+  Download the Go language binary archive.
+  
+  ```bash
+  wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
+  sudo tar -xvf go1.12.linux-amd64.tar.gz
+  sudo mv go /usr/local
+```
+  
+  Setup Go environment, including `GOROOT` and `GOPATH`.
+  
+  ```
+  export GOROOT=/usr/local/go
+  mkdir $HOME/project
+export GOPATH=$HOME/project
+  export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+  ```
+  
+  Verify installation
+  
+  ```
+  ~$ go version
+  ~$ go version go1.12 linux/amd64
+  
+  ~$ go env
+  ...
+  GOOS="linux"
+  GOPATH="/home/ubuntu/project"
+  GOPROXY=""
+  GORACE=""
+  GOROOT="/usr/local/go"
+  ...
+  ```
+  
   [Ubuntu AMI](https://tecadmin.net/install-go-on-ubuntu/) or [Amazon AMI](https://hackernoon.com/deploying-a-go-application-on-aws-ec2-76390c09c2c5). We recommend the Ubuntu AMI.
-
+  
   #### Package install
   
   Install basic package
@@ -33,17 +71,18 @@ IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You
   sudo apt install awscli
   sudo apt install zip
   ```
-
+  
   Clone this repo
   ```go
   go get -u github.com/mason-leap-lab/infinicache
   ```
   
   Run `aws configure` to config your AWS credential.
-
+  
   ```shell
   aws configure
   ```
+  
 - ### Lambda Runtime
 
   #### Lambda Role
