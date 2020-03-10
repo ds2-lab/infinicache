@@ -14,7 +14,7 @@ import(
 const DEP_STATUS_POOLED = 0
 const DEP_STATUS_ACTIVE = 1
 const DEP_STATUS_ACTIVATING = 2
-const IN_DEPLOYMENT_MIGRATION = false
+const IN_DEPLOYMENT_MIGRATION = true
 
 var (
 	scheduler    *Scheduler
