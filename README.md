@@ -2,7 +2,7 @@
 
 **InfiniCache** is the first-of-its-kind, cost-effectiveness and high-performance object cache that is built atop ephemeral cloud funtions. InfiniCache is 31x - 96x cheaper than traditional cloud cache services.
 
-Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
+Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
 
 ### Press: 
