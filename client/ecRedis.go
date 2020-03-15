@@ -7,6 +7,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/google/uuid"
 	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/mason-leap-lab/infinicache/proxy/server"
 	"github.com/mason-leap-lab/redeo/resp"
 	"io"
 	"math/rand"
@@ -18,7 +19,7 @@ import (
 
 const (
 	// This setting will avoid network contention.
-	MaxLambdaStores int = 200
+	MaxLambdaStores int = server.NumLambdaClusters
 	Timeout             = 2 * time.Minute
 )
 
