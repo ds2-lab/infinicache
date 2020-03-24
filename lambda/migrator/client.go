@@ -19,6 +19,10 @@ import (
 	"github.com/mason-leap-lab/infinicache/lambda/types"
 )
 
+const (
+	AWSRegion                      = "us-east-1"
+)
+
 var (
 	log = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_INFO,
@@ -79,7 +83,7 @@ func (cli *Client) TriggerDestination(dest string, args interface{}) (err error)
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	client := lambda.New(sess, &aws.Config{Region: aws.String(AWSRegion)})
 	payload, _ := json.Marshal(args)
 	input := &lambda.InvokeInput{
 		FunctionName:   aws.String(dest),

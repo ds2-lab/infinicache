@@ -18,15 +18,18 @@ var (
 	BaseMigratorPort = 6380
 	ServerIp         string
 	Prefix           string
+	AWSRegion        string
 )
 
 func init() {
 	Log = logger.NilLogger
 
-	ip, err := GetPrivateIp()
-	if err != nil {
-		panic(err)
-	}
+	if ServerIp == "" {
+		ip, err := GetPrivateIp()
+		if err != nil {
+			panic(err)
+		}
 
-	ServerIp = ip
+		ServerIp = ip
+	}
 }

@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	AWSRegion                      = "us-east-1"
 	S3BUCKET                       = "mason-leap-lab.infinicache"
 )
 
@@ -85,7 +86,7 @@ func s3Put(bucket string, key string, f string) {
 	// The session the S3 Uploader will use
 	sess := awsSession.Must(awsSession.NewSessionWithOptions(awsSession.Options{
 		SharedConfigState: awsSession.SharedConfigEnable,
-		Config:            aws.Config{Region: aws.String("us-east-1")},
+		Config:            aws.Config{Region: aws.String(AWSRegion)},
 	}))
 
 	// Create an uploader with the session and default options

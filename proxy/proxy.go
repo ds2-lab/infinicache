@@ -29,6 +29,10 @@ var (
 
 func init() {
 	global.Log = log
+	global.AWSRegion = server.AWSRegion
+	if server.ServerPublicIp != "" {
+		global.ServerIp = server.ServerPublicIp
+	}
 }
 
 func main() {

@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	ROLE = "Your Lambda function execution role"
+	// ARN of your AWS role, which has the proper policy (AWSLambdaFullAccess is recommended, see README.md for details).
+	ROLE = "arn:aws:iam::[aws account id]:role/[role name]"
+	// AWS region, change it if necessary.
+	REGION = "us-east-1"
 )
 
 var (
@@ -205,7 +208,7 @@ func main() {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	svc := lambda.New(sess, &aws.Config{Region: aws.String(REGION)})
 	if *create {
 		for i := *from; i < *to; i++ {
 			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)

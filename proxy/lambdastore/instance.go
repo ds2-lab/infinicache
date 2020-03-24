@@ -313,7 +313,7 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})
 	event := &prototol.InputEvent{
 		Id:     ins.Id(),
 		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
