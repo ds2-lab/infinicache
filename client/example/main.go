@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/mason-leap-lab/infinicache/client"
+	"log"
 	"math/rand"
 	"strings"
 )
@@ -22,6 +23,16 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	cli.EcSet("foo", val)
-	cli.EcGet("foo", 1024)
+	if _, ok := cli.EcSet("foo", val); !ok {
+		log.Fatal("Failed to set")
+		return
+	}
+	
+	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
+		log.Fatal("Failed to get")
+		return
+	} else {
+		// TODO: Read data.
+		reader.Close()
+	}
 }
