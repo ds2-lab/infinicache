@@ -1,12 +1,13 @@
 package client
 
 import (
+	"net"
+	"time"
+
 	"github.com/buraksezer/consistent"
 	"github.com/klauspost/reedsolomon"
 	"github.com/mason-leap-lab/redeo/resp"
-	"github.com/seiflotfy/cuckoofilter"
-	"net"
-	"time"
+	cuckoo "github.com/seiflotfy/cuckoofilter"
 )
 
 type Conn struct {
@@ -39,9 +40,9 @@ type Client struct {
 	MappingTable map[string]*cuckoo.Filter
 	Ring         *consistent.Consistent
 	Data         DataEntry
-	DataShards     int
-	ParityShards   int
-	Shards         int
+	DataShards   int
+	ParityShards int
+	Shards       int
 }
 
 func NewClient(dataShards int, parityShards int, ecMaxGoroutine int) *Client {
@@ -153,15 +154,15 @@ func (c *Client) Close() {
 }
 
 type ecRet struct {
-	Shards          int
-	Rets            []interface{}
-	Err             error
+	Shards int
+	Rets   []interface{}
+	Err    error
 }
 
 func newEcRet(shards int) *ecRet {
 	return &ecRet{
 		Shards: shards,
-		Rets: make([]interface{}, shards),
+		Rets:   make([]interface{}, shards),
 	}
 }
 

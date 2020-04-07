@@ -3,18 +3,20 @@ package client
 import (
 	"bytes"
 	"errors"
-	"github.com/ScottMansfield/nanolog"
-	"github.com/cespare/xxhash"
-	"github.com/google/uuid"
-	"github.com/mason-leap-lab/infinicache/common/logger"
-	"github.com/mason-leap-lab/infinicache/proxy/server"
-	"github.com/mason-leap-lab/redeo/resp"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ScottMansfield/nanolog"
+	"github.com/cespare/xxhash"
+	"github.com/google/uuid"
+	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/mason-leap-lab/infinicache/proxy/server"
+	"github.com/mason-leap-lab/redeo/resp"
 )
 
 const (
@@ -87,11 +89,11 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	}
 
 	//addr, ok := c.getHost(key)
-	//fmt.Println("in SET, key is: ", key)
+	fmt.Println("in SET, key is: ", key)
 	member := c.Ring.LocateKey([]byte(key))
 	host := member.String()
-	// log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
-	// log.Debug("SET located host: %s", host)
+	log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
+	log.Debug("SET located host: %s", host)
 
 	shards, err := c.encode(val)
 	if err != nil {
@@ -102,7 +104,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	var wg sync.WaitGroup
 	ret := newEcRet(c.Shards)
 	for i := 0; i < ret.Len(); i++ {
-		//fmt.Println("shards", i, "is", shards[i])
+		fmt.Println("shards", i, "is", shards[i])
 		wg.Add(1)
 		go c.set(host, key, shards[i], i, index[i], stats.ReqId, &wg, ret)
 	}
@@ -204,7 +206,7 @@ func (c *Client) getHost(key string) (addr string, ok bool) {
 
 // random will generate random sequence within the lambda stores
 // index and get top n id
-func random(cluster,n int) []int {
+func random(cluster, n int) []int {
 	return rand.Perm(cluster)[:n]
 }
 
@@ -226,7 +228,7 @@ func (c *Client) set(addr string, key string, val []byte, i int, lambdaId int, r
 		return
 	}
 	cn := c.Conns[addr][i]
-	cn.conn.SetWriteDeadline(time.Now().Add(Timeout))  // Set deadline for request
+	cn.conn.SetWriteDeadline(time.Now().Add(Timeout)) // Set deadline for request
 	defer cn.conn.SetWriteDeadline(time.Time{})
 
 	w := cn.W
@@ -267,7 +269,7 @@ func (c *Client) get(addr string, key string, i int, reqId string, wg *sync.Wait
 		return
 	}
 	cn := c.Conns[addr][i]
-	cn.conn.SetWriteDeadline(time.Now().Add(Timeout))  // Set deadline for request
+	cn.conn.SetWriteDeadline(time.Now().Add(Timeout)) // Set deadline for request
 	defer cn.conn.SetWriteDeadline(time.Time{})
 
 	//tGet := time.Now()
@@ -289,13 +291,13 @@ func (c *Client) get(addr string, key string, i int, reqId string, wg *sync.Wait
 	c.rec("Got", addr, i, reqId, ret, nil)
 }
 
-func (c *Client) rec(prompt string, addr string, i int, reqId string,ret *ecRet, wg *sync.WaitGroup) {
+func (c *Client) rec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
 	}
 
 	cn := c.Conns[addr][i]
-	cn.conn.SetReadDeadline(time.Now().Add(Timeout))  // Set deadline for response
+	cn.conn.SetReadDeadline(time.Now().Add(Timeout)) // Set deadline for response
 	defer cn.conn.SetReadDeadline(time.Time{})
 
 	// peeking response type and receive
@@ -403,13 +405,13 @@ func (c *Client) encode(obj []byte) ([][]byte, error) {
 
 func (c *Client) decode(stats *DataEntry, data [][]byte, size int) (io.ReadCloser, error) {
 	// var err error
-	stats.AllGood, _  = c.EC.Verify(data)
+	stats.AllGood, _ = c.EC.Verify(data)
 	if stats.AllGood {
 		log.Debug("No reconstruction needed.")
-	// } else if err != nil {
-	// 	stats.Corrupted = true
-	// 	log.Debug("Verification error, impossible to reconstructing data: %v", err)
-	// 	return nil, err
+		// } else if err != nil {
+		// 	stats.Corrupted = true
+		// 	log.Debug("Verification error, impossible to reconstructing data: %v", err)
+		// 	return nil, err
 	} else {
 		log.Debug("Verification failed. Reconstructing data...")
 		err := c.EC.Reconstruct(data)

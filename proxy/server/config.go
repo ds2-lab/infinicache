@@ -6,13 +6,15 @@ import (
 	"github.com/mason-leap-lab/infinicache/proxy/lambdastore"
 )
 
-const LambdaMaxDeployments = 400
-const NumLambdaClusters = 400
+const AWSRegion = "us-east-2"
+const LambdaMaxDeployments = 20
+const NumLambdaClusters = 20
 const LambdaStoreName = "LambdaStore" // replica version (no use)
-const LambdaPrefix = "Your Lambda Function Prefix"
+const LambdaPrefix = "CacheNode"
 const InstanceWarmTimout = 1 * time.Minute
-const InstanceCapacity = 1536 * 1000000    // MB
-const InstanceOverhead = 100 * 1000000     // MB
+const InstanceCapacity = 1536 * 1000000 // MB
+const InstanceOverhead = 100 * 1000000  // MB
+const ServerPublicIp = "35.204.109.185" // Leave it empty if using VPC.
 
 func init() {
 	lambdastore.WarmTimout = InstanceWarmTimout

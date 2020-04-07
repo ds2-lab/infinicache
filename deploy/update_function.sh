@@ -6,7 +6,7 @@ KEY="handler"
 cluster=400
 mem=1536
 
-S3="mason-leap-lab.infinicache"
+S3="infinicache"
 
 echo "compiling lambda code..."
 GOOS=linux go build $PWD/../lambda/$KEY.go

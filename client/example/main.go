@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/mason-leap-lab/infinicache/client"
 	"math/rand"
 	"strings"
+
+	"github.com/mason-leap-lab/infinicache/client"
 )
 
-var addrList = "127.0.0.1:6378"
+var addrList = "35.204.109.185:6378"
 
 func main() {
 	// initial object with random value
@@ -24,4 +25,5 @@ func main() {
 	cli.Dial(addrArr)
 	cli.EcSet("foo", val)
 	cli.EcGet("foo", 1024)
+
 }

@@ -3,24 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mason-leap-lab/infinicache/common/logger"
-	"github.com/mason-leap-lab/redeo"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/mason-leap-lab/infinicache/proxy/server"
+	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/mason-leap-lab/redeo"
+
 	"github.com/mason-leap-lab/infinicache/proxy/collector"
 	"github.com/mason-leap-lab/infinicache/proxy/global"
+	"github.com/mason-leap-lab/infinicache/proxy/server"
 )
 
 var (
-	replica       = flag.Bool("replica", false, "Enable lambda replica deployment")
-	debug         = flag.Bool("debug", false, "Enable debug and print debug logs")
-	prefix        = flag.String("prefix", "log", "log file prefix")
-	log           = &logger.ColorLogger{
+	replica = flag.Bool("replica", false, "Enable lambda replica deployment")
+	debug   = flag.Bool("debug", true, "Enable debug and print debug logs")
+	prefix  = flag.String("prefix", "log", "log file prefix")
+	log     = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
 	}
 	lambdaLis net.Listener
@@ -29,6 +30,10 @@ var (
 
 func init() {
 	global.Log = log
+	global.AWSRegion = server.AWSRegion
+	if server.ServerPublicIp != "" {
+		global.ServerIp = server.ServerPublicIp
+	}
 }
 
 func main() {

@@ -5,7 +5,7 @@
 Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
 
-### Press: 
+### Press:
 * IEEE Spectrum: [Cloud Services Tool Lets You Pay for Data You Use—Not Data You Store](https://spectrum.ieee.org/tech-talk/computing/networks/pay-cloud-services-data-tool-news)
 * Mikhail Shilkov's paper review: [InfiniCache: Distributed Cache on Top of AWS Lambda (paper review)](https://mikhail.io/2020/03/infinicache-distributed-cache-on-aws-lambda/)
 
@@ -18,7 +18,7 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
 - ### EC2 Proxy
 
   Amazon EC2 AMI: ubuntu-xenial-16.04
-  
+
   Golang version: 1.12
 
   Be sure the port **6378 - 7380** is avaiable on the proxy
@@ -38,7 +38,7 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
   sudo apt install awscli
   sudo apt install zip
   ```
-  
+
   Clone this repo
   ```go
   go get -u github.com/mason-leap-lab/infinicache
@@ -49,14 +49,14 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
   ```shell
   aws configure
   ```
-  
+
 - ### Lambda Runtime
 
   #### Lambda Role setup
 
   Go to AWS IAM console and create a role for the lambda cache node (Lambda function).
 
-  AWS IAM console -> Roles -> Create Role -> Lambda -> 
+  AWS IAM console -> Roles -> Create Role -> Lambda ->
 
   **`AWSLambdaFullAccess, `**
 
@@ -86,16 +86,22 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
   mem=1536
   ```
 
-  Edit destination S3 bucket in `lambda/collector/collector.go`, this bucket is for the bill duration log from Cloudwatch
-
+  Edit destination S3 bucket in `lambda/collector/collector.go`, this bucket is for the bill duration log from CloudWatch.
   ```go
+  AWSRegion = "us-east-1"
   S3BUCKET = "your bucket name"
   ```
 
-  Edit the Lambda execution role and the VPC configuration in `deploy/deploy_function.go`. If you do not want to run InfiniCache under VPC, you do not need to modify the `subnet` and `securityGroup` settings.
+  Edit `lambda/migrator/client.go`,  change AWS region if necessary.
+  ```go
+  AWSRegion = "us-east-1"
+  ```
+
+  Edit the aws settings and the VPC configuration in `deploy/deploy_function.go`. If you do not want to run InfiniCache under VPC, you do not need to modify the `subnet` and `securityGroup` settings.
 
   ```go
-  ROLE = "your lambda exection role"
+  ROLE = "arn:aws:iam::[aws account id]:role/[role name]"
+  REGION = "us-east-1"
   ...
   ...
   subnet = []*string{
@@ -114,11 +120,16 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
   go get
   deploy/create_function.sh 60
   ```
-  Edit the `LambdaPrefix` config in `proxy/server/config.go`, also you could modify the number of lambda cache node in `LambdaMaxDeployments` and `NumLambdaClusters`
-    ```go
-  const LambdaPrefix = "Your Lambda Function Prefix"
-    ```
 
+  #### Proxy configuration
+
+  Edit `proxy/server/config.go`, change the aws region, cluster size, and prefix of the Lambda functions.
+  ```go
+  const AWSRegion = "us-east-1"
+  const NumLambdaClusters = 400
+  const LambdaPrefix = "Your Lambda Function Prefix"
+  const ServerPublicIp = ""  // Leave it empty if using VPC.
+  ```
 
 ## Execution
 

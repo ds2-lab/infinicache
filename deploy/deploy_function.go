@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	ROLE = "Your Lambda function execution role"
+	// ARN of your AWS role, which has the proper policy (AWSLambdaFullAccess is recommended, see README.md for details).
+	ROLE = "arn:aws:iam::334662006938:role/LambdaCacheNodeRole"
+	// AWS region, change it if necessary.
+	REGION = "us-east-2"
 )
 
 var (
@@ -28,7 +31,7 @@ var (
 	to      = flag.Int64("to", 400, "the number of lambda deployment involved")
 	batch   = flag.Int64("batch", 5, "batch Number, no need to modify")
 	mem     = flag.Int64("mem", 1024, "the memory of lambda")
-	bucket  = flag.String("S3", "mason-leap-lab.infinicache", "S3 bucket for lambda code")
+	bucket  = flag.String("S3", "infinicache", "S3 bucket for lambda code")
 
 	subnet = []*string{
 		aws.String("sb-your-subnet-1"),
@@ -96,6 +99,7 @@ func updateCode(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 	}
 	result, err := svc.UpdateFunctionCode(input)
 	if err != nil {
+		fmt.Println("ERR: UpdateCode")
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case lambda.ErrCodeServiceException:
@@ -205,7 +209,7 @@ func main() {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	svc := lambda.New(sess, &aws.Config{Region: aws.String("us-east-1")})
+	svc := lambda.New(sess, &aws.Config{Region: aws.String(REGION)})
 	if *create {
 		for i := *from; i < *to; i++ {
 			createFunction(fmt.Sprintf("%s%d", *prefix, i), svc)
