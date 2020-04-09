@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/ScottMansfield/nanolog v0.2.0
-	github.com/aws/aws-lambda-go v1.13.3
+	github.com/aws/aws-lambda-go v1.13.3 // indirect
 	github.com/aws/aws-sdk-go v1.28.10
 	github.com/bsm/redeo v2.2.0+incompatible // indirect
 	github.com/buraksezer/consistent v0.0.0-20191006190839-693edf70fd72
@@ -15,6 +15,7 @@ require (
 	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/reedsolomon v1.9.3
 	github.com/kr/pretty v0.2.0 // indirect
+	github.com/mason-leap-lab/infinicache v0.0.0-20200327135932-7b4a82c53d2d
 	github.com/mason-leap-lab/redeo v0.0.0-20200204234106-1e6f10c82f05
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b

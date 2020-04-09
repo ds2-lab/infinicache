@@ -42,6 +42,8 @@ github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/mason-leap-lab/infinicache v0.0.0-20200327135932-7b4a82c53d2d h1:x0A2LfOHF2j6MoPtzA+HubkE7TSNmy8HDKJfLcaEHXs=
+github.com/mason-leap-lab/infinicache v0.0.0-20200327135932-7b4a82c53d2d/go.mod h1:RFTc6bzrzdoNqmMYger0xB03x47w9cBQxI8TYa17JA8=
 github.com/mason-leap-lab/redeo v0.0.0-20200204234106-1e6f10c82f05 h1:17KL9TwesxqLAzj6vOS5m9sCjOTvaWrfHV4eXg/IUI4=
 github.com/mason-leap-lab/redeo v0.0.0-20200204234106-1e6f10c82f05/go.mod h1:a8rrvjcMZ+ahDKMCHPMVJgGBNhJJlYqkEEESTKVHtjE=
 github.com/mattn/go-colorable v0.1.4 h1:snbPLB8fVfU9iwbbo30TPtbLRzwWu6aJS6Xh4eaaviA=
@@ -50,6 +52,7 @@ github.com/mattn/go-isatty v0.0.8 h1:HLtExJ+uU2HOZ+wI0Tt5DtUDrx8yhUqDcp7fYERX4CE
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b h1:j7+1HpAFS1zy5+Q4qx1fWh90gTKwiN4QCGoY9TWyyO4=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
+github.com/neboduus/infinicache v0.0.0-20200409124937-0babcd6887c5 h1:Ciy29wbp1U6V/+tpdxL2AtY/daDQna0DJW6Ti5SryAo=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0 h1:WSHQ+IS43OoUrWtD1/bbclrwK8TTH5hzp+umCiuxHgs=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
