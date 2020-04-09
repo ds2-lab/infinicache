@@ -1,5 +1,2 @@
-proxy/proxy
-lambda/lambda
-lambda.zip
-*.xml
-Dockerfile
+proxy/Dockerfile
+node/Dockerfile
