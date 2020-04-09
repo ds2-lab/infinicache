@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/mason-leap-lab/infinicache/client"
+	"github.com/neboduus/infinicache/proxy/client"
 )
 
 var addrList = "35.204.109.185:6378"

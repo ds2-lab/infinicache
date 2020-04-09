@@ -14,8 +14,8 @@ import (
 	"github.com/ScottMansfield/nanolog"
 	"github.com/cespare/xxhash"
 	"github.com/google/uuid"
-	"github.com/mason-leap-lab/infinicache/common/logger"
-	"github.com/mason-leap-lab/infinicache/proxy/server"
+	"github.com/neboduus/infinicache/proxy/common/logger"
+	"github.com/neboduus/infinicache/proxy/proxy/server"
 	"github.com/mason-leap-lab/redeo/resp"
 )
 
