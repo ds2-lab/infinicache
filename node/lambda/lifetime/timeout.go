@@ -1,7 +1,7 @@
 package lifetime
 
 import (
-	"github.com/neboduus/infinicache/proxy/common/logger"
+	"github.com/neboduus/infinicache/node/common/logger"
 	"math"
 	"sync/atomic"
 	"time"

@@ -19,7 +19,7 @@ import (
 	"flag"
 	l "log"
 
-	protocol "github.com/neboduus/infinicache/proxy/common/types"
+	protocol "github.com/neboduus/infinicache/node/common/types"
 	"github.com/neboduus/infinicache/node/lambda/collector"
 	lambdaLife "github.com/neboduus/infinicache/node/lambda/lifetime"
 	"github.com/neboduus/infinicache/node/lambda/migrator"

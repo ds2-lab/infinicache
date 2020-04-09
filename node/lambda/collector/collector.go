@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	awsSession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/neboduus/infinicache/proxy/common/logger"
+	"github.com/neboduus/infinicache/node/common/logger"
 	"strings"
 	"sync"
 
