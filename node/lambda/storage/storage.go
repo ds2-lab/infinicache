@@ -3,7 +3,7 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/mason-leap-lab/infinicache/lambda/types"
+	"github.com/neboduus/infinicache/node/lambda/types"
 	"github.com/mason-leap-lab/redeo/resp"
 	"sort"
 )

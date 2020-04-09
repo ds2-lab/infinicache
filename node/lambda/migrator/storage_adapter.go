@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mason-leap-lab/infinicache/lambda/types"
+	"github.com/neboduus/infinicache/node/lambda/types"
 )
 
 var (

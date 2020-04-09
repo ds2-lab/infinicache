@@ -2,7 +2,7 @@ package migrator
 
 import (
 	"io"
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"net"
 	"sync"
 

@@ -1,4 +1,4 @@
-module github.com/mason-leap-lab/infinicache
+module github.com/neboduus/infinicache/proxy
 
 go 1.12
 

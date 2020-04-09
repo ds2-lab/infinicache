@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/node/common/logger"
 	"github.com/mason-leap-lab/redeo"
 	"github.com/mason-leap-lab/redeo/resp"
 
@@ -19,12 +19,12 @@ import (
 	"flag"
 	l "log"
 
-	protocol "github.com/mason-leap-lab/infinicache/common/types"
-	"github.com/mason-leap-lab/infinicache/lambda/collector"
-	lambdaLife "github.com/mason-leap-lab/infinicache/lambda/lifetime"
-	"github.com/mason-leap-lab/infinicache/lambda/migrator"
-	"github.com/mason-leap-lab/infinicache/lambda/storage"
-	"github.com/mason-leap-lab/infinicache/lambda/types"
+	protocol "github.com/neboduus/infinicache/proxy/common/types"
+	"github.com/neboduus/infinicache/node/lambda/collector"
+	lambdaLife "github.com/neboduus/infinicache/node/lambda/lifetime"
+	"github.com/neboduus/infinicache/node/lambda/migrator"
+	"github.com/neboduus/infinicache/node/lambda/storage"
+	"github.com/neboduus/infinicache/node/lambda/types"
 	"github.com/gorilla/mux"
 )
 

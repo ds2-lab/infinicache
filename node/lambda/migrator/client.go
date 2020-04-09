@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/mason-leap-lab/redeo"
 	"github.com/mason-leap-lab/redeo/resp"
 	"io"
@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mason-leap-lab/infinicache/lambda/types"
+	"github.com/neboduus/infinicache/node/lambda/types"
 )
 
 const (

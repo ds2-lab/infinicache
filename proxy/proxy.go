@@ -9,12 +9,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/mason-leap-lab/redeo"
 
-	"github.com/mason-leap-lab/infinicache/proxy/collector"
-	"github.com/mason-leap-lab/infinicache/proxy/global"
-	"github.com/mason-leap-lab/infinicache/proxy/server"
+	"github.com/neboduus/infinicache/proxy/proxy/collector"
+	"github.com/neboduus/infinicache/proxy/proxy/global"
+	"github.com/neboduus/infinicache/proxy/proxy/server"
 )
 
 var (

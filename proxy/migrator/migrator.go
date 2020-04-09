@@ -3,7 +3,7 @@ package migrator
 import (
 	"errors"
 	"fmt"
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/cornelk/hashmap"
 	"net"
 	"time"

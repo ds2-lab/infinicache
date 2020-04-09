@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mason-leap-lab/infinicache/lambda/migrator"
+	"github.com/neboduus/infinicache/node/lambda/migrator"
 )
 
 var (

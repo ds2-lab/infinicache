@@ -8,12 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	awsSession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/mason-leap-lab/infinicache/common/logger"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"strings"
 	"sync"
 
-	"github.com/mason-leap-lab/infinicache/lambda/types"
-	"github.com/mason-leap-lab/infinicache/lambda/lifetime"
+	"github.com/neboduus/infinicache/node/lambda/types"
+	"github.com/neboduus/infinicache/node/lambda/lifetime"
 )
 
 const (

@@ -1,4 +1,4 @@
-module github.com/mason-leap-lab/infinicache
+module github.com/neboduus/infinicache/node
 
 go 1.12
 
