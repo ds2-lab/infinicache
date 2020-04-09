@@ -1,7 +1,6 @@
 package lifetime
 
 import (
-	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/mason-leap-lab/infinicache/common/logger"
 	"math"
 	"sync/atomic"
@@ -26,7 +25,7 @@ var (
 
 func init() {
 	// adapt
-	if lambdacontext.MemoryLimitInMB < 896 {
+/*	if lambdacontext.MemoryLimitInMB < 896 {
 		TICK_ERROR_EXTEND = TICK_1_ERROR_EXTEND
 		TICK_ERROR = TICK_1_ERROR
 	} else if lambdacontext.MemoryLimitInMB < 1792 {
@@ -35,7 +34,9 @@ func init() {
 	} else {
 		TICK_ERROR_EXTEND = TICK_10_ERROR_EXTEND
 		TICK_ERROR = TICK_10_ERROR
-	}
+	}*/
+	TICK_ERROR_EXTEND = TICK_1_ERROR_EXTEND
+	TICK_ERROR = TICK_1_ERROR
 }
 
 type Timeout struct {

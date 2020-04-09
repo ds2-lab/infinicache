@@ -1,0 +1,55 @@
+FROM ubuntu:xenial
+RUN apt-get update
+RUN apt-get install locales
+
+# Set the locale
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+# Install essential dependencies
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update
+RUN apt-get install -qq wget unzip build-essential cmake gcc libcunit1-dev libudev-dev nano
+
+# Grab the checked out source
+RUN mkdir /project
+RUN mkdir /project/src
+WORKDIR /project/src
+COPY . /project/src
+
+# Install Go
+RUN apt-get update
+RUN apt-get -y upgrade
+RUN wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
+RUN tar -xvf go1.12.linux-amd64.tar.gz
+RUN rm go1.12.linux-amd64.tar.gz
+RUN mv go /usr/local
+ENV GOROOT /usr/local/go
+ENV GOPATH $HOME/project
+ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+
+# Install git
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q git
+
+# Configure AWS
+RUN apt-get update
+RUN apt-get -y upgrade
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q awscli
+RUN apt install zip
+ENV AWS_ACCESS_KEY_ID=AKIAU323I7CNGASLQYFT
+ENV AWS_SECRET_ACCESS_KEY=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
+ENV AWS_DEFAULT_REGION=us-east-2
+
+# Install project dependencies
+ENV GO111MODULE="on"
+RUN go get
+
+
+
+
+
+
+
+

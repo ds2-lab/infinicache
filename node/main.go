@@ -1,10 +1,10 @@
 package main
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-lambda-go/lambdacontext"
+	"net/http"
+
 	"github.com/mason-leap-lab/infinicache/common/logger"
 	"github.com/mason-leap-lab/redeo"
 	"github.com/mason-leap-lab/redeo/resp"
@@ -16,13 +16,16 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"flag"
+	l "log"
 
+	protocol "github.com/mason-leap-lab/infinicache/common/types"
 	"github.com/mason-leap-lab/infinicache/lambda/collector"
 	lambdaLife "github.com/mason-leap-lab/infinicache/lambda/lifetime"
 	"github.com/mason-leap-lab/infinicache/lambda/migrator"
 	"github.com/mason-leap-lab/infinicache/lambda/storage"
 	"github.com/mason-leap-lab/infinicache/lambda/types"
-	protocol "github.com/mason-leap-lab/infinicache/common/types"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -48,6 +51,8 @@ var (
 	// Pong limiter prevent pong being sent duplicatedly on launching lambda while a ping arrives
 	// at the same time.
 	pongLimiter = make(chan struct{}, 1)
+
+	reqCounter = 0
 )
 
 func init() {
@@ -60,27 +65,41 @@ func init() {
 	}
 }
 
-func getAwsReqId(ctx context.Context) string {
-	lc, ok := lambdacontext.FromContext(ctx)
+// MigrationToDo: generate new unique ID per request concat(nodeID,reqCount)
+func getAwsReqId() string {
+/*	lc, ok := lambdacontext.FromContext(ctx)
 	if ok == false {
 		log.Debug("get lambda context failed %v", ok)
-	}
-	return lc.AwsRequestID
+	}*/
+	return strconv.Itoa(reqCounter)
 }
 
-func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
+// this is aws Lambda handler signature and includes the code which will be executed
+// MigrationToDo: Remove the handler and keep the function as a server
+func HandleRequest(w http.ResponseWriter, r *http.Request) {
+	log.Info("Handler Triggered :D")
+
+	// simulating input
+	var input protocol.InputEvent
+
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+
 	// gorouting start from 3
 
 	// Reset if necessary.
 	// This is essential for debugging, and useful if deployment pool is not large enough.
 	lifetime.RebornIfDead()
 	session := lambdaLife.GetOrCreateSession()
-	session.Id = getAwsReqId(ctx)
+	session.Id = getAwsReqId()
 	defer lambdaLife.ClearSession()
 
 	session.Timeout.SetLogger(log)
 	if input.Timeout > 0 {
-		deadline, _ := ctx.Deadline()
+		deadline := time.Now().Add(100*time.Second)
 		session.Timeout.StartWithCalibration(deadline.Add(-time.Duration(input.Timeout) * time.Second))
 	} else {
 		session.Timeout.Start()
@@ -99,7 +118,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 
 		if len(input.Addr) == 0 {
 			log.Error("No migrator set.")
-			return nil
+			return
 		}
 
 		mu.Lock()
@@ -115,14 +134,14 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		session.Migrator = migrator.NewClient()
 		if err := session.Migrator.Connect(input.Addr); err != nil {
 			log.Error("Failed to connect migrator %s: %v", input.Addr, err)
-			return nil
+			return
 		}
 
 		// Send hello
 		reader, err := session.Migrator.Send("mhello", nil)
 		if err != nil {
 			log.Error("Failed to hello source on migrator: %v", err)
-			return nil
+			return
 		}
 
 		// Apply store adapter to coordinate migration and normal requests
@@ -148,7 +167,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	if session.Connection == nil {
 		if len(input.Proxy) == 0 {
 			log.Error("No proxy set.")
-			return nil
+			return
 		}
 
 		storeId = input.Id
@@ -158,7 +177,8 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 		session.Connection, connErr = net.Dial("tcp", proxy)
 		if connErr != nil {
 			log.Error("Failed to connect proxy %s: %v", proxy, connErr)
-			return connErr
+			// return connErr
+			return
 		}
 		mu.Lock()
 		proxyConn = session.Connection
@@ -214,7 +234,7 @@ func HandleRequest(ctx context.Context, input protocol.InputEvent) error {
 	Wait(session, lifetime)
 
 	log.Debug("All routing cleared(%d) at %v", runtime.NumGoroutine(), session.Timeout.Since())
-	return nil
+	return
 }
 
 func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
@@ -334,6 +354,12 @@ func byeHandler(conn net.Conn) error {
 // }
 
 func main() {
+	// Lunch a little web-service for testing purposes
+	flag.Parse()
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/", HandleRequest)
+	l.Fatal(http.ListenAndServe(":8080", router))
+
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
@@ -638,7 +664,7 @@ func main() {
 		w.AppendBulkString("mhello")
 		w.AppendBulkString(strconv.Itoa(store.Len()))
 
-		delList := make([]string, 0, 2 * store.Len())
+		delList := make([]string, 0, 2*store.Len())
 		getList := delList[store.Len():store.Len()]
 		for key := range store.Keys() {
 			_, _, err := store.Get(key)
@@ -662,6 +688,4 @@ func main() {
 		}
 	})
 
-	// log.Debug("Routings on launching: %d", runtime.NumGoroutine())
-	lambda.Start(HandleRequest)
 }
