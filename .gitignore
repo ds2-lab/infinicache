@@ -1,2 +1,5 @@
 proxy/Dockerfile
 node/Dockerfile
+.idea/
+node/.idea
+proxy/.idea
