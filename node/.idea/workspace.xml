@@ -2,13 +2,33 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/createNodes.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../proxy/logsk8sConf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/deployment.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/deployment.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/lambdastore_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/placer_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/proxy_suite_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/scheduler_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/types/types.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FavoritesManager">
+    <favorites_list name="node" />
   </component>
   <component name="GOROOT" path="/usr/local/go" />
   <component name="Git.Settings">
@@ -38,5 +58,19 @@
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
     <proxy>direct</proxy>
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1586867948899">
+      <screen x="0" y="22" width="1366" height="713" />
+    </state>
+    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1586867948899" />
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1586855138554">
+      <screen x="0" y="22" width="1366" height="713" />
+    </state>
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1586855138554" />
+    <state x="406" y="143" width="553" height="468" key="find.popup" timestamp="1586960342529">
+      <screen x="0" y="22" width="1366" height="713" />
+    </state>
+    <state x="406" y="143" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1586960342529" />
   </component>
 </project>

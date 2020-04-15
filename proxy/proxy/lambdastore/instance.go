@@ -1,18 +1,21 @@
 package lambdastore
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
+
+	/*	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/lambda"*/
 	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/neboduus/infinicache/proxy/proxy/collector"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
+	"net/http"
 
 	"github.com/neboduus/infinicache/proxy/proxy/global"
 	"github.com/neboduus/infinicache/proxy/proxy/types"
@@ -79,8 +82,8 @@ func NewInstanceFromDeployment(dp *Deployment) *Instance {
 }
 
 // create new lambda instance
-func NewInstance(name string, id uint64, replica bool) *Instance {
-	return NewInstanceFromDeployment(NewDeployment(name, id, replica))
+func NewInstance(name string, id uint64, replica bool, address string) *Instance {
+	return NewInstanceFromDeployment(NewDeployment(name, id, replica, address))
 }
 
 func (ins *Instance) C() chan types.Command {
@@ -310,10 +313,10 @@ func (ins *Instance) triggerLambda(warmUp bool) {
 }
 
 func (ins *Instance) triggerLambdaLocked(warmUp bool) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
+/*	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})
+	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})*/
 	event := &prototol.InputEvent{
 		Id:     ins.Id(),
 		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
@@ -324,17 +327,19 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 		event.Cmd = "warmup"
 	}
 	payload, _ := json.Marshal(event)
-	input := &lambda.InvokeInput{
+/*	input := &lambda.InvokeInput{
 		FunctionName: aws.String(ins.Name()),
 		Payload:      payload,
 	}
-
-	_, err := client.Invoke(input)
+	_, err := client.Invoke(input)*/
+	resp, err := http.Post(ins.address, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)
 	} else {
 		ins.log.Debug("[Lambda store is deactivated]")
 	}
+	defer resp.Body.Close()
+
 }
 
 func (ins *Instance) flagValidated(conn *Connection) *Connection {

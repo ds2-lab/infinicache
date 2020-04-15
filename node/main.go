@@ -17,15 +17,16 @@ import (
 	"sync"
 	"time"
 	"flag"
-	l "log"
 
 	protocol "github.com/neboduus/infinicache/node/common/types"
+
+	// We want to remove the collector because it connects to AWS
 	"github.com/neboduus/infinicache/node/lambda/collector"
+
 	lambdaLife "github.com/neboduus/infinicache/node/lambda/lifetime"
 	"github.com/neboduus/infinicache/node/lambda/migrator"
 	"github.com/neboduus/infinicache/node/lambda/storage"
 	"github.com/neboduus/infinicache/node/lambda/types"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -71,22 +72,22 @@ func getAwsReqId() string {
 	if ok == false {
 		log.Debug("get lambda context failed %v", ok)
 	}*/
+	reqCounter++
 	return strconv.Itoa(reqCounter)
 }
 
+type server struct{}
+
 // this is aws Lambda handler signature and includes the code which will be executed
 // MigrationToDo: Remove the handler and keep the function as a server
-func HandleRequest(w http.ResponseWriter, r *http.Request) {
-	log.Info("Handler Triggered :D")
-
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// simulating input
 	var input protocol.InputEvent
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Error("Unable to decode request body.")
 	}
-
 
 	// gorouting start from 3
 
@@ -114,7 +115,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// migration triggered lambda
 	if input.Cmd == "migrate" {
-		collector.Send(&types.DataEntry{Op: types.OP_MIGRATION, Session: session.Id})
+		// collector.Send(&types.DataEntry{Op: types.OP_MIGRATION, Session: session.Id})
 
 		if len(input.Addr) == 0 {
 			log.Error("No migrator set.")
@@ -144,6 +145,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Apply store adapter to coordinate migration and normal requests
 		// Apply store adapter to coordinate migration and normal requests
 		adapter := session.Migrator.GetStoreAdapter(store)
 		store = adapter
@@ -220,7 +222,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Cmd == "warmup" {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR)
-		collector.Send(&types.DataEntry{Op: types.OP_WARMUP, Session: session.Id})
+		// collector.Send(&types.DataEntry{Op: types.OP_WARMUP, Session: session.Id})
 	} else {
 		session.Timeout.ResetWithExtension(lambdaLife.TICK_ERROR_EXTEND)
 	}
@@ -228,7 +230,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	pongHandler(session.Connection)
 
 	// data gathering
-	go collector.Collect(session)
+	// go collector.Collect(session)
 
 	// timeout control
 	Wait(session, lifetime)
@@ -356,9 +358,6 @@ func byeHandler(conn net.Conn) error {
 func main() {
 	// Lunch a little web-service for testing purposes
 	flag.Parse()
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/", HandleRequest)
-	l.Fatal(http.ListenAndServe(":8080", router))
 
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
@@ -382,9 +381,9 @@ func main() {
 		//if err == false {
 		//	log.Debug("not found")
 		//}
-		t2 := time.Now()
+		// t2 := time.Now()
 		chunkId, stream, err := store.GetStream(key)
-		d2 := time.Since(t2)
+		//d2 := time.Since(t2)
 
 		if err == nil {
 			// construct lambda store response
@@ -409,7 +408,7 @@ func main() {
 			log.Debug("Streaming duration is %v", d3)
 			log.Debug("Total duration is %v", dt)
 			log.Debug("Get complete, Key: %s, ConnID:%s, ChunkID:%s", key, connId, chunkId)
-			collector.Send(&types.DataEntry{types.OP_GET, "200", reqId, chunkId, d2, d3, dt, session.Id})
+			// collector.Send(&types.DataEntry{types.OP_GET, "200", reqId, chunkId, d2, d3, dt, session.Id})
 		} else {
 			var respError *types.ResponseError
 			if err == types.ErrNotFound {
@@ -424,7 +423,7 @@ func main() {
 			if err := w.Flush(); err != nil {
 				log.Error("Error on flush: %v", err)
 			}
-			collector.Send(&types.DataEntry{types.OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), session.Id})
+			// collector.Send(&types.DataEntry{types.OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), session.Id})
 		}
 	})
 
@@ -438,7 +437,7 @@ func main() {
 		}
 		defer session.Timeout.DoneBusyWithReset(extension)
 
-		t := time.Now()
+		// t := time.Now()
 		log.Debug("In SET handler")
 
 		connId, _ := c.NextArg().String()
@@ -488,7 +487,7 @@ func main() {
 		}
 
 		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s", key, connId, chunkId)
-		collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
+		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
 	})
 
 	srv.HandleFunc("del", func(w resp.ResponseWriter, c *resp.Command) {
@@ -553,7 +552,7 @@ func main() {
 		}
 
 		// put DATA to s3
-		collector.Save(lifetime)
+		// collector.Save(lifetime)
 
 		w.AppendBulkString("data")
 		w.AppendBulkString("OK")
@@ -628,7 +627,7 @@ func main() {
 			// Should be ready if migration ended.
 			if session.Migrator.IsReady() {
 				// put data to s3 before migration finish
-				collector.Save(lifetime)
+				// collector.Save(lifetime)
 
 				// This is essential for debugging, and useful if deployment pool is not large enough.
 				lifetime.Rest()
@@ -687,5 +686,13 @@ func main() {
 			return
 		}
 	})
+
+	port := "8080"
+	s := &server{}
+	http.Handle("/", s)
+	// http.HandleFunc("/", HandleRequest)
+	http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+	log.Info("helloworld: listening on port %s", port)
+
 
 }

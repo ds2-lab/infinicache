@@ -22,6 +22,7 @@ type Id struct {
 type LambdaDeployment interface {
 	Name() string
 	Id() uint64
+	Address() string
 	Reset(new LambdaDeployment, old LambdaDeployment)
 }
 

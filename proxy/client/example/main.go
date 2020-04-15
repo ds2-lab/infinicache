@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/neboduus/infinicache/proxy/client"
+	"log"
 	"math/rand"
 	"strings"
-
-	"github.com/neboduus/infinicache/proxy/client"
 )
 
-var addrList = "35.204.109.185:6378"
+var addrList = "127.0.0.1:6378"
 
 func main() {
 	// initial object with random value
@@ -23,7 +23,16 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	cli.EcSet("foo", val)
-	cli.EcGet("foo", 1024)
+	if _, ok := cli.EcSet("foo", val); !ok {
+		log.Fatal("Failed to set")
+		return
+	}
 
+	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
+		log.Fatal("Failed to get")
+		return
+	} else {
+		// TODO: Read data.
+		reader.Close()
+	}
 }

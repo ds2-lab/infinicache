@@ -31,7 +31,7 @@ func NewScheduler(numCluster int, numDeployment int) *Scheduler {
 		actives: hashmap.New(uintptr(numCluster)),
 	}
 	for i := 0; i < numDeployment; i++ {
-		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false)
+		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false, LambdaAddresses[i])
 	}
 	return s
 }
