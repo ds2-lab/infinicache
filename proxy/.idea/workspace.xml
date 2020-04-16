@@ -2,30 +2,25 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/../node/createNodes.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/logsk8sConf" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/../node/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/../node/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/lambdastore/deployment.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/deployment.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/instance.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/lambdastore/instance_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/lambdastore/lambdastore_test.go" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/placer_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/proxy_suite_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/scheduler.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/scheduler_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/types/types.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go Application" />
+      </list>
+    </option>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
   <component name="Git.Settings">
@@ -42,6 +37,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="DefaultGoTemplateProperty" value="Go Application" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.import.settings.migrated" value="true" />
@@ -73,9 +69,19 @@
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1586442348479" />
-    <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1586963756942">
+    <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1587024424824">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1586963756942" />
+    <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587024424824" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/common/types/types.go</url>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

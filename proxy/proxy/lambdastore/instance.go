@@ -5,21 +5,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"strconv"
 
 	/*	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"*/
+		"github.com/aws/aws-sdk-go/aws/session"
+		"github.com/aws/aws-sdk-go/service/lambda"*/
 	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/neboduus/infinicache/proxy/proxy/collector"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
-	"net/http"
 
 	"github.com/neboduus/infinicache/proxy/proxy/global"
 	"github.com/neboduus/infinicache/proxy/proxy/types"
-	prototol "github.com/neboduus/infinicache/proxy/common/types"
 )
 
 const (
@@ -317,28 +318,38 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})*/
-	event := &prototol.InputEvent{
-		Id:     ins.Id(),
-		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
-		Prefix: global.Prefix,
-		Log:    global.Log.GetLevel(),
+
+	var jsonInputData = map[string]string{
+		"Id":		strconv.FormatUint(ins.Id(), 10),
+		"Proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
+		"Prefix": 	global.Prefix,
+		"Log":    	strconv.Itoa(global.Log.GetLevel()),
 	}
+
 	if warmUp {
-		event.Cmd = "warmup"
+		jsonInputData = map[string]string{
+			"Id":		strconv.FormatUint(ins.Id(), 10),
+			"Proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
+			"Prefix": 	global.Prefix,
+			"Log":    	strconv.Itoa(global.Log.GetLevel()),
+			"Cmd":		"warmup",
+		}
 	}
-	payload, _ := json.Marshal(event)
+	payload, _ := json.Marshal(jsonInputData)
 /*	input := &lambda.InvokeInput{
 		FunctionName: aws.String(ins.Name()),
 		Payload:      payload,
 	}
 	_, err := client.Invoke(input)*/
 	resp, err := http.Post(ins.address, "application/json", bytes.NewBuffer(payload))
+	defer resp.Body.Close()
+	data, _ := ioutil.ReadAll(resp.Body)
+	ins.log.Debug(string(data))
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)
 	} else {
 		ins.log.Debug("[Lambda store is deactivated]")
 	}
-	defer resp.Body.Close()
 
 }
 

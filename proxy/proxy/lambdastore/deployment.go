@@ -10,7 +10,7 @@ import (
 type Deployment struct {
 	name      string
 	id        uint64
-	address string
+	address   string
 	replica   bool
 	log       logger.ILogger
 }

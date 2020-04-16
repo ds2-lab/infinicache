@@ -30,14 +30,13 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-17.default.35.204.59.210.xip.io",
 	"http://infinicache-node-18.default.35.204.59.210.xip.io",
 	"http://infinicache-node-19.default.35.204.59.210.xip.io",
-	"http://infinicache-node-20.default.35.204.59.210.xip.io",
 }
 const LambdaStoreName = "LambdaStore" // replica version (no use)
 const LambdaPrefix = "CacheNode"
 const InstanceWarmTimout = 1 * time.Minute
 const InstanceCapacity = 1536 * 1000000 // MB
 const InstanceOverhead = 100 * 1000000  // MB
-const ServerPublicIp = "35.204.109.185" // Leave it empty if using VPC.
+const ServerPublicIp = "35.204.179.185" // Leave it empty if using VPC.
 
 func init() {
 	lambdastore.WarmTimout = InstanceWarmTimout

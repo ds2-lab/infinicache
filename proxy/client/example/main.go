@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var addrList = "127.0.0.1:6378"
+var addrList = "35.204.179.185:6378"
 
 func main() {
 	// initial object with random value
