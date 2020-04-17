@@ -164,3 +164,8 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
 Client Library [ecRedis](https://github.com/mason-leap-lab/infinicache/tree/master/client)  
 Redis Protocol [redeo](https://github.com/mason-leap-lab/redeo)  
 Benchmark tool [redbench](https://github.com/wangaoone/redbench)  
+
+
+## Contributing
+
+Please feel free to hack on InfiniCache! We're happy to accept contributions.
