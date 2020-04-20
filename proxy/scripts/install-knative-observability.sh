@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # create knative-monitoring namespace & install the core
 kubectl apply --filename https://github.com/knative/serving/releases/download/v0.13.0/monitoring-core.yaml
 
@@ -8,10 +10,10 @@ kubectl apply --filename https://github.com/knative/serving/releases/download/v0
 kubectl apply --filename https://github.com/knative/serving/releases/download/v0.13.0/monitoring-logs-elasticsearch.yaml
 
 # enable request metrics by adding `metrics.request-metrics-backend-destination: prometheus` to data field
-kubectl edit cm -n knative-serving config-observability
+# kubectl edit cm -n knative-serving config-observability
 
 # or just edit logsk8sConfig.yaml file and then apply it
-kubectl apply -f logging-cm.yaml
+kubectl apply -f ../logging-cm.yaml
 
 # install knative core observability plugin
 kubectl apply --filename https://github.com/knative/serving/releases/download/v0.13.0/monitoring-core.yaml
