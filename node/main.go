@@ -81,18 +81,17 @@ type server struct{}
 // this is aws Lambda handler signature and includes the code which will be executed
 // MigrationToDo: Remove the handler and keep the function as a server
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// simulating input
 	var input protocol.InputEvent
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		log.Error("Unable to decode request body.")
+		log.Error("Unable to decode request body: %v, %v", err, r.Body)
 	}
 
 	// gorouting start from 3
 
 	// Reset if necessary.
-	// This is essential for debugging, and useful if deployment pool is not large enough.
+	// This is essential for debugging, and useful if deployment pool is not 3large enough.
 	lifetime.RebornIfDead()
 	session := lambdaLife.GetOrCreateSession()
 	session.Id = getAwsReqId()
@@ -177,6 +176,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Debug("Ready to connect %s, id %d", proxy, storeId)
 		var connErr error
 		session.Connection, connErr = net.Dial("tcp", proxy)
+
+
 		if connErr != nil {
 			log.Error("Failed to connect proxy %s: %v", proxy, connErr)
 			// return connErr

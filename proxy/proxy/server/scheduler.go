@@ -30,7 +30,8 @@ func NewScheduler(numCluster int, numDeployment int) *Scheduler {
 		pool: make(chan *lambdastore.Deployment, numDeployment + 1), // Allocate extra 1 buffer to avoid blocking
 		actives: hashmap.New(uintptr(numCluster)),
 	}
-	for i := 0; i < numDeployment; i++ {
+	fmt.Printf("%d, %d", len(LambdaAddresses), numDeployment)
+	for i := 0; i < len(LambdaAddresses); i++ {
 		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false, LambdaAddresses[i])
 	}
 	return s

@@ -7,4 +7,4 @@ spec:
   template:
     spec:
       containers:
-      - image: gcr.io/fraudio/infinicache-node
+      - image: gcr.io/serverless-research-274508/infinicache-node

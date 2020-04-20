@@ -2,13 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/docs/Install Knative Serving.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node-knService.yaml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/common/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/ecRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/ecRedis.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/lambdastore/deployment.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/deployment.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/common/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logsk8sConf" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/install-knative-observability.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy-service.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/proxy-service.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/instance.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/scheduler.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,13 +52,18 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/docs" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/scripts" />
+      <recent name="$PROJECT_DIR$/deploy" />
+      <recent name="$PROJECT_DIR$/docs" />
       <recent name="$PROJECT_DIR$/fluentd" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/docs" />
+      <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
@@ -61,27 +75,17 @@
     <proxy>direct</proxy>
   </component>
   <component name="WindowStateProjectService">
-    <state x="424" y="198" width="508" height="358" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1586960096915">
+    <state x="424" y="198" width="508" height="358" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1587112375667">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="424" y="198" width="508" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1586960096915" />
+    <state x="424" y="198" width="508" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587112375667" />
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1586442348479">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1586442348479" />
-    <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1587024424824">
+    <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1587110905267">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587024424824" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/common/types/types.go</url>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587110905267" />
   </component>
 </project>

@@ -2,13 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/../proxy/docs/Install Knative Serving.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node-knService.yaml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/common/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/client/ecRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/ecRedis.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/deployment.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/deployment.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/common/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/logsk8sConf" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/scripts/install-knative-observability.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy-service.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy-service.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,17 +57,21 @@
     <proxy>direct</proxy>
   </component>
   <component name="WindowStateProjectService">
-    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1586867948899">
+    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1587129939956">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1586867948899" />
+    <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587129939956" />
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1586855138554">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1586855138554" />
-    <state x="406" y="143" width="553" height="468" key="find.popup" timestamp="1587024295889">
+    <state x="406" y="143" width="553" height="468" key="find.popup" timestamp="1587108218953">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="406" y="143" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587024295889" />
+    <state x="406" y="143" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587108218953" />
+    <state x="429" y="174" width="505" height="399" key="search.everywhere.popup" timestamp="1587049369594">
+      <screen x="0" y="22" width="1366" height="713" />
+    </state>
+    <state x="429" y="174" width="505" height="399" key="search.everywhere.popup/0.22.1366.713@0.22.1366.713" timestamp="1587049369594" />
   </component>
 </project>

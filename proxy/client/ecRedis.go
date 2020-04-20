@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -14,9 +13,9 @@ import (
 	"github.com/ScottMansfield/nanolog"
 	"github.com/cespare/xxhash"
 	"github.com/google/uuid"
+	"github.com/mason-leap-lab/redeo/resp"
 	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/neboduus/infinicache/proxy/proxy/server"
-	"github.com/mason-leap-lab/redeo/resp"
 )
 
 const (
@@ -89,7 +88,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	}
 
 	//addr, ok := c.getHost(key)
-	fmt.Println("in SET, key is: ", key)
+	//fmt.Println("in SET, key is: ", key)
 	member := c.Ring.LocateKey([]byte(key))
 	host := member.String()
 	log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
@@ -104,7 +103,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	var wg sync.WaitGroup
 	ret := newEcRet(c.Shards)
 	for i := 0; i < ret.Len(); i++ {
-		fmt.Println("shards", i, "is", shards[i])
+		// fmt.Println("shards", i, "is", shards[i])
 		wg.Add(1)
 		go c.set(host, key, shards[i], i, index[i], stats.ReqId, &wg, ret)
 	}

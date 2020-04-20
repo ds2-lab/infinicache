@@ -3,7 +3,8 @@ kind: Service
 metadata:
   name: proxy-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
+  clusterIP: 10.4.0.100
   selector:
     app: infinicache-proxy
   ports:

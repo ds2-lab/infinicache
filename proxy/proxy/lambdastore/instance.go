@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	prototol "github.com/neboduus/infinicache/proxy/common/types"
 	"io/ioutil"
-	"strconv"
 
 	/*	"github.com/aws/aws-sdk-go/aws"
 		"github.com/aws/aws-sdk-go/aws/session"
@@ -319,38 +319,44 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	}))
 	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})*/
 
-	var jsonInputData = map[string]string{
-		"Id":		strconv.FormatUint(ins.Id(), 10),
-		"Proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
-		"Prefix": 	global.Prefix,
-		"Log":    	strconv.Itoa(global.Log.GetLevel()),
+/*	var jsonInputData = map[string]string{
+		"id":		strconv.FormatUint(ins.Id(), 10),
+		"proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
+		"prefix": 	global.Prefix,
+		"log":    	strconv.Itoa(global.Log.GetLevel()),
+	}
+	payload, _ := json.Marshal(jsonInputData)
+	*/
+
+	event := &prototol.InputEvent{
+		Id:     ins.Id(),
+		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
+		Prefix: global.Prefix,
+		Log:    global.Log.GetLevel(),
 	}
 
 	if warmUp {
-		jsonInputData = map[string]string{
-			"Id":		strconv.FormatUint(ins.Id(), 10),
-			"Proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
-			"Prefix": 	global.Prefix,
-			"Log":    	strconv.Itoa(global.Log.GetLevel()),
-			"Cmd":		"warmup",
-		}
+		event.Cmd="warmup"
 	}
-	payload, _ := json.Marshal(jsonInputData)
+
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(event)
+
 /*	input := &lambda.InvokeInput{
 		FunctionName: aws.String(ins.Name()),
 		Payload:      payload,
 	}
 	_, err := client.Invoke(input)*/
-	resp, err := http.Post(ins.address, "application/json", bytes.NewBuffer(payload))
-	defer resp.Body.Close()
-	data, _ := ioutil.ReadAll(resp.Body)
-	ins.log.Debug(string(data))
+	resp, err := http.Post(ins.address, "application/json", payload)
+
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)
+		return
 	} else {
-		ins.log.Debug("[Lambda store is deactivated]")
+		data, _ := ioutil.ReadAll(resp.Body)
+		ins.log.Debug("[Lambda store is deactivated, %d]", data)
 	}
-
+	defer resp.Body.Close()
 }
 
 func (ins *Instance) flagValidated(conn *Connection) *Connection {
