@@ -129,9 +129,3 @@ In order to analyze the feasibility of both reimplementation and migration, the 
 ### AWS
 
 * proxy instance ip: `3.22.8.119`
-* SSH to the proxy instance
-  ` sudo ssh -i ~/.ssh/FraudioAWS.pem ubuntu@ec2-3-14-65-17.us-east-2.compute.amazonaws.com`
-* transfer files to instance
-  `scp -i ~/.ssh/FraudioAWS.pem /home/nepotu/Desktop/fraudio/projects/infinicache-master/install_go.md ubuntu@ec2-3-14-65-17.us-east-2.compute.amazonaws.com:`
-* transfer from instance to local
-  `scp -i /path/my-key-pair.pem ec2-user@ec2-198-51-100-1.compute-1.amazonaws.com:~/SampleFile.txt ~/SampleFile2.txt`
