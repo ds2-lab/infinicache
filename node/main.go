@@ -357,7 +357,6 @@ func byeHandler(conn net.Conn) error {
 // }
 
 func main() {
-	// Lunch a little web-service for testing purposes
 	flag.Parse()
 
 	// Define handlers
@@ -692,7 +691,10 @@ func main() {
 	s := &server{}
 	http.Handle("/", s)
 	// http.HandleFunc("/", HandleRequest)
-	http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+	if err!= nil {
+		log.Info("ERROR while opening http", port)
+	}
 	log.Info("helloworld: listening on port %s", port)
 
 

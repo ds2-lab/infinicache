@@ -2,22 +2,29 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/../proxy/docs/Install Knative Serving.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node-knService.yaml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/common/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile_v0" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/createNodes.sh" beforeDir="false" afterPath="$PROJECT_DIR$/createNodes.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/ecRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/ecRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/common/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/common/types/types.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/logsk8sConf" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/scripts/install-knative-observability.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/docs/Install Knative Serving.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/docs/Setup GCP.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/docs/cheatSheet.md" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/docs/cheatSheet.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/docs/notes.md" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/docs/notes.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/generatePorts.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/install_go.md" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/docs/install_go.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/logging-cm.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/logging-cm.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/ports-deploymnt" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/ports-deploymnt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/ports-service" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/ports-service" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy-deploymnt.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy-deploymnt.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy-service.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy-service.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/instance.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/scheduler.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/scripts/install-knative-observability.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/scripts/install-knative-serving.sh" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,7 +54,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../knative-tutorial-master" />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
@@ -61,14 +68,14 @@
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587129939956" />
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1586855138554">
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1587374723289">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1586855138554" />
-    <state x="406" y="143" width="553" height="468" key="find.popup" timestamp="1587108218953">
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587374723289" />
+    <state x="406" y="143" width="553" height="468" key="find.popup" timestamp="1587470999268">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="406" y="143" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587108218953" />
+    <state x="406" y="143" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587470999268" />
     <state x="429" y="174" width="505" height="399" key="search.everywhere.popup" timestamp="1587049369594">
       <screen x="0" y="22" width="1366" height="713" />
     </state>

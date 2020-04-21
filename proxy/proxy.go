@@ -25,7 +25,7 @@ var (
 		Level: logger.LOG_LEVEL_WARN,
 	}
 	lambdaLis net.Listener
-	filePath  = "/tmp/infinicache.pid"
+	filePath  = "/project/src/infinicache.pid"
 )
 
 func init() {

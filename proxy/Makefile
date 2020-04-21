@@ -8,4 +8,4 @@ start: build
 	proxy/proxy 1>./log 2>&1 &
 
 stop:
-	kill -2 $(shell cat /tmp/infinicache.pid)
+	kill -2 $(shell cat /project/src/infinicache.pid)

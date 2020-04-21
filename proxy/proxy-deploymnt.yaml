@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: infinicache-proxy
-        image: gcr.io/fraudio/infinicache-proxy
+        image: gcr.io/serverless-research-274508/infinicache-proxy
         command: [ "/bin/bash", "-ce", "tail -f /dev/null" ]
         ports:
           - containerPort: 8080
