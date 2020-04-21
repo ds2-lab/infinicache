@@ -17,5 +17,5 @@ require (
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
-	github.com/seiflotfy/cuckoofilter v0.0.0-20200323075608-c8f23b6b6cef
+	github.com/seiflotfy/cuckoofilter v0.0.0-20200416141329-862a88987de7
 )
