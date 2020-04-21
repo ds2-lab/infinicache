@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -v
+
+DIR="$(dirname "$0")"
+. "${DIR}/config"
+
+# Enable APIs
+gcloud services enable \
+  cloudapis.googleapis.com \
+  container.googleapis.com \
+  containerregistry.googleapis.com
+
+gcloud compute networks create infinicache-network \
+  --subnet-mode=custom \
+  --bgp-routing-mode=regional
+
+# Create GKE cluster
+gcloud beta container clusters create $CLUSTER_NAME \
+  --addons HorizontalPodAutoscaling,HttpLoadBalancing \
+  --zone $CLUSTER_ZONE \
+  --cluster-version $CLUSTER_MASTER_VERSION \
+  --machine-type $CLUSTER_NODE_MACHINE_TYPE \
+  --num-nodes $CLUSTER_START_NODE_SIZE \
+  --min-nodes 1 \
+  --max-nodes $CLUSTER_MAX_NODE_SIZE \
+  --enable-ip-alias \
+  --enable-stackdriver-kubernetes \
+  --enable-autoscaling \
+  --enable-autorepair \
+  --scopes cloud-platform
+  --cluster-ipv4-cidr=10.0.0.0/14 --services-ipv4-cidr=10.4.0.0/19 \
+  --create-subnetwork name=infinicache-subnetwork,range=10.5.0.0/20
+
+# Credentials
+gcloud container clusters get-credentials $CLUSTER_NAME \
+    --zone $CLUSTER_ZONE
+
+# Cluster role binding
+kubectl create clusterrolebinding cluster-admin-binding \
+    --clusterrole=cluster-admin \
+    --user=$(gcloud config get-value core/account)
+
+# create Firewall Rules to open needed proxy ports
+gcloud compute firewall-rules create open-proxy-ports \
+    --allow tcp:6378-7380 --direction=IN --network=infinicache-network
