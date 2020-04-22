@@ -11,9 +11,9 @@ gcloud services enable \
   container.googleapis.com \
   containerregistry.googleapis.com
 
-gcloud compute networks create infinicache-network \
-  --subnet-mode=custom \
-  --bgp-routing-mode=regional
+#gcloud compute networks create infinicache-network \
+#  --subnet-mode=custom \
+#  --bgp-routing-mode=regional
 
 # Create GKE cluster
 gcloud beta container clusters create $CLUSTER_NAME \
@@ -28,9 +28,9 @@ gcloud beta container clusters create $CLUSTER_NAME \
   --enable-stackdriver-kubernetes \
   --enable-autoscaling \
   --enable-autorepair \
-  --scopes cloud-platform
-  --cluster-ipv4-cidr=10.0.0.0/14 --services-ipv4-cidr=10.4.0.0/19 \
-  --create-subnetwork name=infinicache-subnetwork,range=10.5.0.0/20
+  --scopes cloud-platform \
+  # --cluster-ipv4-cidr=10.0.0.0/14 --services-ipv4-cidr=10.4.0.0/19 \
+  # --create-subnetwork name=infinicache-subnetwork,range=10.5.0.0/20
 
 # Credentials
 gcloud container clusters get-credentials $CLUSTER_NAME \
@@ -42,5 +42,5 @@ kubectl create clusterrolebinding cluster-admin-binding \
     --user=$(gcloud config get-value core/account)
 
 # create Firewall Rules to open needed proxy ports
-gcloud compute firewall-rules create open-proxy-ports \
-    --allow tcp:6378-7380 --direction=IN --network=infinicache-network
+#gcloud compute firewall-rules create open-proxy-ports \
+#    --allow tcp:6378-7380 --direction=IN --network=infinicache-network

@@ -5,22 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	prototol "github.com/neboduus/infinicache/proxy/common/types"
 	"io/ioutil"
-
-	"github.com/neboduus/infinicache/proxy/common/logger"
-	"github.com/neboduus/infinicache/proxy/proxy/collector"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/neboduus/infinicache/proxy/common/logger"
+	prototol "github.com/neboduus/infinicache/proxy/common/types"
+	"github.com/neboduus/infinicache/proxy/proxy/collector"
 	"github.com/neboduus/infinicache/proxy/proxy/global"
 	"github.com/neboduus/infinicache/proxy/proxy/types"
-	"net"
-
-	"github.com/mason-leap-lab/redeo/resp"
 )
 
 const (
@@ -336,53 +332,9 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	_, err := client.Invoke(input)*/
 
 
-/*	payload := new(bytes.Buffer)
+	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(event)
-	resp, err := http.Post(ins.address, "application/json", payload)*/
-
-	cn, _ := net.Dial("tcp", "127.0.0.1:6379")
-	defer cn.Close()
-
-	// Wrap connection
-	w := resp.NewRequestWriter(cn)
-	r := resp.NewResponseReader(cn)
-
-	// Write pipeline
-	w.WriteCmdString("PING")
-	w.WriteCmdString("ECHO", "HEllO")
-	w.WriteCmdString("GET", "key")
-	w.WriteCmdString("SET", "key", "value")
-	w.WriteCmdString("DEL", "key")
-
-	// Flush pipeline
-	if err := w.Flush(); err != nil {
-		panic(err)
-	}
-
-	// Consume responses
-	for i := 0; i < 5; i++ {
-		t, err := r.PeekType()
-		if err != nil {
-			return
-		}
-
-		switch t {
-		case resp.TypeInline:
-			s, _ := r.ReadInlineString()
-			fmt.Println(s)
-		case resp.TypeBulk:
-			s, _ := r.ReadBulkString()
-			fmt.Println(s)
-		case resp.TypeInt:
-			n, _ := r.ReadInt()
-			fmt.Println(n)
-		case resp.TypeNil:
-			_ = r.ReadNil()
-			fmt.Println(nil)
-		default:
-			panic("unexpected response type")
-		}
-	}
+	resp, err := http.Post(ins.address, "application/json", payload)
 
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)
@@ -466,7 +418,7 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 
 		cmd := strings.ToLower(req.Cmd)
 		if req.EnableCollector {
-			err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration));
+			err := collector.Collect(collector.LogValidate, cmd, req.Id.ReqId, req.Id.ChunkId, int64(validateDuration))
 			if err != nil {
 				ins.log.Warn("Fail to record validate duration: %v", err)
 			}

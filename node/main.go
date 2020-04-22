@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -16,7 +17,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"flag"
 
 	protocol "github.com/neboduus/infinicache/node/common/types"
 
@@ -68,10 +68,10 @@ func init() {
 
 // MigrationToDo: generate new unique ID per request concat(nodeID,reqCount)
 func getAwsReqId() string {
-/*	lc, ok := lambdacontext.FromContext(ctx)
-	if ok == false {
-		log.Debug("get lambda context failed %v", ok)
-	}*/
+	/*	lc, ok := lambdacontext.FromContext(ctx)
+		if ok == false {
+			log.Debug("get lambda context failed %v", ok)
+		}*/
 	reqCounter++
 	return strconv.Itoa(reqCounter)
 }
@@ -357,8 +357,6 @@ func byeHandler(conn net.Conn) error {
 // }
 
 func main() {
-	flag.Parse()
-
 	// Define handlers
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
@@ -687,19 +685,23 @@ func main() {
 		}
 	})
 
-	srv.HandleFunc("invoke", func(w resp.ResponseWriter, c *resp.Command) {
-
-	})
-
-/*	port := "8080"
+	port := "8080"
 	s := &server{}
 	http.Handle("/", s)
 	// http.HandleFunc("/", HandleRequest)
+
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
-	if err!= nil {
+	if err != nil {
 		log.Info("ERROR while opening http", port)
 	}
-	log.Info("helloworld: listening on port %s", port)*/
+
+/*	go func() {
+		err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+		if err != nil {
+			log.Info("ERROR while opening http", port)
+		}
+	}()*/
+	log.Info("helloworld: listening on port %s", port)
 
 
 }

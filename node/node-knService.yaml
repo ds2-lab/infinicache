@@ -8,3 +8,5 @@ spec:
     spec:
       containers:
       - image: gcr.io/serverless-research-274508/infinicache-node
+        ports:
+        - containerPort: 8080

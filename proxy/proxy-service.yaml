@@ -3,15 +3,11 @@ kind: Service
 metadata:
   name: proxy-service
 spec:
-  type: LoadBalancer
-  # clusterIP: 10.4.0.100
+  type: ClusterIP
+  clusterIP: 10.4.0.100
   selector:
     app: infinicache-proxy
   ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-      name: hello-port
     - protocol: TCP
       port: 6378
       targetPort: 6378
@@ -4024,3 +4020,7 @@ spec:
       port: 7380
       targetPort: 7380
       name: port-7380
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      name: hello-port
