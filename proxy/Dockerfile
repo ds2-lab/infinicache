@@ -19,6 +19,7 @@ RUN mkdir /project/src
 WORKDIR /project/src
 COPY . /project/src
 
+
 # Install Go
 RUN apt-get update
 RUN apt-get -y upgrade
@@ -29,6 +30,15 @@ RUN mv go /usr/local
 ENV GOROOT /usr/local/go
 ENV GOPATH $HOME/project
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+
+# Install git
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q git
+
+# Configure AWS
+RUN apt-get update
+RUN apt-get -y upgrade
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q awscli
+RUN apt install zip
 
 # Install project dependencies
 ENV GO111MODULE="on"

@@ -8,9 +8,6 @@ import (
 	prototol "github.com/neboduus/infinicache/proxy/common/types"
 	"io/ioutil"
 
-	/*	"github.com/aws/aws-sdk-go/aws"
-		"github.com/aws/aws-sdk-go/aws/session"
-		"github.com/aws/aws-sdk-go/service/lambda"*/
 	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/neboduus/infinicache/proxy/proxy/collector"
 	"net/http"
@@ -21,6 +18,9 @@ import (
 
 	"github.com/neboduus/infinicache/proxy/proxy/global"
 	"github.com/neboduus/infinicache/proxy/proxy/types"
+	"net"
+
+	"github.com/mason-leap-lab/redeo/resp"
 )
 
 const (
@@ -314,40 +314,75 @@ func (ins *Instance) triggerLambda(warmUp bool) {
 }
 
 func (ins *Instance) triggerLambdaLocked(warmUp bool) {
-/*	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})*/
-
-/*	var jsonInputData = map[string]string{
-		"id":		strconv.FormatUint(ins.Id(), 10),
-		"proxy": 	fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
-		"prefix": 	global.Prefix,
-		"log":    	strconv.Itoa(global.Log.GetLevel()),
-	}
-	payload, _ := json.Marshal(jsonInputData)
-	*/
-
 	event := &prototol.InputEvent{
 		Id:     ins.Id(),
 		Proxy:  fmt.Sprintf("%s:%d", global.ServerIp, global.BasePort+1),
 		Prefix: global.Prefix,
 		Log:    global.Log.GetLevel(),
 	}
-
 	if warmUp {
 		event.Cmd="warmup"
 	}
 
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(event)
-
-/*	input := &lambda.InvokeInput{
+/*	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})
+	payload, _ := json.Marshal(event)
+	input := &lambda.InvokeInput{
 		FunctionName: aws.String(ins.Name()),
 		Payload:      payload,
 	}
 	_, err := client.Invoke(input)*/
-	resp, err := http.Post(ins.address, "application/json", payload)
+
+
+/*	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(event)
+	resp, err := http.Post(ins.address, "application/json", payload)*/
+
+	cn, _ := net.Dial("tcp", "127.0.0.1:6379")
+	defer cn.Close()
+
+	// Wrap connection
+	w := resp.NewRequestWriter(cn)
+	r := resp.NewResponseReader(cn)
+
+	// Write pipeline
+	w.WriteCmdString("PING")
+	w.WriteCmdString("ECHO", "HEllO")
+	w.WriteCmdString("GET", "key")
+	w.WriteCmdString("SET", "key", "value")
+	w.WriteCmdString("DEL", "key")
+
+	// Flush pipeline
+	if err := w.Flush(); err != nil {
+		panic(err)
+	}
+
+	// Consume responses
+	for i := 0; i < 5; i++ {
+		t, err := r.PeekType()
+		if err != nil {
+			return
+		}
+
+		switch t {
+		case resp.TypeInline:
+			s, _ := r.ReadInlineString()
+			fmt.Println(s)
+		case resp.TypeBulk:
+			s, _ := r.ReadBulkString()
+			fmt.Println(s)
+		case resp.TypeInt:
+			n, _ := r.ReadInt()
+			fmt.Println(n)
+		case resp.TypeNil:
+			_ = r.ReadNil()
+			fmt.Println(nil)
+		default:
+			panic("unexpected response type")
+		}
+	}
 
 	if err != nil {
 		ins.log.Error("Error on activating lambda store: %v", err)

@@ -687,7 +687,11 @@ func main() {
 		}
 	})
 
-	port := "8080"
+	srv.HandleFunc("invoke", func(w resp.ResponseWriter, c *resp.Command) {
+
+	})
+
+/*	port := "8080"
 	s := &server{}
 	http.Handle("/", s)
 	// http.HandleFunc("/", HandleRequest)
@@ -695,7 +699,7 @@ func main() {
 	if err!= nil {
 		log.Info("ERROR while opening http", port)
 	}
-	log.Info("helloworld: listening on port %s", port)
+	log.Info("helloworld: listening on port %s", port)*/
 
 
 }

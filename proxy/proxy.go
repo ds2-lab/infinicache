@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/mason-leap-lab/redeo"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 
 	"github.com/neboduus/infinicache/proxy/proxy/collector"
 	"github.com/neboduus/infinicache/proxy/proxy/global"
@@ -73,6 +73,14 @@ func main() {
 		return
 	}
 	log.Info("Start listening to clients(port 6378) and lambdas(port 6379)")
+
+
+/*	http.HandleFunc("/check", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Proxy is UP & Running")
+	})
+	http.ListenAndServe(":8080", nil)*/
+	log.Info("Started health check endpoint")
+
 	// initial proxy server
 	srv := redeo.NewServer(nil)
 	prxy := server.New(*replica)
