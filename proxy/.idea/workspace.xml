@@ -3,15 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy-service.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/proxy-service.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/instance.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/scheduler.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/setup/create-gke-cluster" beforeDir="false" afterPath="$PROJECT_DIR$/setup/create-gke-cluster" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/cheatSheet.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/cheatSheet.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,7 +39,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../node" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -74,10 +67,10 @@
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="424" y="198" width="534" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587480214058" />
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1587547948247">
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1587733236854">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587547948247" />
+    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587733236854" />
     <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1587584684192">
       <screen x="0" y="22" width="1366" height="713" />
     </state>

@@ -1,3 +1,35 @@
+### Gcloud
+
+- Scale cluster
+```bash
+gcloud container clusters resize $CLUSTER_NAME --num-nodes=0
+``` 
+
+- List cluster nodes (VMachines instances)
+```bash
+gcloud container node-pools list --cluster infinicache-cluster
+```
+
+- list accounts
+```bash
+gcloud auth list
+```
+
+-set active account
+```bash
+gcloud ocnfig set account ACCOUNT
+```
+
+-list projects
+```bash
+gcloud projects list
+```
+
+-set active project
+```bash
+gcloud config set project PROJECT
+```
+
 ### Docker
 
 * delete images by pattern
@@ -68,17 +100,6 @@ kubectl --namespace {namespace} logs -l app=helloworld-go --tail=50
 kubectl --namespace {namespace} run curl --image=radial/busyboxplus:curl -it
 ```
 
-### Gcloud
-
-- Scale cluster
-```bash
-gcloud container clusters resize $CLUSTER_NAME --num-nodes=0
-``` 
-
-- List cluster nodes (VMachines instances)
-```bash
-gcloud container node-pools list --cluster infinicache-cluster
-```
 
 ### Other
 
@@ -95,4 +116,9 @@ scp -i ~/.ssh/FraudioAWS.pem /home/nepotu/Desktop/fraudio/projects/infinicache-m
 * transfer from instance to local
 ```
 scp -i /path/my-key-pair.pem ec2-user@ec2-198-51-100-1.compute-1.amazonaws.com:~/SampleFile.txt ~/SampleFile2.txt
+```
+
+- watch log files in real time
+```shell script
+tail -f log
 ```

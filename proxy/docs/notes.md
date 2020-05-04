@@ -126,6 +126,3 @@ In order to analyze the feasibility of both reimplementation and migration, the 
 * [Building functions with Riff - Blog Post](https://tanzu.vmware.com/content/blog/building-functions-with-riff)
 * [Knative Enables Portable Serverless Platforms on Kubernetes, for Any Cloud](https://thenewstack.io/knative-enables-portable-serverless-platforms-on-kubernetes-for-any-cloud/)
 
-### AWS
-
-* proxy instance ip: `3.22.8.119`
