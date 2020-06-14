@@ -1,2 +1,1 @@
-# InfiniCache.com
-InfiniCache site
+# InfiniCache Project Site
