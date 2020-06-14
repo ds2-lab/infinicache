@@ -1,0 +1,164 @@
+I"+'<h1 id="infinicache-deployment-instruction">InfiniCache Deployment Instruction</h1>
+<h2 id="preparation">Preparation</h2>
+
+<ul>
+  <li>
+    <h3 id="ec2-proxy">EC2 Proxy</h3>
+
+    <p>Amazon EC2 AMI: ubuntu-xenial-16.04</p>
+
+    <p>Golang version: 1.12</p>
+
+    <p>Be sure the port <strong>6378 - 7380</strong> is avaiable on the proxy</p>
+
+    <p>We recommend that EC2 proxy and Lambda functions are under the same VPC network, and deploy InfiniCache on a EC2 instance with powerful CPU and high bandwidth (<code class="highlighter-rouge">c5n</code> family maybe a good choice).</p>
+  </li>
+  <li>
+    <h3 id="golang-install">Golang install</h3>
+
+    <p>Jump to <a href="https://github.com/mason-leap-lab/infinicache/blob/master/install_go.md">install_go.md</a></p>
+  </li>
+  <li>
+    <h3 id="package-install">Package install</h3>
+
+    <p>Install basic package</p>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>apt-get update
+<span class="nb">sudo </span>apt-get <span class="nt">-y</span> upgrade
+<span class="nb">sudo </span>apt <span class="nb">install </span>awscli
+<span class="nb">sudo </span>apt <span class="nb">install </span>zip
+</code></pre></div>    </div>
+
+    <p>Clone this repo</p>
+    <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">go</span> <span class="n">get</span> <span class="o">-</span><span class="n">u</span> <span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">mason</span><span class="o">-</span><span class="n">leap</span><span class="o">-</span><span class="n">lab</span><span class="o">/</span><span class="n">infinicache</span>
+</code></pre></div>    </div>
+
+    <p>Run <code class="highlighter-rouge">aws configure</code> to setup your AWS credential.</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws configure
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <h3 id="lambda-runtime">Lambda Runtime</h3>
+
+    <ul>
+      <li>
+        <p>Lambda Role setup</p>
+
+        <p>Go to AWS IAM console and create a role for the lambda cache node (Lambda function).</p>
+
+        <p>AWS IAM console -&gt; Roles -&gt; Create Role -&gt; Lambda -&gt;</p>
+
+        <p><strong><code class="highlighter-rouge">AWSLambdaFullAccess, </code></strong></p>
+
+        <p><strong><code class="highlighter-rouge">AWSLambdaVPCAccessExecutionRole, </code></strong></p>
+
+        <p><strong><code class="highlighter-rouge">AWSLambdaENIManagementAccess</code></strong></p>
+      </li>
+      <li>
+        <p>Enable Lambda internet access under VPC</p>
+
+        <p>Plese <a href="https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/">refer to this article</a>. (You could skip this step if you do not want to run InfiniCache under VPC).</p>
+      </li>
+      <li>
+        <p>S3 bucket setup</p>
+
+        <p>Create the S3 bucket to store the zip file of the Lambda code and data output from Lambda functions. Remember the name of this bucket for the configuration in next step.</p>
+      </li>
+    </ul>
+  </li>
+  <li>
+    <h3 id="configuration">Configuration</h3>
+
+    <ul>
+      <li>
+        <p>Lambda function create and config</p>
+
+        <p>Edit <code class="highlighter-rouge">deploy/create_function.sh</code> and <code class="highlighter-rouge">deploy/update_function.sh</code></p>
+
+        <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nv">PREFIX</span><span class="o">=</span><span class="s2">"your lambda function prefix"</span>
+  <span class="nv">S3</span><span class="o">=</span><span class="s2">"your bucket name"</span>
+  <span class="nv">cluster</span><span class="o">=</span>400 <span class="c"># number of lambda in the cache pool</span>
+  <span class="nv">mem</span><span class="o">=</span>1536
+</code></pre></div>        </div>
+
+        <p>Edit destination S3 bucket in <code class="highlighter-rouge">lambda/collector/collector.go</code>, this bucket is for the bill duration log from CloudWatch.</p>
+        <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">AWSRegion</span> <span class="o">=</span> <span class="s">"us-east-1"</span>
+  <span class="n">S3BUCKET</span> <span class="o">=</span> <span class="s">"your bucket name"</span>
+</code></pre></div>        </div>
+
+        <p>Edit <code class="highlighter-rouge">lambda/migrator/client.go</code>,  change AWS region if necessary.</p>
+        <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">AWSRegion</span> <span class="o">=</span> <span class="s">"us-east-1"</span>
+</code></pre></div>        </div>
+
+        <p>Edit the aws settings and the VPC configuration in <code class="highlighter-rouge">deploy/deploy_function.go</code>. If you do not want to run InfiniCache under VPC, you do not need to modify the <code class="highlighter-rouge">subnet</code> and <code class="highlighter-rouge">securityGroup</code> settings.</p>
+
+        <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">ROLE</span> <span class="o">=</span> <span class="s">"arn:aws:iam::[aws account id]:role/[role name]"</span>
+  <span class="n">REGION</span> <span class="o">=</span> <span class="s">"us-east-1"</span>
+  <span class="o">...</span>
+  <span class="o">...</span>
+  <span class="n">subnet</span> <span class="o">=</span> <span class="p">[]</span><span class="o">*</span><span class="kt">string</span><span class="p">{</span>
+    <span class="n">aws</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"your subnet 1"</span><span class="p">),</span>
+    <span class="n">aws</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"your subnet 2"</span><span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">securityGroup</span> <span class="o">=</span> <span class="p">[]</span><span class="o">*</span><span class="kt">string</span><span class="p">{</span>
+    <span class="n">aws</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"your security group"</span><span class="p">)</span>
+  <span class="p">}</span>
+</code></pre></div>        </div>
+
+        <p>Run script to create and deploy lambda functions (Also, if you do not want to run InfiniCache under VPC, you need to set the <code class="highlighter-rouge">vpc</code> flag to be <code class="highlighter-rouge">false</code> in <code class="highlighter-rouge">deploy/create_function.sh</code>).</p>
+
+        <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="nb">export </span><span class="nv">GO111MODULE</span><span class="o">=</span><span class="s2">"on"</span>
+  go get
+  deploy/create_function.sh 60
+</code></pre></div>        </div>
+      </li>
+      <li>
+        <p>Proxy configuration</p>
+
+        <p>Edit <code class="highlighter-rouge">proxy/server/config.go</code>, change the aws region, cluster size, and prefix of the Lambda functions.</p>
+        <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">const</span> <span class="n">AWSRegion</span> <span class="o">=</span> <span class="s">"us-east-1"</span>
+  <span class="k">const</span> <span class="n">NumLambdaClusters</span> <span class="o">=</span> <span class="m">400</span>
+  <span class="k">const</span> <span class="n">LambdaPrefix</span> <span class="o">=</span> <span class="s">"Your Lambda Function Prefix"</span>
+  <span class="k">const</span> <span class="n">ServerPublicIp</span> <span class="o">=</span> <span class="s">""</span>  <span class="c">// Leave it empty if using VPC.</span>
+</code></pre></div>        </div>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="execution">Execution</h2>
+
+<ul>
+  <li>
+    <p>Proxy server</p>
+
+    <p>Run <code class="highlighter-rouge">make start</code> to start proxy server.  <code class="highlighter-rouge">make start</code> would print nothing to the console. If you want to check the log message, you need to set the <code class="highlighter-rouge">debug</code> flag to be <code class="highlighter-rouge">true</code> in the <code class="highlighter-rouge">proxy/proxy.go</code>.</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>make start
+</code></pre></div>    </div>
+
+    <p>To stop proxy server, run <code class="highlighter-rouge">make stop</code>. If <code class="highlighter-rouge">make stop</code> is not working, you could use <code class="highlighter-rouge">pgrep proxy</code>, <code class="highlighter-rouge">pgrep go</code> to find the pid, and check the <code class="highlighter-rouge">infinicache pid</code> and kill them.</p>
+  </li>
+  <li>
+    <p>Client library</p>
+
+    <p>The toy demo for Client Library</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>go run client/example/main.go
+</code></pre></div>    </div>
+
+    <p>The result should be</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~<span class="nv">$ </span>go run client/example/main.go
+2020/03/08 05:05:19 EcRedis Set foo 14630930
+2020/03/08 05:05:19 EcRedis Got foo 3551124 <span class="o">(</span> 2677371 865495 <span class="o">)</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h2 id="related-repo">Related repo</h2>
+
+<p>Client library <a href="https://github.com/mason-leap-lab/infinicache/tree/master/client">ecRedis</a><br />
+Redis protocol <a href="https://github.com/mason-leap-lab/redeo">redeo</a><br />
+Benchmarking tool <a href="https://github.com/wangaoone/redbench">redbench</a></p>
+:ET

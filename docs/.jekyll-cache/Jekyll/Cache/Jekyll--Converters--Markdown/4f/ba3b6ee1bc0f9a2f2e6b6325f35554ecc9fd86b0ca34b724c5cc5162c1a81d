@@ -1,0 +1,90 @@
+I"�<h1 class="fs-9" id="infinicache">InfiniCache</h1>
+
+<!-- Welcome to InfiniCache porject site.
+{: .fs-6 .fw-300 }
+ -->
+<p class="fs-6 fw-300">InfiniCache is a <strong>cost-effective</strong> memory cache that is built atop <strong>ephemeral serverless functions</strong></p>
+
+<p><a href="https://www.usenix.org/system/files/fast20-wang_ao.pdf" class="btn btn-primary fs-5 mb-4 mb-md-0 mr-6"> PAPER </a> 
+<a href="https://www.youtube.com/watch?v=3_NmYAh5zek&amp;t" class="btn fs-5 mb-4 mb-md-0 mr-6"> TALK </a> 
+<a href="https://github.com/mason-leap-lab/infinicache" class="btn fs-5 mb-4 mb-md-0 mr-6"> CODE </a>
+<a href="https://www.usenix.org/sites/default/files/conference/protected-files/fast20_slides_wang-ao.pdf" class="btn fs-5 mb-4 mb-md-0 mr-6"> SLIDE </a>
+<a href="docs/fast20-infinicache_poster.pdf" class="btn fs-5 mb-4 mb-md-0">POSTER</a></p>
+
+<h3 class="fs-6 fw-300" id="press">Press:</h3>
+
+<ul>
+  <li>IEEE Spectrum: <a href="https://spectrum.ieee.org/tech-talk/computing/networks/pay-cloud-services-data-tool-news">Cloud Services Tool Lets You Pay for Data You Use—Not Data You Store</a></li>
+  <li>Mikhail Shilkov’s detailed paper review: <a href="https://mikhail.io/2020/03/infinicache-distributed-cache-on-aws-lambda/">InfiniCache: Distributed Cache on Top of AWS Lambda (paper review)</a></li>
+</ul>
+
+<hr />
+
+<h2 class="fs-6 5" id="what-is-infinicache">What is InfiniCache</h2>
+
+<p>InfiniCache is a first-of-its-kind in-memory object caching system that is completely built and deployed atop ephemeral serverless functions. InfiniCache exploits and orchestrates serverless functions’ memory resources to enable elastic pay per-use caching. InfiniCache’s design combines erasure coding, intelligent billed duration control, and an efficient data backup mechanism to maximize data availability and cost effectiveness while balancing the risk of losing cached state and performance.</p>
+
+<hr />
+<h2 class="fs-6 5" id="feature">Feature</h2>
+
+<ul>
+  <li>The very first in-memory object caching system powered by ephemeral and “stateless” cloud functions.</li>
+  <li>Leverage several intelligent techniques to maxmize data availability, such as erasure coding periodic warm-up and periodic delta-sync techniques.</li>
+  <li>InfiniCache achieves performance comparable to ElastiCache (600GB cache capacity) for large objects and improves the cost effectiveness of cloud IMOCs by 31 – 96x.</li>
+</ul>
+
+<style type="text/css">
+.tg  {border-collapse:collapse;border-color:#ccc;border-spacing:0;}
+.tg td{background-color:#fff;border-color:#ccc;border-style:solid;border-width:1px;color:#333;
+  font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{background-color:#f0f0f0;border-color:#ccc;border-style:solid;border-width:1px;color:#333;
+  font-family:Arial, sans-serif;font-size:14px;font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-c6m9{font-family:"Comic Sans MS", cursive, sans-serif !important;;font-size:22px;font-weight:bold;text-align:center;
+  vertical-align:top}
+.tg .tg-a3by{background-color:#e7f2fe;color:#000000;font-family:Arial, Helvetica, sans-serif !important;;font-size:16px;
+  font-style:italic;font-weight:bold;text-align:center;vertical-align:top}
+.tg .tg-480y{font-family:Arial, Helvetica, sans-serif !important;;font-size:16px;text-align:center;vertical-align:top}
+</style>
+
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-c6m9">Service</th>
+    <th class="tg-c6m9">Performance</th>
+    <th class="tg-c6m9">Price</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-a3by">InfiniCache</td>
+    <td class="tg-a3by">Fast</td>
+    <td class="tg-a3by">Low</td>
+  </tr>
+  <tr>
+    <td class="tg-480y"><a href="https://aws.amazon.com/elasticache/" target="_blank" rel="noopener noreferrer">ElastiCache</a></td>
+    <td class="tg-480y">Fast</td>
+    <td class="tg-480y">High</td>
+  </tr>
+  <tr>
+    <td class="tg-480y"><a href="https://aws.amazon.com/s3" target="_blank" rel="noopener noreferrer">S3 Object Store</a></td>
+    <td class="tg-480y">Slow</td>
+    <td class="tg-480y">Low</td>
+  </tr>
+</tbody>
+</table>
+
+<hr />
+<h3 id="contact">Contact</h3>
+<p>Please feel free to reach out us if you have any questions about <em>InfiniCache</em>.</p>
+
+<h3 id="contributing">Contributing</h3>
+
+<p>Please feel free to hack on InfiniCache! We’re happy to accept contributions.</p>
+
+<h4 id="thank-you-to-the-contributors-of-infinicache"><strong>Thank you to the contributors of InfiniCache!</strong></h4>
+<!-- 
+<ul class="list-style-none">
+
+</ul>
+ -->
+:ET
