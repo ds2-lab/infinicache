@@ -26,7 +26,7 @@ func main() {
 		return
 	}
 
-	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
+	if _, reader, ok := cli.EcGet("foo", len(val)); !ok {
 		log.Fatal("Failed to get")
 		return
 	} else {

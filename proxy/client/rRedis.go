@@ -33,7 +33,6 @@ func (c *Client) RSet(key string, val []byte) (string, bool) {
 	var wg sync.WaitGroup
 	ret := newEcRet(c.ReplicationFactor)
 
-	log.Debug("%i", ret.Len())
 	for i := 0; i < ret.Len(); i++ {
 		wg.Add(1)
 		go c.setR(host, key, val, i, index[i], stats.ReqId, &wg, ret)
@@ -76,9 +75,9 @@ func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.Rea
 	// Send request (random choice between replicas) and wait
 	var ret *ecRet
 	var wg sync.WaitGroup
-	ret = newEcRet(1)
+	ret = newEcRet(3)
 	wg.Add(1)
-	go c.get(host, key, rand.Intn(c.ReplicationFactor), stats.ReqId, &wg, ret)
+	go c.getR(host, key, rand.Intn(c.ReplicationFactor), stats.ReqId, &wg, ret)
 	wg.Wait()
 	stats.RecLatency = time.Since(stats.Begin)
 
@@ -174,7 +173,7 @@ func (c *Client) getR(addr string, key string, i int, reqId string, wg *sync.Wai
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	c.rec("Got", addr, i, reqId, ret, nil)
+	c.recR("Got", addr, i, reqId, ret, nil)
 }
 
 func (c *Client) recR(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
@@ -247,7 +246,7 @@ func (c *Client) recR(prompt string, addr string, i int, reqId string, ret *ecRe
 	}
 
 	log.Debug("%s chunk %d", prompt, i)
-	ret.Set(i, val)
+	ret.Set(i-1, val)
 }
 
 func (c *Client) recoverR(addr string, key string, reqId string, replicas [][]byte, failed []int) {
@@ -256,7 +255,7 @@ func (c *Client) recoverR(addr string, key string, reqId string, replicas [][]by
 	for _, i := range failed {
 		wg.Add(1)
 		// lambdaId = 0, for lambdaID of a specified key is fixed on setting.
-		go c.set(addr, key, replicas[i], i, 0, reqId, &wg, ret)
+		go c.setR(addr, key, replicas[i], i, 0, reqId, &wg, ret)
 	}
 	wg.Wait()
 
