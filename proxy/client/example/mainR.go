@@ -9,9 +9,10 @@ import (
 )
 
 func main() {
-	addrList := "10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378"
 	// initial object with random value
-	val := []byte("test")
+	var val []byte
+	val = []byte("test")
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -21,12 +22,12 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	if _, ok := cli.EcSet("foo", val); !ok {
+	if _, ok := cli.RSet("foo", val); !ok {
 		log.Fatal("Failed to set")
 		return
 	}
 
-	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
+	if _, reader, ok := cli.RGet("foo", len(val)); !ok {
 		log.Fatal("Failed to get")
 		return
 	} else {

@@ -43,9 +43,10 @@ type Client struct {
 	DataShards   int
 	ParityShards int
 	Shards       int
+	ReplicationFactor int
 }
 
-func NewClient(dataShards int, parityShards int, ecMaxGoroutine int) *Client {
+func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replicationFactor int) *Client {
 	return &Client{
 		//ConnArr:  make([]net.Conn, dataShards+parityShards),
 		//W:        make([]*resp.RequestWriter, dataShards+parityShards),
@@ -56,6 +57,7 @@ func NewClient(dataShards int, parityShards int, ecMaxGoroutine int) *Client {
 		DataShards:   dataShards,
 		ParityShards: parityShards,
 		Shards:       dataShards + parityShards,
+		ReplicationFactor: replicationFactor,
 	}
 }
 
