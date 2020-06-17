@@ -22,9 +22,6 @@
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/ecRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/ecRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/rRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/rRedis.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,9 +57,17 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/client/example" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/client" />
+    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/client" />
+      <recent name="$PROJECT_DIR$/client/example" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/docs" />
+      <recent name="$PROJECT_DIR$/scripts" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$/tmp" />
@@ -70,16 +75,9 @@
       <recent name="$PROJECT_DIR$/deploy" />
       <recent name="$PROJECT_DIR$/fluentd" />
     </key>
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/client/example" />
-      <recent name="$PROJECT_DIR$/client" />
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/docs" />
-      <recent name="$PROJECT_DIR$/scripts" />
-    </key>
   </component>
   <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="1" />
+    <option name="version" value="2" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="oldMeFiltersMigrated" value="true" />
@@ -102,9 +100,17 @@
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587733236854" />
+    <state x="180" y="4" key="SettingsEditor" timestamp="1592319142434">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state x="180" y="4" key="SettingsEditor/0.0.1366.741@0.0.1366.741" timestamp="1592319142434" />
     <state x="394" y="159" width="863" height="468" key="find.popup" timestamp="1587584684192">
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
+    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1592319120719">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup/0.0.1366.741@0.0.1366.741" timestamp="1592319120719" />
   </component>
 </project>

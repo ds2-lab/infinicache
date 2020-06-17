@@ -22,9 +22,6 @@
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/ecRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/ecRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/rRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/rRedis.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,7 +50,7 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="1" />
+    <option name="version" value="2" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="oldMeFiltersMigrated" value="true" />
