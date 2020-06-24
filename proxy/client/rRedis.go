@@ -15,6 +15,7 @@ import (
 )
 
 func (c *Client) RSet(key string, val []byte) (string, bool) {
+
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()

@@ -18,13 +18,16 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-type Value struct {
+type KeyValuePair struct {
 	key string
 	value []byte
-	replicationFactor int
 }
 
-func (c *Client) MkSet(highLevelKey string, val []Value, args ...interface{}) (string, bool) {
+type KVGroup struct {
+	keyValuePairs []KeyValuePair
+}
+
+func (c *Client) MkSet(highLevelKey string, data [3]KVGroup, args ...interface{}) (string, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -47,7 +50,7 @@ func (c *Client) MkSet(highLevelKey string, val []Value, args ...interface{}) (s
 	if dryrun > 0 {
 		numClusters = dryrun
 	}
-	index := random(numClusters, c.Shards)
+	index := random(numClusters, c.MKReplicationFactors[0])
 	if dryrun > 0 && placements != nil {
 		for i, ret := range index {
 			placements[i] = ret
@@ -62,18 +65,14 @@ func (c *Client) MkSet(highLevelKey string, val []Value, args ...interface{}) (s
 	log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
 	log.Debug("SET located host: %s", host)
 
-	shards, err := c.encode(val)
-	if err != nil {
-		log.Warn("EcSet failed to encode: %v", err)
-		return stats.ReqId, false
-	}
-
 	var wg sync.WaitGroup
-	ret := newEcRet(c.Shards)
-	for i := 0; i < ret.Len(); i++ {
+	ret := newEcRet(c.MKReplicationFactors[0])
+	var replicas = replicate(data, c.MKReplicationFactors[0])
+
+	for i := 0; i < len(replicas); i++ {
 		// fmt.Println("shards", i, "is", shards[i])
 		wg.Add(1)
-		go c.set(host, highLevelKey, shards[i], i, index[i], stats.ReqId, &wg, ret)
+		go c.mkSet(host, highLevelKey, replicas[i], i, index[i], stats.ReqId, &wg, ret)
 	}
 	wg.Wait()
 	stats.ReqLatency = time.Since(stats.Begin)
@@ -159,7 +158,7 @@ func (c *Client) MkGet(key string, size int, args ...interface{}) (string, io.Re
 	return stats.ReqId, reader, true
 }
 
-func (c *Client) mkSet(addr string, key string, val []byte, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {
+func (c *Client) mkSet(addr string, key string, replica KVGroup, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {
 	defer wg.Done()
 
 	if err := c.validate(addr, i); err != nil {
@@ -171,29 +170,39 @@ func (c *Client) mkSet(addr string, key string, val []byte, i int, lambdaId int,
 	cn.conn.SetWriteDeadline(time.Now().Add(Timeout)) // Set deadline for request
 	defer cn.conn.SetWriteDeadline(time.Time{})
 
+	var pairs = len(replica.keyValuePairs)
+
 	w := cn.W
-	w.WriteMultiBulkSize(9)
-	w.WriteBulkString("set")
+	w.WriteMultiBulkSize(9+(2*pairs))
+	w.WriteBulkString("mkSet")
 	w.WriteBulkString(key)
 	w.WriteBulkString(strconv.Itoa(i))
 	w.WriteBulkString(strconv.Itoa(lambdaId))
 	w.WriteBulkString(strconv.Itoa(MaxLambdaStores))
 	w.WriteBulkString(reqId)
-	w.WriteBulkString(strconv.Itoa(c.DataShards))
-	w.WriteBulkString(strconv.Itoa(c.ParityShards))
+	w.WriteBulkString(strconv.Itoa(c.MKReplicationFactors[0]))
+	w.WriteBulkString(strconv.Itoa(0))
+	w.WriteBulkString(strconv.Itoa(pairs))
 
-	// Flush pipeline
-	//if err := c.W[i].Flush(); err != nil {
-	if err := w.CopyBulk(bytes.NewReader(val), int64(len(val))); err != nil {
-		c.setError(ret, addr, i, err)
-		log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
-		return
+	for i := 0; i < pairs; i++ {
+		var pair = replica.keyValuePairs[i]
+		// Flush pipeline
+		//if err := c.W[i].Flush(); err != nil {
+		w.WriteBulkString(pair.key)
+		if err := w.CopyBulk(bytes.NewReader(pair.value), int64(len(pair.value))); err != nil {
+			c.setError(ret, addr, i, err)
+			log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
+			return
+		}
+		if err := w.Flush(); err != nil {
+			c.setError(ret, addr, i, err)
+			log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
+			return
+		}
 	}
-	if err := w.Flush(); err != nil {
-		c.setError(ret, addr, i, err)
-		log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
-		return
-	}
+
+
+
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated setting %d@%s(%s)", i, key, addr)
@@ -319,4 +328,18 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	} else {
 		log.Info("Succeeded to recover shards of %s: %v", key, failed)
 	}
+}
+
+func replicate(groups [3]KVGroup, n int) []KVGroup{
+	var replicas = make([]KVGroup, n)
+	var rFs = []int{5,4,3}
+	for i := 0; i < len(groups); i++ {
+		var group = groups[i]
+		for k := 0; k < len(group.keyValuePairs); k++{
+			for j := 0; j < rFs[i]; j++ {
+				replicas[j].keyValuePairs = append(replicas[j].keyValuePairs, group.keyValuePairs[k])
+			}
+		}
+	}
+	return replicas
 }

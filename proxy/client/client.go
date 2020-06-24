@@ -44,6 +44,7 @@ type Client struct {
 	ParityShards int
 	Shards       int
 	ReplicationFactor int
+	MKReplicationFactors [3]int
 }
 
 func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replicationFactor int) *Client {
@@ -58,6 +59,7 @@ func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replication
 		ParityShards: parityShards,
 		Shards:       dataShards + parityShards,
 		ReplicationFactor: replicationFactor,
+		MKReplicationFactors: [3]int{5,4,3},
 	}
 }
 
