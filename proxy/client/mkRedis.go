@@ -1,10 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"errors"
+	"fmt"
 	"io"
-	"math/rand"
 	"strconv"
 	"sync"
 	"time"
@@ -14,17 +13,13 @@ import (
 	"github.com/mason-leap-lab/redeo/resp"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 type KeyValuePair struct {
-	key string
-	value []byte
+	Key   string
+	Value []byte
 }
 
 type KVGroup struct {
-	keyValuePairs []KeyValuePair
+	KeyValuePairs []KeyValuePair
 }
 
 func (c *Client) MkSet(highLevelKey string, data [3]KVGroup, args ...interface{}) (string, bool) {
@@ -170,11 +165,13 @@ func (c *Client) mkSet(addr string, key string, replica KVGroup, i int, lambdaId
 	cn.conn.SetWriteDeadline(time.Now().Add(Timeout)) // Set deadline for request
 	defer cn.conn.SetWriteDeadline(time.Time{})
 
-	var pairs = len(replica.keyValuePairs)
+	var pairs = len(replica.KeyValuePairs)
+
+	fmt.Println("mkSetting replica, ", replica)
 
 	w := cn.W
 	w.WriteMultiBulkSize(9+(2*pairs))
-	w.WriteBulkString("mkSet")
+	w.WriteBulkString("mkset")
 	w.WriteBulkString(key)
 	w.WriteBulkString(strconv.Itoa(i))
 	w.WriteBulkString(strconv.Itoa(lambdaId))
@@ -185,23 +182,18 @@ func (c *Client) mkSet(addr string, key string, replica KVGroup, i int, lambdaId
 	w.WriteBulkString(strconv.Itoa(pairs))
 
 	for i := 0; i < pairs; i++ {
-		var pair = replica.keyValuePairs[i]
+		var pair = replica.KeyValuePairs[i]
 		// Flush pipeline
 		//if err := c.W[i].Flush(); err != nil {
-		w.WriteBulkString(pair.key)
-		if err := w.CopyBulk(bytes.NewReader(pair.value), int64(len(pair.value))); err != nil {
-			c.setError(ret, addr, i, err)
-			log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
-			return
-		}
-		if err := w.Flush(); err != nil {
-			c.setError(ret, addr, i, err)
-			log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
-			return
-		}
+		w.WriteBulkString(pair.Key)
+		w.WriteBulk(pair.Value)
 	}
 
-
+	if err := w.Flush(); err != nil {
+		c.setError(ret, addr, i, err)
+		log.Warn("Failed to initiate setting %d@%s(%s): %v", i, key, addr, err)
+		return
+	}
 
 	cn.conn.SetWriteDeadline(time.Time{})
 
@@ -335,9 +327,9 @@ func replicate(groups [3]KVGroup, n int) []KVGroup{
 	var rFs = []int{5,4,3}
 	for i := 0; i < len(groups); i++ {
 		var group = groups[i]
-		for k := 0; k < len(group.keyValuePairs); k++{
+		for k := 0; k < len(group.KeyValuePairs); k++{
 			for j := 0; j < rFs[i]; j++ {
-				replicas[j].keyValuePairs = append(replicas[j].keyValuePairs, group.keyValuePairs[k])
+				replicas[j].KeyValuePairs = append(replicas[j].KeyValuePairs, group.KeyValuePairs[k])
 			}
 		}
 	}

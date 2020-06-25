@@ -98,48 +98,47 @@ func (p *Proxy) Release() {
 	scheduler.Clear(p.group)
 }
 
-func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.CommandStream) {
+func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	client := redeo.GetClient(c.Context())
 	connId := int(client.ID())
 
 	// Get args
-	key, _ := c.NextArg().String()
-	dChunkId, _ := c.NextArg().Int()
+	key := c.Arg(0).String()
+	dChunkId, _ := c.Arg(1).Int()
 	chunkId := strconv.FormatInt(dChunkId, 10)
-	lambdaId, _ := c.NextArg().Int()
-	randBase, _ := c.NextArg().Int()
-	reqId, _ := c.NextArg().String()
-	// _, _ = c.NextArg().Int()
-	// _, _ = c.NextArg().Int()
-	dataChunks, _ := c.NextArg().Int()
-	parityChunks, _ := c.NextArg().Int()
-	pairs, _ := c.NextArg().Int()
+	lambdaId, _ := c.Arg(2).Int()
+	randBase, _ := c.Arg(3).Int()
+	reqId := c.Arg(4).String()
+	dataChunks, _ := c.Arg(5).Int()
+	parityChunks, _ := c.Arg(6).Int()
+	pairs, _ := c.Arg(7).Int()
+	size := 0
 
-	for i := int64(0); i < pairs; i++ {
-		chunkId, _ := c.NextArg().String()
-		chunkBody, err := c.Next()
-		if err != nil {
-			p.log.Error("Error on get value reader: %v", err)
-			return
-		}
-		chunkBody.(resp.Holdable).Hold()
+	var chunkIds []string
+	chunkIds = make([]string, pairs)
+	var bodyStreams [][]byte
 
-		// Start counting time.
-		if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
-			p.log.Warn("Fail to record start of request: %v", err)
-		}
+	for i := 0; i < int(pairs); i++ {
+		chunkIds[i] = c.Arg(7+i).String()
+		chunkBody := c.Arg(0).Bytes()
+		bodyStreams = append(bodyStreams, chunkBody)
+		size += len(chunkBody)
 	}
 
-
+	// Start counting time.
+/*	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
+		p.log.Warn("Fail to record start of request: %v", err)
+	}*/
 
 	// We don't use this for now
 	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataChunks), int(parityChunks), 0})
 
 	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
 	prepared := p.metaStore.NewMeta(
-		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), bodyStream.Len())
+		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), int64(size))
 
 	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
+
 	if meta.Deleted {
 		// Object may be evicted in somecase:
 		// 1: Some chunks were set.
@@ -157,12 +156,13 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send chunk to the corresponding lambda instance in group
-	p.log.Debug("Requesting to set %s: %d", chunkKey, lambdaDest)
+	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, chunkIds, lambdaDest)
 	p.group.Instance(lambdaDest).C() <- &types.Request{
-		Id:           types.Id{connId, reqId, chunkId},
-		Cmd:          strings.ToLower(c.Name),
-		Key:          chunkKey,
-		BodyStream:   bodyStream,
+		Id: types.Id{connId, reqId, chunkId},
+		Cmd: strings.ToLower(c.Name),
+		Key: chunkKey,
+		ChunkIds: chunkIds,
+		BodyStreams: bodyStreams,
 		ChanResponse: client.Responses(),
 		EnableCollector: true,
 	}

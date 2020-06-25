@@ -63,7 +63,7 @@ func (pm *PlacerMeta) allConfirmed() bool {
 // original position of the newer to nil, which a compact operation is needed later. We use a secondary array for online compact.
 type Placer struct {
 	log       logger.ILogger
-	store     *MetaStore
+	store     *MetaStore // HashMap of Metas (objects)
 	group     *Group
 	objects   [2][]*Meta // We use a secondary array for online compact, the first element is reserved.
 	cursor    int        // Cursor of primary array that indicate where the LRU checks.

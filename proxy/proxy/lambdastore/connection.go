@@ -148,6 +148,8 @@ func (conn *Connection) ServeLambda() {
 				conn.getHandler(start)
 			case "set":
 				conn.setHandler(start)
+			case "mkset":
+				conn.mkSetHandler(start)
 			case "del":
 				conn.delHandler()
 			case "data":
@@ -336,6 +338,25 @@ func (conn *Connection) setHandler(start time.Time) {
 	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
 
 	conn.log.Debug("SET %v, confirmed.", rsp.Id)
+	req, ok := conn.SetResponse(rsp)
+	if ok && req.EnableCollector {
+		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+		if err != nil {
+			conn.log.Warn("LogProxy err %v", err)
+		}
+	}
+}
+
+func (conn *Connection) mkSetHandler(start time.Time) {
+	conn.log.Debug("mkSET from lambda.")
+
+	rsp := &types.Response{Cmd: "mkset", Body: []byte(strconv.FormatUint(conn.instance.Id(), 10))}
+	connId, _ := conn.r.ReadBulkString()
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId, _ = conn.r.ReadBulkString()
+	rsp.Id.ChunkId, _ = conn.r.ReadBulkString()
+
+	conn.log.Debug("mkSET %v, confirmed.", rsp.Id)
 	req, ok := conn.SetResponse(rsp)
 	if ok && req.EnableCollector {
 		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))

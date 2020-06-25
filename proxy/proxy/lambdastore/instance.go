@@ -425,6 +425,8 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 		}
 
 		switch cmd {
+		case "mkset": /*set or two argument cmd*/
+			req.PrepareForMkSet(conn.w)
 		case "set": /*set or two argument cmd*/
 			req.PrepareForSet(conn.w)
 		case "get": /*get or one argument cmd*/

@@ -247,7 +247,7 @@ func (c *Client) recR(prompt string, addr string, i int, reqId string, ret *ecRe
 	}
 
 	log.Debug("%s chunk %d", prompt, i)
-	ret.Set(i-1, val)
+	ret.Set(i, val)
 }
 
 func (c *Client) recoverR(addr string, key string, reqId string, replicas [][]byte, failed []int) {

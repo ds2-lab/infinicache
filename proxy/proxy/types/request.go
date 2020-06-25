@@ -24,6 +24,10 @@ type Request struct {
 	w                *resp.RequestWriter
 	responded        uint32
 	streamingStarted bool
+
+	ChunkIds 		 []string
+	BodyStreams  [][]byte
+
 }
 
 func (req *Request) Retriable() bool {
@@ -39,6 +43,24 @@ func (req *Request) PrepareForSet(w *resp.RequestWriter) {
 	w.WriteBulkString(req.Key)
 	if req.Body != nil {
 		w.WriteBulk(req.Body)
+	}
+	req.w = w
+}
+
+func (req *Request) PrepareForMkSet(w *resp.RequestWriter) {
+	w.WriteMultiBulkSize(6 + (2*len(req.BodyStreams)))
+	w.WriteBulkString(req.Cmd)
+	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
+	w.WriteBulkString(req.Id.ReqId)
+	w.WriteBulkString(req.Id.ChunkId)
+	w.WriteBulkString(req.Key)
+	w.WriteBulkString(strconv.Itoa(len(req.BodyStreams)))
+	if req.BodyStreams != nil {
+		for i := 0; i < len(req.BodyStreams); i++ {
+			w.WriteBulkString(req.ChunkIds[i])
+			w.WriteBulk(req.BodyStreams[i])
+		}
+
 	}
 	req.w = w
 }

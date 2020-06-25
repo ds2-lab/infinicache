@@ -90,7 +90,7 @@ func main() {
 
 	// config server
 	srv.HandleStreamFunc("set", prxy.HandleSet)
-	srv.HandleStreamFunc("mkSet", prxy.HandleMkSet)
+	srv.HandleFunc("mkset", prxy.HandleMkSet)
 	srv.HandleFunc("get", prxy.HandleGet)
 	srv.HandleCallbackFunc(prxy.HandleCallback)
 
