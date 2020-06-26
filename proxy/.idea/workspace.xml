@@ -21,19 +21,21 @@
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node/lambda/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/lambda/types/response.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/mainMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/mainMK.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/mkRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/rRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/rRedis.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/lambdastore/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/connection.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/lambdastore/instance.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/instance.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/meta.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/meta.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/placer.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/placer.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/server/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/proxy.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proxy/types/request.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/types/request.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/types/response.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tmp/test.go" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/test.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,6 +91,22 @@
       <recent name="$PROJECT_DIR$/fluentd" />
     </key>
   </component>
+  <component name="RunManager">
+    <configuration name="go build test2.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
+      <module name="proxy" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="FILE" />
+      <filePath value="$PROJECT_DIR$/tmp/test2.go" />
+      <package value="github.com/neboduus/infinicache/proxy" />
+      <directory value="$PROJECT_DIR$/" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go Build.go build test2.go" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="2" />
   </component>
@@ -114,6 +132,38 @@
     </state>
     <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl/0.0.1366.741@0.0.1366.741" timestamp="1592493759389" />
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587733236854" />
+    <state width="1320" height="218" key="GridCell.Tab.0.bottom" timestamp="1593163682438">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.0.bottom/0.0.1366.741@0.0.1366.741" timestamp="1593163682438" />
+    <state width="1320" height="218" key="GridCell.Tab.0.center" timestamp="1593163682437">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.0.center/0.0.1366.741@0.0.1366.741" timestamp="1593163682437" />
+    <state width="1320" height="218" key="GridCell.Tab.0.left" timestamp="1593163682436">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.0.left/0.0.1366.741@0.0.1366.741" timestamp="1593163682436" />
+    <state width="1320" height="218" key="GridCell.Tab.0.right" timestamp="1593163682437">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.0.right/0.0.1366.741@0.0.1366.741" timestamp="1593163682437" />
+    <state width="1320" height="218" key="GridCell.Tab.1.bottom" timestamp="1593163682439">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.1.bottom/0.0.1366.741@0.0.1366.741" timestamp="1593163682439" />
+    <state width="1320" height="218" key="GridCell.Tab.1.center" timestamp="1593163682439">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.1.center/0.0.1366.741@0.0.1366.741" timestamp="1593163682439" />
+    <state width="1320" height="218" key="GridCell.Tab.1.left" timestamp="1593163682438">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.1.left/0.0.1366.741@0.0.1366.741" timestamp="1593163682438" />
+    <state width="1320" height="218" key="GridCell.Tab.1.right" timestamp="1593163682439">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state width="1320" height="218" key="GridCell.Tab.1.right/0.0.1366.741@0.0.1366.741" timestamp="1593163682439" />
     <state x="180" y="4" key="SettingsEditor" timestamp="1592988114667">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
@@ -122,10 +172,10 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="100" y="100" width="1166" height="541" key="com.intellij.history.integration.ui.views.DirectoryHistoryDialog/0.0.1366.741@0.0.1366.741" timestamp="1593018989583" />
-    <state x="381" y="74" width="863" height="522" key="find.popup" timestamp="1593095720781">
+    <state x="381" y="74" width="863" height="522" key="find.popup" timestamp="1593177239162">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="381" y="74" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593095720781" />
+    <state x="381" y="74" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593177239162" />
     <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
     <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1592988042666">
       <screen x="0" y="0" width="1366" height="741" />

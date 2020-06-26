@@ -15,6 +15,8 @@ type Response struct {
 	Val string
 	Body []byte
 	BodyStream resp.AllReadCloser
+
+	LowLevelKeyValuePairs map[string][]byte
 }
 
 func (r *Response) Prepare() {
@@ -22,6 +24,18 @@ func (r *Response) Prepare() {
 	r.AppendBulkString(r.ConnId)
 	r.AppendBulkString(r.ReqId)
 	r.AppendBulkString(r.ChunkId)
+
+	lowLevelKeyValuePairs := len(r.LowLevelKeyValuePairs)
+	if lowLevelKeyValuePairs > 0 {
+		r.AppendInt(int64(lowLevelKeyValuePairs))
+		for k := range r.LowLevelKeyValuePairs{
+			r.AppendBulkString(k)
+			r.AppendBulk(r.LowLevelKeyValuePairs[k])
+		}
+	}else{
+		r.AppendInt(0)
+	}
+
 	if len(r.Val) > 0 {
 		r.AppendBulkString(r.Val)
 	}

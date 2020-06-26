@@ -146,6 +146,8 @@ func (conn *Connection) ServeLambda() {
 				conn.pongHandler()
 			case "get":
 				conn.getHandler(start)
+			case "mkget":
+				conn.mkGetHandler(start)
 			case "set":
 				conn.setHandler(start)
 			case "mkset":
@@ -320,6 +322,76 @@ func (conn *Connection) getHandler(start time.Time) {
 	if req, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response, release hold.
 		rsp.BodyStream.(resp.Holdable).Unhold()
+	} else if req.EnableCollector {
+		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+		if err != nil {
+			conn.log.Warn("LogProxy err %v", err)
+		}
+	}
+}
+
+
+func (conn *Connection) mkGetHandler(start time.Time)  {
+	conn.log.Debug("GET from lambda.")
+
+	// Exhaust all values to keep protocol aligned.
+	connId, _ := conn.r.ReadBulkString()
+	reqId, _ := conn.r.ReadBulkString()
+	chunkId, _ := conn.r.ReadBulkString()
+	lowLevelKeysN, _ := conn.r.ReadInt()
+	lowLevelKeyPairs := make(map[string][]byte)
+	for i:=0;i<int(lowLevelKeysN);i++{
+		lowLevelKey, _ := conn.r.ReadBulkString()
+		var lowLevelValue []byte
+		lowLevelValue, _ = conn.r.ReadBulk(lowLevelValue)
+		lowLevelKeyPairs[lowLevelKey] = lowLevelValue
+	}
+	counter, ok := global.ReqMap.Get(reqId)
+	if ok == false {
+		conn.log.Warn("Request not found: %s", reqId)
+		// exhaust value field
+		if err := conn.r.SkipBulk(); err != nil {
+			conn.log.Warn("Failed to skip bulk on request mismatch: %v", err)
+		}
+		return
+	}
+
+	rsp := &types.Response{Cmd: "get"}
+	rsp.Id.ConnId, _ = strconv.Atoi(connId)
+	rsp.Id.ReqId = reqId
+	rsp.Id.ChunkId = chunkId
+	rsp.LowLevelKeyValuePairs = lowLevelKeyPairs
+
+	abandon := false
+	reqCounter := atomic.AddInt32(&(counter.(*types.ClientReqCounter).Counter), 1)
+	// Check if chunks are enough? Shortcut response if YES.
+	if int(lowLevelKeysN) > counter.(*types.ClientReqCounter).LowLevelKeysN {
+		abandon = true
+		conn.log.Debug("GOT %v, abandon.", rsp.Id)
+		req, ok := conn.SetResponse(rsp)
+		if ok && req.EnableCollector {
+			err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+			if err != nil {
+				conn.log.Warn("LogProxy err %v", err)
+			}
+		}
+		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
+			global.ReqMap.Del(reqId)
+		}
+	}
+
+	if abandon {
+		if err := conn.r.SkipBulk(); err != nil {
+			conn.log.Warn("Failed to skip bulk on abandon: %v", err)
+		}
+		return
+	}
+
+
+	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
+	if req, ok := conn.SetResponse(rsp); !ok {
+		// Failed to set response
+		conn.log.Warn("LogProxy err in conn.mkGetHandler at conn.SetResponse",)
 	} else if req.EnableCollector {
 		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
 		if err != nil {

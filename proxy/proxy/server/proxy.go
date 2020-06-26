@@ -3,10 +3,10 @@ package server
 import (
 	"github.com/google/uuid"
 
-	//	"github.com/google/uuid"
-	"github.com/neboduus/infinicache/proxy/common/logger"
 	"github.com/mason-leap-lab/redeo"
 	"github.com/mason-leap-lab/redeo/resp"
+	//	"github.com/google/uuid"
+	"github.com/neboduus/infinicache/proxy/common/logger"
 	"net"
 	"strconv"
 	"strings"
@@ -126,9 +126,9 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	}
 
 	// Start counting time.
-/*	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
+	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
 		p.log.Warn("Fail to record start of request: %v", err)
-	}*/
+	}
 
 	// We don't use this for now
 	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataChunks), int(parityChunks), 0})
@@ -158,12 +158,12 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	// Send chunk to the corresponding lambda instance in group
 	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, chunkIds, lambdaDest)
 	p.group.Instance(lambdaDest).C() <- &types.Request{
-		Id: types.Id{connId, reqId, chunkId},
-		Cmd: strings.ToLower(c.Name),
-		Key: chunkKey,
-		ChunkIds: chunkIds,
-		BodyStreams: bodyStreams,
-		ChanResponse: client.Responses(),
+		Id:              types.Id{connId, reqId, chunkId},
+		Cmd:             strings.ToLower(c.Name),
+		Key:             chunkKey,
+		LowLevelKeys:    chunkIds,
+		LowLevelValues:  bodyStreams,
+		ChanResponse:    client.Responses(),
 		EnableCollector: true,
 	}
 	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
@@ -250,7 +250,7 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
 
-	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0})
+	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0, 0})
 
 	// key is "key"+"chunkId"
 	meta, ok := p.metaStore.Get(key, int(dChunkId))
@@ -272,6 +272,53 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		Key:          chunkKey,
 		ChanResponse: client.Responses(),
 		EnableCollector: true,
+	}
+}
+
+func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
+	client := redeo.GetClient(c.Context())
+	connId := int(client.ID())
+	key := c.Arg(0).String()
+	dChunkId, _ := c.Arg(1).Int()
+	chunkId := strconv.FormatInt(dChunkId, 10)
+	reqId := c.Arg(2).String()
+	dataChunks, _ := c.Arg(3).Int()
+	parityChunks, _ := c.Arg(4).Int()
+	lowLevelKeysN, _ := c.Arg(5).Int()
+	lowLevelKeys := make([]string, lowLevelKeysN)
+	for i:=1;i<=int(lowLevelKeysN);i++{
+		lowLevelKey := c.Arg(5+i).String()
+		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
+	}
+
+	// Start couting time.
+	if err := collector.Collect(collector.LogStart, "get", reqId, chunkId, time.Now().UnixNano()); err != nil {
+		p.log.Warn("Fail to record start of request: %v", err)
+	}
+
+	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0, int(lowLevelKeysN)})
+
+	// key is "key"+"chunkId"
+	meta, ok := p.metaStore.Get(key, int(dChunkId))
+	if !ok || meta.Deleted {
+		// Object may be deleted.
+		p.log.Warn("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not found in lambda store, please set first.", chunkId, key)
+		w.Flush()
+		return
+	}
+	chunkKey := meta.ChunkKey(int(dChunkId))
+	lambdaDest := meta.Placement[dChunkId]
+
+	// Send request to lambda channel
+	p.log.Debug("Requesting to get %s: %d", chunkKey, lambdaDest)
+	p.group.Instance(lambdaDest).C() <- &types.Request{
+		Id:              types.Id{connId, reqId, chunkId},
+		Cmd:             strings.ToLower(c.Name),
+		Key:             chunkKey,
+		ChanResponse:    client.Responses(),
+		EnableCollector: true,
+		LowLevelKeys:    lowLevelKeys,
 	}
 }
 

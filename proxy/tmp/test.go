@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	var data [3]client.KVGroup
+	var data [3]client.KVSetGroup
 	var g1 = []client.KeyValuePair{
 		{Key: "k1", Value: []byte("v1")},
 		{Key: "k2", Value: []byte("v2")},
@@ -23,23 +23,23 @@ func main() {
 		{Key: "k9", Value: []byte("v9")},
 	}
 
-	data[0] = client.KVGroup{
+	data[0] = client.KVSetGroup{
 		KeyValuePairs: g1,
 	}
 
-	data[1] = client.KVGroup{
+	data[1] = client.KVSetGroup{
 		KeyValuePairs: g2,
 	}
 
-	data[2] = client.KVGroup{
+	data[2] = client.KVSetGroup{
 		KeyValuePairs: g3,
 	}
 
 	fmt.Println(replicate(data, 5))
 }
 
-func replicate(groups [3]client.KVGroup, n int) []client.KVGroup{
-	var replicas = make([]client.KVGroup, n)
+func replicate(groups [3]client.KVSetGroup, n int) []client.KVSetGroup {
+	var replicas = make([]client.KVSetGroup, n)
 	var rFs = []int{5,4,3}
 	for i := 0; i < len(groups); i++ {
 		var group = groups[i]

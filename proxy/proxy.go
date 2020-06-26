@@ -92,6 +92,7 @@ func main() {
 	srv.HandleStreamFunc("set", prxy.HandleSet)
 	srv.HandleFunc("mkset", prxy.HandleMkSet)
 	srv.HandleFunc("get", prxy.HandleGet)
+	srv.HandleFunc("mkget", prxy.HandleMkGet)
 	srv.HandleCallbackFunc(prxy.HandleCallback)
 
 	// initiate lambda store proxy

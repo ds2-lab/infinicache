@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/neboduus/infinicache/node/common/logger"
 	"github.com/mason-leap-lab/redeo"
@@ -425,6 +426,73 @@ func main() {
 		}
 	})
 
+	srv.HandleFunc("mkget", func(w resp.ResponseWriter, c *resp.Command) {
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
+		}
+		defer session.Timeout.DoneBusyWithReset(extension)
+
+		t := time.Now()
+		log.Debug("In GET handler")
+
+		connId := c.Arg(0).String()
+		reqId := c.Arg(1).String()
+		chunkId := c.Arg(2).String()
+		key := c.Arg(4).String()
+		lowLevelKeysN, _ := c.Arg(5).Int()
+		lowLevelKeyValuePairs := make(map[string][]byte, lowLevelKeysN)
+		for i:=1;i<=int(lowLevelKeysN);i++{
+			lowLevelKey := c.Arg(5+i).String()
+			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
+			k, value, err := store.Get(lowLevelKey)
+			lowLevelKeyValuePairs[k] = value
+			if err != nil{
+				var respError *types.ResponseError
+				if err == types.ErrNotFound {
+					// Not found
+					respError = types.NewResponseError(404, err)
+				} else {
+					respError = types.NewResponseError(500, err)
+				}
+
+				log.Warn("Failed to get %s, specifically %s: %v", key, k, respError)
+				w.AppendErrorf("Failed to get %s, specifically %s: %v", key, k, respError)
+				if err := w.Flush(); err != nil {
+					log.Error("Error on flush: %v", err)
+				}
+				// collector.Send(&types.DataEntry{types.OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), session.Id})
+			}
+		}
+
+		// construct lambda store response
+		response := &types.Response{
+			ResponseWriter: w,
+			Cmd:            c.Name,
+			ConnId:         connId,
+			ReqId:          reqId,
+			ChunkId: chunkId,
+			LowLevelKeyValuePairs: lowLevelKeyValuePairs,
+		}
+		response.Prepare()
+
+		t3 := time.Now()
+		if err := response.Flush(); err != nil {
+			log.Error("Error on flush(get key %s): %v", key, err)
+			return
+		}
+		d3 := time.Since(t3)
+
+		dt := time.Since(t)
+		log.Debug("Streaming duration is %v", d3)
+		log.Debug("Total duration is %v", dt)
+		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkIDs:[%s]", key, connId, printKeys(lowLevelKeyValuePairs))
+		// collector.Send(&types.DataEntry{types.OP_GET, "200", reqId, chunkId, d2, d3, dt, session.Id})
+	})
+
 	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
 		session := lambdaLife.GetSession()
 		session.Timeout.Busy()
@@ -509,8 +577,8 @@ func main() {
 
 		i := 0
 		for i<int(values) {
-			chunkKey := c.Arg(5+i).String()
-			chunkKey = fmt.Sprintf("%s@%s", key, chunkKey)
+			lowLevelKey := c.Arg(5+i).String()
+			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
 			value := c.Arg(5+i+1).Bytes()
 
 			err := store.Set(key, chunkKey, value)
@@ -760,4 +828,13 @@ func main() {
 	log.Info("helloworld: listening on port %s", port)
 
 
+}
+
+func printKeys(data map[string][]byte) string{
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+
+	return strings.Join(keys, ",")
 }

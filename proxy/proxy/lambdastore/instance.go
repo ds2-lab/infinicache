@@ -431,6 +431,8 @@ func (ins *Instance) handleRequest(conn *Connection, req types.Command, validate
 			req.PrepareForSet(conn.w)
 		case "get": /*get or one argument cmd*/
 			req.PrepareForGet(conn.w)
+		case "mkget": /*get or one argument cmd*/
+			req.PrepareForMkGet(conn.w)
 		case "del":
 			req.PrepareForDel(conn.w)
 		default:

@@ -17,6 +17,8 @@ type Response struct {
 	BodyStream resp.AllReadCloser
 
 	w    resp.ResponseWriter
+
+	LowLevelKeyValuePairs map[string][]byte
 }
 
 func (rsp *Response) PrepareFor(w resp.ResponseWriter) {

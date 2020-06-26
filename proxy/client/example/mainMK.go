@@ -10,7 +10,7 @@ import (
 func main() {
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
-	var data [3]client.KVGroup
+	var data [3]client.KVSetGroup
 	var g1 = []client.KeyValuePair{
 		{Key: "k1", Value: []byte("v1")},
 		{Key: "k2", Value: []byte("v2")},
@@ -27,15 +27,15 @@ func main() {
 		{Key: "k9", Value: []byte("v9")},
 	}
 
-	data[0] = client.KVGroup{
+	data[0] = client.KVSetGroup{
 		KeyValuePairs: g1,
 	}
 
-	data[1] = client.KVGroup{
+	data[1] = client.KVSetGroup{
 		KeyValuePairs: g2,
 	}
 
-	data[2] = client.KVGroup{
+	data[2] = client.KVSetGroup{
 		KeyValuePairs: g3,
 	}
 

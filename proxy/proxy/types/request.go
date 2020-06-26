@@ -25,8 +25,8 @@ type Request struct {
 	responded        uint32
 	streamingStarted bool
 
-	ChunkIds 		 []string
-	BodyStreams  [][]byte
+	LowLevelKeys   []string
+	LowLevelValues [][]byte
 
 }
 
@@ -48,17 +48,17 @@ func (req *Request) PrepareForSet(w *resp.RequestWriter) {
 }
 
 func (req *Request) PrepareForMkSet(w *resp.RequestWriter) {
-	w.WriteMultiBulkSize(6 + (2*len(req.BodyStreams)))
+	w.WriteMultiBulkSize(6 + (2*len(req.LowLevelValues)))
 	w.WriteBulkString(req.Cmd)
 	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
 	w.WriteBulkString(req.Id.ReqId)
 	w.WriteBulkString(req.Id.ChunkId)
 	w.WriteBulkString(req.Key)
-	w.WriteBulkString(strconv.Itoa(len(req.BodyStreams)))
-	if req.BodyStreams != nil {
-		for i := 0; i < len(req.BodyStreams); i++ {
-			w.WriteBulkString(req.ChunkIds[i])
-			w.WriteBulk(req.BodyStreams[i])
+	w.WriteBulkString(strconv.Itoa(len(req.LowLevelValues)))
+	if req.LowLevelValues != nil {
+		for i := 0; i < len(req.LowLevelValues); i++ {
+			w.WriteBulkString(req.LowLevelKeys[i])
+			w.WriteBulk(req.LowLevelValues[i])
 		}
 
 	}
@@ -72,6 +72,21 @@ func (req *Request) PrepareForGet(w *resp.RequestWriter) {
 	w.WriteBulkString(req.Id.ReqId)
 	w.WriteBulkString("")
 	w.WriteBulkString(req.Key)
+	req.w = w
+}
+
+func (req *Request) PrepareForMkGet(w *resp.RequestWriter) {
+	w.WriteMultiBulkSize(7+len(req.LowLevelKeys))
+	w.WriteBulkString(req.Cmd)
+	w.WriteBulkString(strconv.Itoa(req.Id.ConnId))
+	w.WriteBulkString(req.Id.ReqId)
+	w.WriteBulkString(req.Id.ChunkId)
+	w.WriteBulkString("")
+	w.WriteBulkString(req.Key)
+	w.WriteBulkString(strconv.Itoa(len(req.LowLevelKeys)))
+	for i:=1;i<=len(req.LowLevelKeys);i++{
+		w.WriteBulkString(req.LowLevelKeys[i])
+	}
 	req.w = w
 }
 

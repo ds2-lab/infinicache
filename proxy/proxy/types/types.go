@@ -7,10 +7,11 @@ import (
 var ErrNoSpareDeployment = errors.New("No spare deployment")
 
 type ClientReqCounter struct {
-	Cmd          string
-	DataShards   int
-	ParityShards int
-	Counter      int32
+	Cmd           string
+	DataShards    int
+	ParityShards  int
+	Counter       int32
+	LowLevelKeysN int
 }
 
 type Id struct {

@@ -3,14 +3,15 @@ package client
 import (
 	"errors"
 	"fmt"
+	"github.com/ScottMansfield/nanolog"
+	"github.com/fatih/set"
+	"github.com/google/uuid"
+	"github.com/mason-leap-lab/redeo/resp"
 	"io"
+	"math/rand"
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/ScottMansfield/nanolog"
-	"github.com/google/uuid"
-	"github.com/mason-leap-lab/redeo/resp"
 )
 
 type KeyValuePair struct {
@@ -18,11 +19,15 @@ type KeyValuePair struct {
 	Value []byte
 }
 
-type KVGroup struct {
+type KVSetGroup struct {
 	KeyValuePairs []KeyValuePair
 }
 
-func (c *Client) MkSet(highLevelKey string, data [3]KVGroup, args ...interface{}) (string, bool) {
+type KVGetGroup struct {
+	Keys []string
+}
+
+func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -91,7 +96,7 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVGroup, args ...interface{}
 	return stats.ReqId, true
 }
 
-func (c *Client) MkGet(key string, size int, args ...interface{}) (string, io.ReadCloser, bool) {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup, args ...interface{}) (string, io.ReadCloser, bool) {
 	var dryrun int
 	if len(args) > 0 {
 		dryrun, _ = args[0].(int)
@@ -104,18 +109,19 @@ func (c *Client) MkGet(key string, size int, args ...interface{}) (string, io.Re
 		return stats.ReqId, nil, true
 	}
 
-	//addr, ok := c.getHost(key)
-	member := c.Ring.LocateKey([]byte(key))
+	//addr, ok := c.getHost(highLevelKey)
+	member := c.Ring.LocateKey([]byte(highLevelKey))
 	host := member.String()
 	//fmt.Println("ring LocateKey costs:", time.Since(t))
 	//fmt.Println("GET located host: ", host)
 
 	// Send request and wait
 	var wg sync.WaitGroup
-	ret := newEcRet(c.Shards)
-	for i := 0; i < ret.Len(); i++ {
+	locations := locateLowLevelKeys(lowLevelKeys)
+	ret := newEcRet(len(locations))
+	for i, v := range locations {
 		wg.Add(1)
-		go c.get(host, key, i, stats.ReqId, &wg, ret)
+		go c.mkGet(host, highLevelKey, i, v, stats.ReqId, &wg, ret)
 	}
 	wg.Wait()
 	stats.RecLatency = time.Since(stats.Begin)
@@ -133,7 +139,7 @@ func (c *Client) MkGet(key string, size int, args ...interface{}) (string, io.Re
 	}
 
 	decodeStart := time.Now()
-	reader, err := c.decode(stats, chunks, size)
+	reader, err := c.decode(stats, chunks, 5)
 	if err != nil {
 		return stats.ReqId, nil, false
 	}
@@ -143,17 +149,17 @@ func (c *Client) MkGet(key string, size int, args ...interface{}) (string, io.Re
 	nanolog.Log(LogClient, "get", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(0), int64(stats.RecLatency), int64(end.Sub(decodeStart)),
 		stats.AllGood, stats.Corrupted)
-	log.Info("Got %s %d ( %d %d )", key, int64(stats.Duration), int64(stats.RecLatency), int64(end.Sub(decodeStart)))
+	log.Info("Got %s %d ( %d %d )", highLevelKey, int64(stats.Duration), int64(stats.RecLatency), int64(end.Sub(decodeStart)))
 
 	// Try recover
 	if len(failed) > 0 {
-		c.recover(host, key, uuid.New().String(), chunks, failed)
+		c.recover(host, highLevelKey, uuid.New().String(), chunks, failed)
 	}
 
 	return stats.ReqId, reader, true
 }
 
-func (c *Client) mkSet(addr string, key string, replica KVGroup, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {
+func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {
 	defer wg.Done()
 
 	if err := c.validate(addr, i); err != nil {
@@ -198,10 +204,10 @@ func (c *Client) mkSet(addr string, key string, replica KVGroup, i int, lambdaId
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated setting %d@%s(%s)", i, key, addr)
-	c.rec("Set", addr, i, reqId, ret, nil)
+	c.mkRec("Set", addr, i, reqId, ret, nil)
 }
 
-func (c *Client) mkGet(addr string, key string, i int, reqId string, wg *sync.WaitGroup, ret *ecRet) {
+func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interface, reqId string, wg *sync.WaitGroup, ret *ecRet) {
 	defer wg.Done()
 
 	if err := c.validate(addr, i); err != nil {
@@ -215,9 +221,20 @@ func (c *Client) mkGet(addr string, key string, i int, reqId string, wg *sync.Wa
 
 	//tGet := time.Now()
 	//fmt.Println("Client send GET req timeStamp", tGet, "chunkId is", i)
-	cn.W.WriteCmdString(
-		"get", key, strconv.Itoa(i),
-		reqId, strconv.Itoa(c.DataShards), strconv.Itoa(c.ParityShards)) // cmd key chunkId reqId DataShards ParityShards
+
+	w := cn.W
+	w.WriteMultiBulkSize(7+lowLevelKeys.Size())
+	w.WriteBulkString("mkget")
+	w.WriteBulkString(key)
+	w.WriteBulkString(strconv.Itoa(i))
+	w.WriteBulkString(reqId)
+	w.WriteBulkString(strconv.Itoa(c.MKReplicationFactors[0]))
+	w.WriteBulkString(strconv.Itoa(0))
+	w.WriteBulkString(strconv.Itoa(lowLevelKeys.Size()))
+	lowLevelKeysList := lowLevelKeys.List()
+	for i := 0; i < len(lowLevelKeysList); i++ {
+		w.WriteBulkString(lowLevelKeysList[i].(string))
+	}
 
 	// Flush pipeline
 	//if err := c.W[i].Flush(); err != nil {
@@ -229,7 +246,7 @@ func (c *Client) mkGet(addr string, key string, i int, reqId string, wg *sync.Wa
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	c.rec("Got", addr, i, reqId, ret, nil)
+	c.mkRec("Got", addr, i, reqId, ret, nil)
 }
 
 func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
@@ -322,8 +339,8 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	}
 }
 
-func replicate(groups [3]KVGroup, n int) []KVGroup{
-	var replicas = make([]KVGroup, n)
+func replicate(groups [3]KVSetGroup, n int) []KVSetGroup {
+	var replicas = make([]KVSetGroup, n)
 	var rFs = []int{5,4,3}
 	for i := 0; i < len(groups); i++ {
 		var group = groups[i]
@@ -334,4 +351,33 @@ func replicate(groups [3]KVGroup, n int) []KVGroup{
 		}
 	}
 	return replicas
+}
+
+func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
+	var replicas [3]int
+	var m map[int]set.Interface
+
+	fmt.Println(groups)
+
+	for i:=0; i<len(groups); i++{
+		g := groups[i]
+		if g.Keys != nil {
+			replicas[i] = rand.Intn(len(groups)+i)
+		}else{
+			replicas[i] = -1
+		}
+	}
+	m = make(map[int]set.Interface)
+	for i:=0; i<len(replicas); i++ {
+		if replicas[i] >= 0 {
+			if m[replicas[i]] == nil {
+				m[replicas[i]] = set.New(set.ThreadSafe)
+			}
+			for k:=0; k<len(groups[i].Keys); k++ {
+				m[replicas[i]].Add(groups[i].Keys[k])
+			}
+		}
+	}
+
+	return m
 }
