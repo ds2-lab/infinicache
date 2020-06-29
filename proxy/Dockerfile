@@ -11,18 +11,22 @@ ENV LC_ALL en_US.UTF-8
 # Install essential dependencies
 ENV DEBIAN_FRONTEND noninteractive 
 RUN apt-get update
+RUN apt-get -y upgrade
 RUN apt-get install -qq wget unzip build-essential cmake gcc libcunit1-dev libudev-dev nano
+# Install git
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q git
 
 # Grab the checked out source
 RUN mkdir /project
 RUN mkdir /project/src
+WORKDIR /
+RUN git clone https://github.com/neboduus/infinicache.git
+RUN cp -a /infinicache/. /project/src
 WORKDIR /project/src
-COPY . /project/src
-
+RUN git pull origin replica
+RUN git checkout replica
 
 # Install Go
-RUN apt-get update
-RUN apt-get -y upgrade
 RUN wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
 RUN tar -xvf go1.12.linux-amd64.tar.gz
 RUN rm go1.12.linux-amd64.tar.gz
@@ -31,12 +35,7 @@ ENV GOROOT /usr/local/go
 ENV GOPATH $HOME/project
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 
-# Install git
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q git
-
 # Configure AWS
-RUN apt-get update
-RUN apt-get -y upgrade
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q awscli
 RUN apt install zip
 

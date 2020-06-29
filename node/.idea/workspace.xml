@@ -21,15 +21,9 @@
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lambda/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/lambda/types/response.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/example/mainMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/mainMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/mkRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/connection.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/proxy.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/proxy/types/request.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/types/request.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

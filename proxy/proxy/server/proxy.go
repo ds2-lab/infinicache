@@ -118,7 +118,7 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	lowLevelKeys := make([]string, pairsN)
 	var values [][]byte
 
-	for i := 8; i < c.ArgN(); i=i+2 {
+	for i := c.ArgN()-(2*int(pairsN)); i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 		value := c.Arg(i+1).Bytes()
