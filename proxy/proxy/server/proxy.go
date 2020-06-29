@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 
 	"github.com/mason-leap-lab/redeo"
@@ -122,7 +121,7 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 		fmt.Println("Arg", i, " - ", c.Arg(i).String())
 	}*/
 
-	for i := 8; i < c.ArgN(); i=i+2 {
+	for i := 9; i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 		value := c.Arg(i+1).Bytes()
@@ -292,13 +291,9 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	lowLevelKeysN, _ := c.Arg(5).Int()
 	lowLevelKeys := make([]string, lowLevelKeysN)
 
-	for i:=6; i<c.ArgN() ;i++{
+	for i:=7; i<c.ArgN() ;i++{
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
-	}
-
-	for i:=6; i < c.ArgN(); i++ {
-		fmt.Println("Arg", i, " - ", c.Arg(i).String())
 	}
 
 	// Start couting time.
