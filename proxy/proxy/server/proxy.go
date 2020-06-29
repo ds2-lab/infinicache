@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 
 	"github.com/mason-leap-lab/redeo"
@@ -118,14 +117,13 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	lowLevelKeys := make([]string, pairsN)
 	var values [][]byte
 
-	for i := c.ArgN()-(2*int(pairsN)); i < c.ArgN(); i=i+2 {
+	for i := 8+(int(pairsN)/2); i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 		value := c.Arg(i+1).Bytes()
 		values = append(values, value)
 		size += len(value)
 	}
-	fmt.Println("Proxy tries to MKSET ", lowLevelKeys, " on node", lambdaId)
 
 	// Start counting time.
 	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
