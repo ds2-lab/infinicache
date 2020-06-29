@@ -118,8 +118,8 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	lowLevelKeys := make([]string, pairsN)
 	var values [][]byte
 
-	for i := 8; i < c.ArgN(); i=i+2 {
-		fmt.Println(c.Arg(i).String())
+	for i := 8; i < c.ArgN(); i=i+1 {
+		fmt.Println("Arg", i, " - ", c.Arg(i).String())
 	}
 
 	for i := 8+(int(pairsN)/2); i < c.ArgN(); i=i+2 {
@@ -291,9 +291,14 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	parityChunks, _ := c.Arg(4).Int()
 	lowLevelKeysN, _ := c.Arg(5).Int()
 	lowLevelKeys := make([]string, lowLevelKeysN)
+
 	for i:=6; i<c.ArgN() ;i++{
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
+	}
+
+	for i:=6; i < c.ArgN(); i++ {
+		fmt.Println("Arg", i, " - ", c.Arg(i).String())
 	}
 
 	// Start couting time.
