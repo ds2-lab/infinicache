@@ -122,7 +122,7 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 		fmt.Println("Arg", i, " - ", c.Arg(i).String())
 	}*/
 
-	for i := 8+(int(pairsN)/2); i < c.ArgN(); i=i+2 {
+	for i := 8; i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 		value := c.Arg(i+1).Bytes()

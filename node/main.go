@@ -584,13 +584,17 @@ func main() {
 		key := c.Arg(3).String()
 		//values, _ := c.Arg(4).Int()
 
+		for i:=5; i < c.ArgN(); i++ {
+			fmt.Println("Arg", i, " - ", c.Arg(i).String())
+		}
+
 		for i:=5; i<c.ArgN(); i=i+2 {
 			lowLevelKey := c.Arg(i).String()
 			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
 			fmt.Println("Setting %s@%s", key, lowLevelKey)
 			value := c.Arg(i+1).Bytes()
 
-			err := store.Set(key, chunkKey, value)
+			err := store.Set(chunkKey, chunkKey, value)
 			if err != nil {
 				log.Error("%v", err)
 				w.AppendErrorf("%v", err)
