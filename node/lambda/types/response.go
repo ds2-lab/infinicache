@@ -32,8 +32,6 @@ func (r *Response) Prepare() {
 			r.AppendBulkString(k)
 			r.AppendBulk(r.LowLevelKeyValuePairs[k])
 		}
-	}else{
-		r.AppendInt(0)
 	}
 
 	if len(r.Val) > 0 {

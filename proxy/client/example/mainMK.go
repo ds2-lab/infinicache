@@ -55,6 +55,12 @@ func main() {
 		fmt.Println("successfull SET")
 	}
 
+	var keys [3]client.KVGetGroup
+	keys[0] = client.KVGetGroup{Keys: []string{"k1"}}
+	keys[1] = client.KVGetGroup{Keys: []string{"k4"}}
+	keys[2] = client.KVGetGroup{Keys: []string{"k5"}}
+
+	fmt.Println(cli.MkGet("foo", keys))
 	/*if _, reader, ok := cli.RGet("foo", len(val)); !ok {
 		log.Fatal("Failed to get")
 		return

@@ -188,6 +188,11 @@ func (r *ecRet) Ret(i int) (ret []byte) {
 	return
 }
 
+func (r *ecRet) RetKVP(i int) (ret []KeyValuePair) {
+	ret, _ = r.Rets[i].([]KeyValuePair)
+	return
+}
+
 func (r *ecRet) Error(i int) (err error) {
 	err, _ = r.Rets[i].(error)
 	return

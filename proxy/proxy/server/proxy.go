@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 
 	"github.com/mason-leap-lab/redeo"
@@ -111,19 +112,20 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	reqId := c.Arg(4).String()
 	dataChunks, _ := c.Arg(5).Int()
 	parityChunks, _ := c.Arg(6).Int()
-	pairs, _ := c.Arg(7).Int()
+	pairsN, _ := c.Arg(7).Int()
+
 	size := 0
+	lowLevelKeys := make([]string, pairsN)
+	var values [][]byte
 
-	var chunkIds []string
-	chunkIds = make([]string, pairs)
-	var bodyStreams [][]byte
-
-	for i := 0; i < int(pairs); i++ {
-		chunkIds[i] = c.Arg(7+i).String()
-		chunkBody := c.Arg(0).Bytes()
-		bodyStreams = append(bodyStreams, chunkBody)
-		size += len(chunkBody)
+	for i := 8; i < c.ArgN(); i=i+2 {
+		lowLevelKey := c.Arg(i).String()
+		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
+		value := c.Arg(i+1).Bytes()
+		values = append(values, value)
+		size += len(value)
 	}
+	fmt.Println("Proxy tries to MKSET ", lowLevelKeys, " on node", lambdaId)
 
 	// Start counting time.
 	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
@@ -156,13 +158,13 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send chunk to the corresponding lambda instance in group
-	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, chunkIds, lambdaDest)
+	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, lowLevelKeys, lambdaDest)
 	p.group.Instance(lambdaDest).C() <- &types.Request{
 		Id:              types.Id{connId, reqId, chunkId},
 		Cmd:             strings.ToLower(c.Name),
 		Key:             chunkKey,
-		LowLevelKeys:    chunkIds,
-		LowLevelValues:  bodyStreams,
+		LowLevelKeys:    lowLevelKeys,
+		LowLevelValues:  values,
 		ChanResponse:    client.Responses(),
 		EnableCollector: true,
 	}
@@ -286,8 +288,8 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	parityChunks, _ := c.Arg(4).Int()
 	lowLevelKeysN, _ := c.Arg(5).Int()
 	lowLevelKeys := make([]string, lowLevelKeysN)
-	for i:=1;i<=int(lowLevelKeysN);i++{
-		lowLevelKey := c.Arg(5+i).String()
+	for i:=6; i<c.ArgN() ;i++{
+		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 	}
 
@@ -296,7 +298,7 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 		p.log.Warn("Fail to record start of request: %v", err)
 	}
 
-	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"get", int(dataChunks), int(parityChunks), 0, int(lowLevelKeysN)})
+	global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"mkget", int(dataChunks), int(parityChunks), 0, int(lowLevelKeysN)})
 
 	// key is "key"+"chunkId"
 	meta, ok := p.metaStore.Get(key, int(dChunkId))
@@ -311,7 +313,7 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send request to lambda channel
-	p.log.Debug("Requesting to get %s: %d", chunkKey, lambdaDest)
+	p.log.Debug("Requesting to get %s, <%v>: %d", chunkKey, lowLevelKeys, lambdaDest)
 	p.group.Instance(lambdaDest).C() <- &types.Request{
 		Id:              types.Id{connId, reqId, chunkId},
 		Cmd:             strings.ToLower(c.Name),

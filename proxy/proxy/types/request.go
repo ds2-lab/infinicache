@@ -84,8 +84,8 @@ func (req *Request) PrepareForMkGet(w *resp.RequestWriter) {
 	w.WriteBulkString("")
 	w.WriteBulkString(req.Key)
 	w.WriteBulkString(strconv.Itoa(len(req.LowLevelKeys)))
-	for i:=1;i<=len(req.LowLevelKeys);i++{
-		w.WriteBulkString(req.LowLevelKeys[i])
+	for _, key := range req.LowLevelKeys{
+		w.WriteBulkString(key)
 	}
 	req.w = w
 }

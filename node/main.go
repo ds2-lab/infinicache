@@ -437,7 +437,7 @@ func main() {
 		defer session.Timeout.DoneBusyWithReset(extension)
 
 		t := time.Now()
-		log.Debug("In GET handler")
+		log.Debug("In MKGET handler")
 
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
@@ -445,27 +445,36 @@ func main() {
 		key := c.Arg(4).String()
 		lowLevelKeysN, _ := c.Arg(5).Int()
 		lowLevelKeyValuePairs := make(map[string][]byte, lowLevelKeysN)
-		for i:=1;i<=int(lowLevelKeysN);i++{
-			lowLevelKey := c.Arg(5+i).String()
+		log.Warn("ArgN=%v", c.ArgN())
+
+		var failedLowLevelKeys []string
+		var tErr error
+
+		for i:=6;i<c.ArgN();i++{
+			lowLevelKey := c.Arg(i).String()
 			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
+			log.Warn("Searching for key: " + lowLevelKey)
 			k, value, err := store.Get(lowLevelKey)
 			lowLevelKeyValuePairs[k] = value
 			if err != nil{
-				var respError *types.ResponseError
-				if err == types.ErrNotFound {
-					// Not found
-					respError = types.NewResponseError(404, err)
-				} else {
-					respError = types.NewResponseError(500, err)
-				}
-
-				log.Warn("Failed to get %s, specifically %s: %v", key, k, respError)
-				w.AppendErrorf("Failed to get %s, specifically %s: %v", key, k, respError)
-				if err := w.Flush(); err != nil {
-					log.Error("Error on flush: %v", err)
-				}
-				// collector.Send(&types.DataEntry{types.OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), session.Id})
+				failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
+				tErr = err
 			}
+		}
+
+		fmt.Println("Failed, ", failedLowLevelKeys)
+
+		if tErr != nil {
+			var respError *types.ResponseError
+			// Not found
+			respError = types.NewResponseError(404, types.ErrNotFound)
+			log.Warn("404: Failed to get %s, specifically %s: %v", key, failedLowLevelKeys, respError)
+			w.AppendErrorf("404: Failed to get %s, specifically %s: %v", key, failedLowLevelKeys, respError)
+			// collector.Send(&types.DataEntry{types.OP_GET, respError.Status(), reqId, "-1", 0, 0, time.Since(t), session.Id})
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush: %v", err)
+			}
+			return
 		}
 
 		// construct lambda store response
@@ -567,19 +576,19 @@ func main() {
 		defer session.Timeout.DoneBusyWithReset(extension)
 
 		// t := time.Now()
-		log.Debug("In SET handler")
+		log.Debug("In MKSET handler")
 
 		connId := c.Arg(0).String()
 		reqId := c.Arg(1).String()
 		chunkId := c.Arg(2).String()
 		key := c.Arg(3).String()
-		values, _ := c.Arg(4).Int()
+		//values, _ := c.Arg(4).Int()
 
-		i := 0
-		for i<int(values) {
-			lowLevelKey := c.Arg(5+i).String()
+		for i:=5; i<c.ArgN(); i=i+2 {
+			lowLevelKey := c.Arg(i).String()
 			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
-			value := c.Arg(5+i+1).Bytes()
+			fmt.Println("Setting %s@%s", key, lowLevelKey)
+			value := c.Arg(i+1).Bytes()
 
 			err := store.Set(key, chunkKey, value)
 			if err != nil {
@@ -590,8 +599,6 @@ func main() {
 				}
 				return
 			}
-
-			i += 2
 		}
 
 		// write Key, clientId, chunkId, body back to proxy

@@ -356,7 +356,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 		return
 	}
 
-	rsp := &types.Response{Cmd: "get"}
+	rsp := &types.Response{Cmd: "mkget"}
 	rsp.Id.ConnId, _ = strconv.Atoi(connId)
 	rsp.Id.ReqId = reqId
 	rsp.Id.ChunkId = chunkId
