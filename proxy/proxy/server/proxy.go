@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 
 	"github.com/mason-leap-lab/redeo"
@@ -116,6 +117,10 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	size := 0
 	lowLevelKeys := make([]string, pairsN)
 	var values [][]byte
+
+	for i := 8; i < c.ArgN(); i=i+2 {
+		fmt.Println(c.Arg(i).String())
+	}
 
 	for i := 8+(int(pairsN)/2); i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
