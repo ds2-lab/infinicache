@@ -108,9 +108,11 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup, args ...
 	var wg sync.WaitGroup
 	locations := locateLowLevelKeys(lowLevelKeys)
 	ret := newEcRet(len(locations))
+	j := 0
 	for i, v := range locations {
 		wg.Add(1)
-		go c.mkGet(host, highLevelKey, i, v, stats.ReqId, &wg, ret)
+		go c.mkGet(host, highLevelKey, i, v, stats.ReqId, &wg, ret, j)
+		j++
 	}
 	wg.Wait()
 	stats.RecLatency = time.Since(stats.Begin)
@@ -187,7 +189,7 @@ func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambd
 	c.mkRec("mkSet", addr, i, reqId, ret, nil)
 }
 
-func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interface, reqId string, wg *sync.WaitGroup, ret *ecRet) {
+func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interface, reqId string, wg *sync.WaitGroup, ret *ecRet, j int) {
 	defer wg.Done()
 
 	if err := c.validate(addr, i); err != nil {
