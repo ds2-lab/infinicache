@@ -291,9 +291,8 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		fmt.Println("Starting receiving")
 		a, _ := c.Conns[addr][i].R.ReadArrayLen()
 		fmt.Println("ArrayLen=", a)
-		pairsN, _ := c.Conns[addr][i].R.ReadBulkString()
-		fmt.Print("pairN", pairsN)
-		lowLevelKeyValuePairsN, _ := strconv.Atoi(pairsN)
+		lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
+		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN)
 		var keyValuePairs []KeyValuePair
 
 		for i:=0; i<int(lowLevelKeyValuePairsN); i++ {
