@@ -289,7 +289,8 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 
 	if strings.Compare(prompt, "mkGot") == 0{
 		fmt.Println("Starting receiving")
-
+		a, _ := c.Conns[addr][i].R.ReadArrayLen()
+		fmt.Println("ArrayLen=", a)
 		pairsN, _ := c.Conns[addr][i].R.ReadBulkString()
 		fmt.Print("pairN", pairsN)
 		lowLevelKeyValuePairsN, _ := strconv.Atoi(pairsN)
