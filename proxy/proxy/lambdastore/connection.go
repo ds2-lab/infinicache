@@ -366,21 +366,18 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 
 	abandon := false
 	reqCounter := atomic.AddInt32(&(counter.(*types.ClientReqCounter).Counter), 1)
-	// Check if chunks are enough? Shortcut response if YES.
-	if int(lowLevelKeysN) > counter.(*types.ClientReqCounter).LowLevelKeysN {
-		abandon = true
-		conn.log.Debug("MKGOT %v, abandon.", rsp.Id)
-		req, ok := conn.SetResponse(rsp)
-		if ok && req.EnableCollector {
-			err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
-			if err != nil {
-				conn.log.Warn("LogProxy err %v", err)
-			}
-		}
-		if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
-			global.ReqMap.Del(reqId)
+
+	req, ok := conn.SetResponse(rsp)
+	if ok && req.EnableCollector {
+		err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))
+		if err != nil {
+			conn.log.Warn("LogProxy err %v", err)
 		}
 	}
+	if int(reqCounter) == counter.(*types.ClientReqCounter).DataShards+counter.(*types.ClientReqCounter).ParityShards {
+		global.ReqMap.Del(reqId)
+	}
+
 
 	if abandon {
 		if err := conn.r.SkipBulk(); err != nil {
