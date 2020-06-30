@@ -223,10 +223,6 @@ func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
 	var lowLevelKeys []string
 	var values [][]byte
 
-	for i := 8; i < c.ArgN(); i=i+1 {
-		p.log.Debug("Req", reqId, "Arg", i, " - ", c.Arg(i).String())
-	}
-
 	for i := 8; i < c.ArgN(); i=i+2 {
 		lowLevelKey := c.Arg(i).String()
 		lowLevelKeys = append(lowLevelKeys, lowLevelKey)

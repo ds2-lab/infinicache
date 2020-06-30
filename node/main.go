@@ -510,18 +510,11 @@ func main() {
 		//values, _ := c.Arg(4).Int()
 		var lowLevelKeys []string
 
-		for i:=0; i<c.ArgN(); i++{
-			log.Debug("Req", reqId, "Arg", i, c.Arg(i))
-		}
-
 		for i:=5; i<c.ArgN(); i=i+2 {
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
 			value := c.Arg(i+1).Bytes()
-
-			log.Debug("Setting < %s , %s >", chunkKey, string(value))
-
 			err := store.Set(chunkKey, chunkKey, value)
 			if err != nil {
 				log.Error("%v", err)
@@ -530,6 +523,8 @@ func main() {
 					log.Error("Error on flush(error 500): %v", err)
 				}
 				return
+			}else{
+				log.Debug("SET OK < %s , %s >", chunkKey, string(value))
 			}
 		}
 
@@ -570,11 +565,6 @@ func main() {
 		key := c.Arg(4).String()
 		// lowLevelKeysN, _ := c.Arg(5).Int()
 		lowLevelKeyValuePairs := make(map[string][]byte)
-		log.Warn("ArgN=%v", c.ArgN())
-
-		for i:=0; i<c.ArgN(); i++{
-			log.Debug("Req", reqId, "Arg", i, c.Arg(i))
-		}
 
 		var failedLowLevelKeys []string
 		var tErr error
