@@ -186,7 +186,7 @@ func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambd
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated setting %d@%s(%s)", i, key, addr)
-	c.mkRec("mkSet", addr, i, reqId, ret, nil)
+	c.mkRec("mkSet", addr, i, reqId, ret, nil, i)
 }
 
 func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interface, reqId string, wg *sync.WaitGroup, ret *ecRet, j int) {
