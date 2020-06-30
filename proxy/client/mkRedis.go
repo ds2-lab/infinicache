@@ -227,7 +227,7 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	c.mkRec("Got", addr, i, reqId, ret, nil)
+	c.mkRec("mkGot", addr, i, reqId, ret, nil)
 }
 
 func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
@@ -244,6 +244,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 	type0, err := cn.R.PeekType()
 	if err != nil {
 		log.Warn("PeekType error on receiving chunk %d: %v", i, err)
+		fmt.Println("PeekType error on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
@@ -255,6 +256,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			err = errors.New(strErr)
 		}
 		log.Warn("Error on receiving chunk %d: %v", i, err)
+		fmt.Println("Error on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
@@ -262,10 +264,12 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 	respId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
 		log.Warn("Failed to read reqId on receiving chunk %d: %v", i, err)
+		fmt.Println("Failed to read reqId on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
 	if respId != reqId {
+		fmt.Println("Unexpected response %s, want %s, chunk %d", respId, reqId, i)
 		log.Warn("Unexpected response %s, want %s, chunk %d", respId, reqId, i)
 		// Skip fields
 		_, _ = c.Conns[addr][i].R.ReadBulkString()
@@ -276,11 +280,13 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 
 	chunkId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
+		fmt.Println("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		log.Warn("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
 	if chunkId == "-1" {
+		fmt.Println("Abandon late chunk %d", i)
 		log.Debug("Abandon late chunk %d", i)
 		return
 	}
