@@ -230,10 +230,13 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	c.mkRec("mkGot", addr, i, reqId, ret, nil)
+	c.mkRec("mkGot", addr, i, reqId, ret, nil, j)
 }
 
-func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
+func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup, j int) {
+	if wg != nil {
+		defer wg.Done()
+	}
 	cn := c.Conns[addr][i]
 	cn.conn.SetReadDeadline(time.Now().Add(Timeout)) // Set deadline for response
 	defer cn.conn.SetReadDeadline(time.Time{})
@@ -311,7 +314,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			}
 			keyValuePairs = append(keyValuePairs, pair)
 		}
-		ret.Set(i, keyValuePairs)
+		ret.Set(j, keyValuePairs)
 	}else{
 		// Read value
 		valReader, err := c.Conns[addr][i].R.StreamBulk()
