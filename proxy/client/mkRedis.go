@@ -275,6 +275,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		ret.SetError(i, ErrUnexpectedResponse)
 		return
 	}
+	fmt.Println("respId=",respId)
 
 	chunkId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
@@ -286,11 +287,10 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		log.Debug("Abandon late chunk %d", i)
 		return
 	}
+	fmt.Println("chunkId=",chunkId)
 
 	if strings.Compare(prompt, "mkGot") == 0{
 		fmt.Println("Starting receiving")
-		a, _ := c.Conns[addr][i].R.ReadArrayLen()
-		fmt.Println("ArrayLen = ", a)
 		lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
 		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN)
 
