@@ -278,18 +278,18 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		return
 	}
 
-	chunkId, err := c.Conns[addr][i].R.ReadBulkString()
+	_, err = c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
 		fmt.Println("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		log.Warn("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
-	if chunkId == "-1" {
-		fmt.Println("Abandon late chunk %d", i)
-		log.Debug("Abandon late chunk %d", i)
-		return
-	}
+	//if chunkId == "-1" {
+	//	fmt.Println("Abandon late chunk %d", i)
+	//	log.Debug("Abandon late chunk %d", i)
+	//	return
+	//}
 
 	lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
 	var keyValuePairs []KeyValuePair

@@ -19,7 +19,10 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="" />
+    <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/types/response.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -81,10 +84,10 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="296" y="0" width="778" height="741" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1366.741@0.0.1366.741" timestamp="1593426946841" />
-    <state x="405" y="129" width="562" height="522" key="find.popup" timestamp="1593517718238">
+    <state x="405" y="129" width="562" height="522" key="find.popup" timestamp="1593522422953">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="405" y="129" width="562" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593517718238" />
+    <state x="405" y="129" width="562" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593522422953" />
     <state x="405" y="146" width="553" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587583594391" />
     <state x="429" y="174" width="505" height="399" key="search.everywhere.popup" timestamp="1587049369594">
       <screen x="0" y="22" width="1366" height="713" />
