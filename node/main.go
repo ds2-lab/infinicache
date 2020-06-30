@@ -453,12 +453,14 @@ func main() {
 		for i:=6;i<c.ArgN();i++{
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
-			log.Warn("Searching for key: " + lowLevelKey)
-			k, value, err := store.Get(lowLevelKey)
-			lowLevelKeyValuePairs[k] = value
-			if err != nil{
-				failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
-				tErr = err
+			if lowLevelKey != "" {
+				log.Warn("Searching for key: " + lowLevelKey)
+				k, value, err := store.Get(lowLevelKey)
+				lowLevelKeyValuePairs[k] = value
+				if err != nil {
+					failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
+					tErr = err
+				}
 			}
 		}
 
@@ -583,13 +585,11 @@ func main() {
 		chunkId := c.Arg(2).String()
 		key := c.Arg(3).String()
 		//values, _ := c.Arg(4).Int()
-
-		for i:=5; i < c.ArgN(); i++ {
-			fmt.Println("Arg", i, " - ", c.Arg(i).String())
-		}
+		var lowLevelKeys []string
 
 		for i:=5; i<c.ArgN(); i=i+2 {
 			lowLevelKey := c.Arg(i).String()
+			lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
 			fmt.Println("Setting %s@%s", key, lowLevelKey)
 			value := c.Arg(i+1).Bytes()
@@ -619,7 +619,7 @@ func main() {
 			return
 		}
 
-		log.Debug("mkSet complete, Key:%s, ConnID: %s, ChunkID: %s", key, connId, chunkId)
+		log.Debug("mkSet complete, Key:%s, ConnID: %s, ChunkID: %s, LowLevelKeys: %s", key, connId, chunkId, lowLevelKeys)
 		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
 	})
 
