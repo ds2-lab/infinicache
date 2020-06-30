@@ -332,7 +332,7 @@ func (conn *Connection) getHandler(start time.Time) {
 
 
 func (conn *Connection) mkGetHandler(start time.Time)  {
-	conn.log.Debug("GET from lambda.")
+	conn.log.Debug("mkGET from lambda %d", conn.instance.id)
 
 	// Exhaust all values to keep protocol aligned.
 	connId, _ := conn.r.ReadBulkString()
@@ -390,7 +390,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 	}
 
 
-	conn.log.Debug("GOT %v, confirmed.", rsp.Id)
+	conn.log.Debug("mkGOT %v, confirmed.", rsp.Id)
 	if req, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response
 		conn.log.Warn("LogProxy err in conn.mkGetHandler at conn.SetResponse",)

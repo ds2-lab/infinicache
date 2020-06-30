@@ -259,11 +259,6 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		return
 	}
 
-
-
-
-
-
 	respId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
 		log.Warn("Failed to read reqId on receiving chunk %d: %v", i, err)
@@ -298,9 +293,11 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		var err error
 		value, err = c.Conns[addr][i].R.ReadBulk(value)
 		if err != nil {
-			log.Warn("Error on geting value from chunk %d: %v", i, err)
+			log.Warn("Error on mkgeting value from chunk %d: %v", i, err)
 			c.setError(ret, addr, i, err)
 			return
+		}else{
+			log.Debug("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
 		}
 		pair := KeyValuePair{
 			Key: lowLevelKey,
