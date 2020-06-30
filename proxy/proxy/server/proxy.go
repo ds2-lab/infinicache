@@ -289,7 +289,7 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	dataChunks, _ := c.Arg(3).Int()
 	parityChunks, _ := c.Arg(4).Int()
 	lowLevelKeysN, _ := c.Arg(5).Int()
-	lowLevelKeys := make([]string, lowLevelKeysN)
+	var lowLevelKeys []string
 
 	for i:=6; i<c.ArgN() ;i++{
 		lowLevelKey := c.Arg(i).String()
@@ -316,7 +316,7 @@ func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {
 	lambdaDest := meta.Placement[dChunkId]
 
 	// Send request to lambda channel
-	p.log.Debug("Requesting to get %s, <%v>: %d", chunkKey, lowLevelKeys, lambdaDest)
+	p.log.Debug("Requesting to mkget %s, <%v>: %d", chunkKey, lowLevelKeys, lambdaDest)
 	p.group.Instance(lambdaDest).C() <- &types.Request{
 		Id:              types.Id{connId, reqId, chunkId},
 		Cmd:             strings.ToLower(c.Name),
