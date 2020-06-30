@@ -282,7 +282,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		return
 	}
 
-	if strings.Compare(prompt, "mkGet") == 0{
+	if strings.Compare(prompt, "mkGot") == 0{
 		fmt.Println("Starting receiving")
 
 		pairsN, _ := c.Conns[addr][i].R.ReadBulkString()
