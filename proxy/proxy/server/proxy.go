@@ -98,81 +98,6 @@ func (p *Proxy) Release() {
 	scheduler.Clear(p.group)
 }
 
-func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
-	client := redeo.GetClient(c.Context())
-	connId := int(client.ID())
-
-	// Get args
-	key := c.Arg(0).String()
-	dChunkId, _ := c.Arg(1).Int()
-	chunkId := strconv.FormatInt(dChunkId, 10)
-	lambdaId, _ := c.Arg(2).Int()
-	randBase, _ := c.Arg(3).Int()
-	reqId := c.Arg(4).String()
-	dataChunks, _ := c.Arg(5).Int()
-	parityChunks, _ := c.Arg(6).Int()
-	pairsN, _ := c.Arg(7).Int()
-
-	size := 0
-	lowLevelKeys := make([]string, pairsN)
-	var values [][]byte
-
-/*	for i := 8; i < c.ArgN(); i=i+1 {
-		fmt.Println("Arg", i, " - ", c.Arg(i).String())
-	}*/
-
-	for i := 8; i < c.ArgN(); i=i+2 {
-		lowLevelKey := c.Arg(i).String()
-		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
-		value := c.Arg(i+1).Bytes()
-		values = append(values, value)
-		size += len(value)
-	}
-
-	// Start counting time.
-	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
-		p.log.Warn("Fail to record start of request: %v", err)
-	}
-
-	// We don't use this for now
-	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataChunks), int(parityChunks), 0})
-
-	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
-	prepared := p.metaStore.NewMeta(
-		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), int64(size))
-
-	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
-
-	if meta.Deleted {
-		// Object may be evicted in somecase:
-		// 1: Some chunks were set.
-		// 2: Placer evicted this object (unlikely).
-		// 3: We got evicted meta.
-		p.log.Warn("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
-		w.AppendErrorf("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
-		w.Flush()
-		return
-	}
-	if postProcess != nil {
-		postProcess(p.dropEvicted)
-	}
-	chunkKey := meta.ChunkKey(int(dChunkId))
-	lambdaDest := meta.Placement[dChunkId]
-
-	// Send chunk to the corresponding lambda instance in group
-	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, lowLevelKeys, lambdaDest)
-	p.group.Instance(lambdaDest).C() <- &types.Request{
-		Id:              types.Id{connId, reqId, chunkId},
-		Cmd:             strings.ToLower(c.Name),
-		Key:             chunkKey,
-		LowLevelKeys:    lowLevelKeys,
-		LowLevelValues:  values,
-		ChanResponse:    client.Responses(),
-		EnableCollector: true,
-	}
-	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
-}
-
 // from client
 func (p *Proxy) HandleSet(w resp.ResponseWriter, c *resp.CommandStream) {
 	client := redeo.GetClient(c.Context())
@@ -277,6 +202,81 @@ func (p *Proxy) HandleGet(w resp.ResponseWriter, c *resp.Command) {
 		ChanResponse: client.Responses(),
 		EnableCollector: true,
 	}
+}
+
+func (p *Proxy) HandleMkSet(w resp.ResponseWriter, c *resp.Command) {
+	client := redeo.GetClient(c.Context())
+	connId := int(client.ID())
+
+	// Get args
+	key := c.Arg(0).String()
+	dChunkId, _ := c.Arg(1).Int()
+	chunkId := strconv.FormatInt(dChunkId, 10)
+	lambdaId, _ := c.Arg(2).Int()
+	randBase, _ := c.Arg(3).Int()
+	reqId := c.Arg(4).String()
+	dataChunks, _ := c.Arg(5).Int()
+	parityChunks, _ := c.Arg(6).Int()
+	// pairsN, _ := c.Arg(7).Int()
+
+	size := 0
+	var lowLevelKeys []string
+	var values [][]byte
+
+	for i := 8; i < c.ArgN(); i=i+1 {
+		p.log.Debug("Req", reqId, "Arg", i, " - ", c.Arg(i).String())
+	}
+
+	for i := 8; i < c.ArgN(); i=i+2 {
+		lowLevelKey := c.Arg(i).String()
+		lowLevelKeys = append(lowLevelKeys, lowLevelKey)
+		value := c.Arg(i+1).Bytes()
+		values = append(values, value)
+		size += len(value)
+	}
+
+	// Start counting time.
+	if err := collector.Collect(collector.LogStart, "set", reqId, chunkId, time.Now().UnixNano()); err != nil {
+		p.log.Warn("Fail to record start of request: %v", err)
+	}
+
+	// We don't use this for now
+	// global.ReqMap.GetOrInsert(reqId, &types.ClientReqCounter{"set", int(dataChunks), int(parityChunks), 0})
+
+	// Check if the chunk key(key + chunkId) exists, base of slice will only be calculated once.
+	prepared := p.metaStore.NewMeta(
+		key, int(randBase), int(dataChunks+parityChunks), int(dChunkId), int(lambdaId), int64(size))
+
+	meta, _, postProcess := p.metaStore.GetOrInsert(key, prepared)
+
+	if meta.Deleted {
+		// Object may be evicted in somecase:
+		// 1: Some chunks were set.
+		// 2: Placer evicted this object (unlikely).
+		// 3: We got evicted meta.
+		p.log.Warn("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.AppendErrorf("KEY %s@%s not set to lambda store, may got evicted before all chunks are set.", chunkId, key)
+		w.Flush()
+		return
+	}
+	if postProcess != nil {
+		postProcess(p.dropEvicted)
+	}
+	chunkKey := meta.ChunkKey(int(dChunkId))
+	lambdaDest := meta.Placement[dChunkId]
+
+	// Send chunk to the corresponding lambda instance in group
+	p.log.Debug("Requesting to mkset %s and low-level-keys %v on Lambda %d", chunkKey, lowLevelKeys, lambdaDest)
+	p.group.Instance(lambdaDest).C() <- &types.Request{
+		Id:              types.Id{connId, reqId, chunkId},
+		Cmd:             strings.ToLower(c.Name),
+		Key:             chunkKey,
+		LowLevelKeys:    lowLevelKeys,
+		LowLevelValues:  values,
+		ChanResponse:    client.Responses(),
+		EnableCollector: true,
+	}
+	// p.log.Debug("KEY is", key.String(), "IN SET UPDATE, reqId is", reqId, "connId is", connId, "chunkId is", chunkId, "lambdaStore Id is", lambdaId)
 }
 
 func (p *Proxy) HandleMkGet(w resp.ResponseWriter, c *resp.Command) {

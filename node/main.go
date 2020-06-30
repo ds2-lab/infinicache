@@ -359,6 +359,70 @@ func byeHandler(conn net.Conn) error {
 
 func main() {
 	// Define handlers
+
+	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
+		}
+		defer session.Timeout.DoneBusyWithReset(extension)
+
+		// t := time.Now()
+		log.Debug("In SET handler")
+
+		connId, _ := c.NextArg().String()
+		reqId, _ := c.NextArg().String()
+		chunkId, _ := c.NextArg().String()
+		key, _ := c.NextArg().String()
+		valReader, err := c.Next()
+		if err != nil {
+			log.Error("Error on get value reader: %v", err)
+			w.AppendErrorf("Error on get value reader: %v", err)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush(error 500): %v", err)
+			}
+			return
+		}
+		// val, err := valReader.ReadAll()
+		// if err != nil {
+		// 	log.Error("Error on get value: %v", err)
+		// 	w.AppendErrorf("Error on get value: %v", err)
+		// 	if err := w.Flush(); err != nil {
+		// 		log.Error("Error on flush(error 500): %v", err)
+		// 	}
+		// 	return
+		// }
+		err = store.SetStream(key, chunkId, valReader)
+		if err != nil {
+			log.Error("%v", err)
+			w.AppendErrorf("%v", err)
+			if err := w.Flush(); err != nil {
+				log.Error("Error on flush(error 500): %v", err)
+			}
+			return
+		}
+
+		// write Key, clientId, chunkId, body back to proxy
+		response := &types.Response{
+			ResponseWriter: w,
+			Cmd:            "set",
+			ConnId:         connId,
+			ReqId:          reqId,
+			ChunkId:        chunkId,
+		}
+		response.Prepare()
+		if err := response.Flush(); err != nil {
+			log.Error("Error on set::flush(set key %s): %v", key, err)
+			return
+		}
+
+		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s", key, connId, chunkId)
+		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
+	})
+
 	srv.HandleFunc("get", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
 		session.Timeout.Busy()
@@ -426,6 +490,66 @@ func main() {
 		}
 	})
 
+	srv.HandleFunc("mkset", func(w resp.ResponseWriter, c *resp.Command) {
+		session := lambdaLife.GetSession()
+		session.Timeout.Busy()
+		session.Requests++
+		extension := lambdaLife.TICK_ERROR
+		if session.Requests > 1 {
+			extension = lambdaLife.TICK
+		}
+		defer session.Timeout.DoneBusyWithReset(extension)
+
+		// t := time.Now()
+		log.Debug("In MKSET handler")
+
+		connId := c.Arg(0).String()
+		reqId := c.Arg(1).String()
+		chunkId := c.Arg(2).String()
+		key := c.Arg(3).String()
+		//values, _ := c.Arg(4).Int()
+		var lowLevelKeys []string
+
+		for i:=0; i<c.ArgN(); i++{
+			log.Debug("Req", reqId, "Arg", i, c.Arg(i))
+		}
+
+		for i:=5; i<c.ArgN(); i=i+2 {
+			lowLevelKey := c.Arg(i).String()
+			lowLevelKeys = append(lowLevelKeys, lowLevelKey)
+			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
+			log.Debug("Setting %s@%s", key, lowLevelKey)
+			value := c.Arg(i+1).Bytes()
+
+			err := store.Set(chunkKey, chunkKey, value)
+			if err != nil {
+				log.Error("%v", err)
+				w.AppendErrorf("%v", err)
+				if err := w.Flush(); err != nil {
+					log.Error("Error on flush(error 500): %v", err)
+				}
+				return
+			}
+		}
+
+		// write Key, clientId, chunkId, body back to proxy
+		response := &types.Response{
+			ResponseWriter: w,
+			Cmd:            "mkset",
+			ConnId:         connId,
+			ReqId:          reqId,
+			ChunkId:        chunkId,
+		}
+		response.Prepare()
+		if err := response.Flush(); err != nil {
+			log.Error("Error on mkSet::flush(set key %s): %v", key, err)
+			return
+		}
+
+		log.Debug("mkSet complete, Key:%s, ConnID: %s, ChunkID: %s, LowLevelKeys: %s", key, connId, chunkId, lowLevelKeys)
+		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
+	})
+
 	srv.HandleFunc("mkget", func(w resp.ResponseWriter, c *resp.Command) {
 		session := lambdaLife.GetSession()
 		session.Timeout.Busy()
@@ -453,14 +577,11 @@ func main() {
 		for i:=6;i<c.ArgN();i++{
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
-			if lowLevelKey != "" {
-				log.Warn("Searching for key: " + lowLevelKey)
-				k, value, err := store.Get(lowLevelKey)
-				lowLevelKeyValuePairs[k] = value
-				if err != nil {
-					failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
-					tErr = err
-				}
+			k, value, err := store.Get(lowLevelKey)
+			lowLevelKeyValuePairs[k] = value
+			if err != nil {
+				failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
+				tErr = err
 			}
 		}
 
@@ -502,125 +623,6 @@ func main() {
 		log.Debug("Total duration is %v", dt)
 		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkIDs:[%s]", key, connId, printKeys(lowLevelKeyValuePairs))
 		// collector.Send(&types.DataEntry{types.OP_GET, "200", reqId, chunkId, d2, d3, dt, session.Id})
-	})
-
-	srv.HandleStreamFunc("set", func(w resp.ResponseWriter, c *resp.CommandStream) {
-		session := lambdaLife.GetSession()
-		session.Timeout.Busy()
-		session.Requests++
-		extension := lambdaLife.TICK_ERROR
-		if session.Requests > 1 {
-			extension = lambdaLife.TICK
-		}
-		defer session.Timeout.DoneBusyWithReset(extension)
-
-		// t := time.Now()
-		log.Debug("In SET handler")
-
-		connId, _ := c.NextArg().String()
-		reqId, _ := c.NextArg().String()
-		chunkId, _ := c.NextArg().String()
-		key, _ := c.NextArg().String()
-		valReader, err := c.Next()
-		if err != nil {
-			log.Error("Error on get value reader: %v", err)
-			w.AppendErrorf("Error on get value reader: %v", err)
-			if err := w.Flush(); err != nil {
-				log.Error("Error on flush(error 500): %v", err)
-			}
-			return
-		}
-		// val, err := valReader.ReadAll()
-		// if err != nil {
-		// 	log.Error("Error on get value: %v", err)
-		// 	w.AppendErrorf("Error on get value: %v", err)
-		// 	if err := w.Flush(); err != nil {
-		// 		log.Error("Error on flush(error 500): %v", err)
-		// 	}
-		// 	return
-		// }
-		err = store.SetStream(key, chunkId, valReader)
-		if err != nil {
-			log.Error("%v", err)
-			w.AppendErrorf("%v", err)
-			if err := w.Flush(); err != nil {
-				log.Error("Error on flush(error 500): %v", err)
-			}
-			return
-		}
-
-		// write Key, clientId, chunkId, body back to proxy
-		response := &types.Response{
-			ResponseWriter: w,
-			Cmd:            "set",
-			ConnId:         connId,
-			ReqId:          reqId,
-			ChunkId:        chunkId,
-		}
-		response.Prepare()
-		if err := response.Flush(); err != nil {
-			log.Error("Error on set::flush(set key %s): %v", key, err)
-			return
-		}
-
-		log.Debug("Set complete, Key:%s, ConnID: %s, ChunkID: %s", key, connId, chunkId)
-		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
-	})
-
-	srv.HandleFunc("mkset", func(w resp.ResponseWriter, c *resp.Command) {
-		session := lambdaLife.GetSession()
-		session.Timeout.Busy()
-		session.Requests++
-		extension := lambdaLife.TICK_ERROR
-		if session.Requests > 1 {
-			extension = lambdaLife.TICK
-		}
-		defer session.Timeout.DoneBusyWithReset(extension)
-
-		// t := time.Now()
-		log.Debug("In MKSET handler")
-
-		connId := c.Arg(0).String()
-		reqId := c.Arg(1).String()
-		chunkId := c.Arg(2).String()
-		key := c.Arg(3).String()
-		//values, _ := c.Arg(4).Int()
-		var lowLevelKeys []string
-
-		for i:=5; i<c.ArgN(); i=i+2 {
-			lowLevelKey := c.Arg(i).String()
-			lowLevelKeys = append(lowLevelKeys, lowLevelKey)
-			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
-			fmt.Println("Setting %s@%s", key, lowLevelKey)
-			value := c.Arg(i+1).Bytes()
-
-			err := store.Set(chunkKey, chunkKey, value)
-			if err != nil {
-				log.Error("%v", err)
-				w.AppendErrorf("%v", err)
-				if err := w.Flush(); err != nil {
-					log.Error("Error on flush(error 500): %v", err)
-				}
-				return
-			}
-		}
-
-		// write Key, clientId, chunkId, body back to proxy
-		response := &types.Response{
-			ResponseWriter: w,
-			Cmd:            "mkset",
-			ConnId:         connId,
-			ReqId:          reqId,
-			ChunkId:        chunkId,
-		}
-		response.Prepare()
-		if err := response.Flush(); err != nil {
-			log.Error("Error on mkSet::flush(set key %s): %v", key, err)
-			return
-		}
-
-		log.Debug("mkSet complete, Key:%s, ConnID: %s, ChunkID: %s, LowLevelKeys: %s", key, connId, chunkId, lowLevelKeys)
-		// collector.Send(&types.DataEntry{types.OP_SET, "200", reqId, chunkId, 0, 0, time.Since(t), session.Id})
 	})
 
 	srv.HandleFunc("del", func(w resp.ResponseWriter, c *resp.Command) {
