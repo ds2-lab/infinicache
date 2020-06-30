@@ -339,6 +339,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 	reqId, _ := conn.r.ReadBulkString()
 	chunkId, _ := conn.r.ReadBulkString()
 	lowLevelKeysN, _ := conn.r.ReadInt()
+
 	lowLevelKeyPairs := make(map[string][]byte)
 	for i:=0;i<int(lowLevelKeysN);i++{
 		lowLevelKey, _ := conn.r.ReadBulkString()
@@ -346,6 +347,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 		lowLevelValue, _ = conn.r.ReadBulk(lowLevelValue)
 		lowLevelKeyPairs[lowLevelKey] = lowLevelValue
 	}
+	conn.log.Debug("received: %v", lowLevelKeyPairs)
 	counter, ok := global.ReqMap.Get(reqId)
 	if ok == false {
 		conn.log.Warn("Request not found: %s", reqId)
@@ -367,7 +369,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 	// Check if chunks are enough? Shortcut response if YES.
 	if int(lowLevelKeysN) > counter.(*types.ClientReqCounter).LowLevelKeysN {
 		abandon = true
-		conn.log.Debug("GOT %v, abandon.", rsp.Id)
+		conn.log.Debug("MKGOT %v, abandon.", rsp.Id)
 		req, ok := conn.SetResponse(rsp)
 		if ok && req.EnableCollector {
 			err := collector.Collect(collector.LogProxy, rsp.Cmd, rsp.Id.ReqId, rsp.Id.ChunkId, start.UnixNano(), int64(time.Since(start)), int64(0))

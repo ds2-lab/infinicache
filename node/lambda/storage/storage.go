@@ -24,6 +24,11 @@ func (s *Storage) Get(key string) (string, []byte, error) {
 		return "", nil, types.ErrNotFound
 	}
 
+	fmt.Println("Store after GET:")
+	for _, x := range s.repo{
+		fmt.Println(x.Key)
+	}
+
 	return chunk.Id, chunk.Access(), nil
 }
 

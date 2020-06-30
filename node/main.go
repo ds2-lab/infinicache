@@ -518,8 +518,9 @@ func main() {
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKeys = append(lowLevelKeys, lowLevelKey)
 			chunkKey := fmt.Sprintf("%s@%s", key, lowLevelKey)
-			log.Debug("Setting %s@%s", key, lowLevelKey)
 			value := c.Arg(i+1).Bytes()
+
+			log.Debug("Setting < %s , %s >", chunkKey, string(value))
 
 			err := store.Set(chunkKey, chunkKey, value)
 			if err != nil {
@@ -567,14 +568,18 @@ func main() {
 		reqId := c.Arg(1).String()
 		chunkId := c.Arg(2).String()
 		key := c.Arg(4).String()
-		lowLevelKeysN, _ := c.Arg(5).Int()
-		lowLevelKeyValuePairs := make(map[string][]byte, lowLevelKeysN)
+		// lowLevelKeysN, _ := c.Arg(5).Int()
+		lowLevelKeyValuePairs := make(map[string][]byte)
 		log.Warn("ArgN=%v", c.ArgN())
+
+		for i:=0; i<c.ArgN(); i++{
+			log.Debug("Req", reqId, "Arg", i, c.Arg(i))
+		}
 
 		var failedLowLevelKeys []string
 		var tErr error
 
-		for i:=6;i<c.ArgN();i++{
+		for i:=7;i<c.ArgN();i++{
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
 			k, value, err := store.Get(lowLevelKey)
@@ -582,10 +587,11 @@ func main() {
 			if err != nil {
 				failedLowLevelKeys = append(failedLowLevelKeys, lowLevelKey)
 				tErr = err
+				log.Debug("Not Found < %s >", lowLevelKey)
+			}else{
+				log.Debug("Found < %s , %s >", lowLevelKey, value)
 			}
 		}
-
-		fmt.Println("Failed, ", failedLowLevelKeys)
 
 		if tErr != nil {
 			var respError *types.ResponseError
