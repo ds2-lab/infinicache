@@ -21,7 +21,7 @@
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/example/mainMK_get.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/mainMK_get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/types/response.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
