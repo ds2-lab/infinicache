@@ -23,7 +23,7 @@ type Response struct {
 
 func (rsp *Response) PrepareFor(w resp.ResponseWriter) {
 	w.AppendBulkString(rsp.Id.ReqId)
-	if rsp.Body == nil && rsp.BodyStream == nil {
+	if rsp.Body == nil && rsp.BodyStream == nil && rsp.LowLevelKeyValuePairs == nil {
 		w.AppendBulkString("-1")
 	} else {
 		w.AppendBulkString(rsp.Id.ChunkId)

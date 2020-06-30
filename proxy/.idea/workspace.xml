@@ -20,7 +20,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/mkRedis.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy/types/response.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/types/response.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -157,10 +159,10 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="100" y="100" width="1166" height="541" key="com.intellij.history.integration.ui.views.DirectoryHistoryDialog/0.0.1366.741@0.0.1366.741" timestamp="1593018989583" />
-    <state x="467" y="133" width="863" height="522" key="find.popup" timestamp="1593517093968">
+    <state x="467" y="133" width="863" height="522" key="find.popup" timestamp="1593519343572">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="467" y="133" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593517093968" />
+    <state x="467" y="133" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593519343572" />
     <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
     <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1592988042666">
       <screen x="0" y="0" width="1366" height="741" />
