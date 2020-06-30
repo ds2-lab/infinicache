@@ -291,14 +291,14 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 
 	if strings.Compare(prompt, "mkGot") == 0{
 		fmt.Println("Starting receiving")
-		lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN)
+		lowLevelKeyValuePairsN, err := c.Conns[addr][i].R.ReadInt()
+		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
 
-		lowLevelKeyValuePairsN, _ = c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN)
+		lowLevelKeyValuePairsN, err = c.Conns[addr][i].R.ReadInt()
+		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
 
-		lowLevelKeyValuePairsN, _ = c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN)
+		lowLevelKeyValuePairsN, err = c.Conns[addr][i].R.ReadInt()
+		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
 
 		var keyValuePairs []KeyValuePair
 
