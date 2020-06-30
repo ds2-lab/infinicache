@@ -294,15 +294,9 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		lowLevelKeyValuePairsN, err := c.Conns[addr][i].R.ReadInt()
 		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
 
-		lowLevelKeyValuePairsN, err = c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
-
-		lowLevelKeyValuePairsN, err = c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
-
 		var keyValuePairs []KeyValuePair
 
-		for i:=0; i<int(lowLevelKeyValuePairsN); i++ {
+		for m:=0; m<int(lowLevelKeyValuePairsN); m++ {
 			lowLevelKey, _ := c.Conns[addr][i].R.ReadBulkString()
 			var value []byte
 			var err error
