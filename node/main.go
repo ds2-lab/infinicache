@@ -569,7 +569,7 @@ func main() {
 		var failedLowLevelKeys []string
 		var tErr error
 
-		for i:=7;i<c.ArgN();i++{
+		for i:=6;i<c.ArgN();i++{
 			lowLevelKey := c.Arg(i).String()
 			lowLevelKey = fmt.Sprintf("%s@%s", key, lowLevelKey)
 			k, value, err := store.Get(lowLevelKey)
@@ -617,7 +617,7 @@ func main() {
 		dt := time.Since(t)
 		log.Debug("Streaming duration is %v", d3)
 		log.Debug("Total duration is %v", dt)
-		log.Debug("Get complete, Key: %s, ConnID:%s, ChunkIDs:[%s]", key, connId, printKeys(lowLevelKeyValuePairs))
+		log.Debug("mkGet complete, Key: %s, ConnID:%s, ChunkIDs:[%s]", key, connId, printKeys(lowLevelKeyValuePairs))
 		// collector.Send(&types.DataEntry{types.OP_GET, "200", reqId, chunkId, d2, d3, dt, session.Id})
 	})
 

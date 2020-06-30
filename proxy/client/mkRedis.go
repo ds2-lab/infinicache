@@ -297,7 +297,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			c.setError(ret, addr, i, err)
 			return
 		}else{
-			log.Debug("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
+			fmt.Println("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
 		}
 		pair := KeyValuePair{
 			Key: lowLevelKey,
