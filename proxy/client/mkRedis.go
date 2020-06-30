@@ -293,6 +293,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		var err error
 		value, err = c.Conns[addr][i].R.ReadBulk(value)
 		if err != nil {
+			fmt.Println("Error on mkgeting value from chunk %d: %v", i, err)
 			log.Warn("Error on mkgeting value from chunk %d: %v", i, err)
 			c.setError(ret, addr, i, err)
 			return
