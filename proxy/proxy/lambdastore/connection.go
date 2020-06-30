@@ -382,7 +382,6 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 	rsp.Id.ChunkId = chunkId
 	rsp.LowLevelKeyValuePairs = lowLevelKeyPairs
 
-
 	conn.log.Debug("mkGOT %v, confirmed.", rsp.Id)
 	if req, ok := conn.SetResponse(rsp); !ok {
 		// Failed to set response

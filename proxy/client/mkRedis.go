@@ -9,6 +9,7 @@ import (
 	"github.com/mason-leap-lab/redeo/resp"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -183,7 +184,7 @@ func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambd
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated setting %d@%s(%s)", i, key, addr)
-	c.mkRec("Set", addr, i, reqId, ret, nil)
+	c.mkRec("mkSet", addr, i, reqId, ret, nil)
 }
 
 func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interface, reqId string, wg *sync.WaitGroup, ret *ecRet) {
@@ -231,10 +232,6 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 }
 
 func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecRet, wg *sync.WaitGroup) {
-	if wg != nil {
-		defer wg.Done()
-	}
-
 	cn := c.Conns[addr][i]
 	cn.conn.SetReadDeadline(time.Now().Add(Timeout)) // Set deadline for response
 	defer cn.conn.SetReadDeadline(time.Time{})
@@ -244,7 +241,6 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 	type0, err := cn.R.PeekType()
 	if err != nil {
 		log.Warn("PeekType error on receiving chunk %d: %v", i, err)
-		fmt.Println("PeekType error on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
@@ -256,7 +252,6 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			err = errors.New(strErr)
 		}
 		log.Warn("Error on receiving chunk %d: %v", i, err)
-		fmt.Println("Error on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
@@ -264,12 +259,10 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 	respId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
 		log.Warn("Failed to read reqId on receiving chunk %d: %v", i, err)
-		fmt.Println("Failed to read reqId on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
 	if respId != reqId {
-		fmt.Println("Unexpected response %s, want %s, chunk %d", respId, reqId, i)
 		log.Warn("Unexpected response %s, want %s, chunk %d", respId, reqId, i)
 		// Skip fields
 		_, _ = c.Conns[addr][i].R.ReadBulkString()
@@ -278,43 +271,64 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		return
 	}
 
-	_, err = c.Conns[addr][i].R.ReadBulkString()
+	chunkId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
-		fmt.Println("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		log.Warn("Failed to read chunkId on receiving chunk %d: %v", i, err)
 		c.setError(ret, addr, i, err)
 		return
 	}
-	//if chunkId == "-1" {
-	//	fmt.Println("Abandon late chunk %d", i)
-	//	log.Debug("Abandon late chunk %d", i)
-	//	return
-	//}
+	if chunkId == "-1" {
+		log.Debug("Abandon late chunk %d", i)
+		return
+	}
 
-	lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
-	var keyValuePairs []KeyValuePair
-	for i:=0; i<int(lowLevelKeyValuePairsN); i++ {
-		lowLevelKey, _ := c.Conns[addr][i].R.ReadBulkString()
-		var value []byte
-		var err error
-		value, err = c.Conns[addr][i].R.ReadBulk(value)
+	if strings.Compare(prompt, "mkGet") == 0{
+		fmt.Println("Starting receiving")
+
+		pairsN, _ := c.Conns[addr][i].R.ReadBulkString()
+		fmt.Print("pairN", pairsN)
+		lowLevelKeyValuePairsN, _ := strconv.Atoi(pairsN)
+		var keyValuePairs []KeyValuePair
+
+		for i:=0; i<int(lowLevelKeyValuePairsN); i++ {
+			lowLevelKey, _ := c.Conns[addr][i].R.ReadBulkString()
+			var value []byte
+			var err error
+			value, err = c.Conns[addr][i].R.ReadBulk(value)
+			if err != nil {
+				fmt.Println("Error on mkgeting value from chunk %d: %v", i, err)
+				log.Warn("Error on mkgeting value from chunk %d: %v", i, err)
+				c.setError(ret, addr, i, err)
+				return
+			}else{
+				fmt.Println("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
+			}
+			pair := KeyValuePair{
+				Key: lowLevelKey,
+				Value: value,
+			}
+			keyValuePairs = append(keyValuePairs, pair)
+		}
+		ret.Set(i, keyValuePairs)
+	}else{
+		// Read value
+		valReader, err := c.Conns[addr][i].R.StreamBulk()
 		if err != nil {
-			fmt.Println("Error on mkgeting value from chunk %d: %v", i, err)
-			log.Warn("Error on mkgeting value from chunk %d: %v", i, err)
+			log.Warn("Error on get value reader on receiving chunk %d: %v", i, err)
 			c.setError(ret, addr, i, err)
 			return
-		}else{
-			fmt.Println("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
 		}
-		pair := KeyValuePair{
-			Key: lowLevelKey,
-			Value: value,
+		val, err := valReader.ReadAll()
+		if err != nil {
+			log.Error("Error on get value on receiving chunk %d: %v", i, err)
+			c.setError(ret, addr, i, err)
+			return
 		}
-		keyValuePairs = append(keyValuePairs, pair)
+
+		ret.Set(i, val)
 	}
 
 	log.Debug("%s chunk %d", prompt, i)
-	ret.Set(i, keyValuePairs)
 }
 
 func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byte, failed []int) {
