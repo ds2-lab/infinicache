@@ -96,7 +96,7 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 	return stats.ReqId, true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup, args ...interface{}) []KeyValuePair {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -111,7 +111,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup, args ...
 	j := 0
 	for i, v := range locations {
 		wg.Add(1)
-		go c.mkGet(host, highLevelKey, i, v, stats.ReqId, &wg, ret, j)
+		go c.mkGet(host, highLevelKey, j, v, stats.ReqId, &wg, ret, i)
 		j++
 	}
 	wg.Wait()
@@ -208,16 +208,16 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 	w.WriteMultiBulkSize(7+lowLevelKeys.Size())
 	w.WriteBulkString("mkget")
 	w.WriteBulkString(key)
-	w.WriteBulkString(strconv.Itoa(i))
+	w.WriteBulkString(strconv.Itoa(j))
 	w.WriteBulkString(reqId)
 	w.WriteBulkString(strconv.Itoa(c.MKReplicationFactors[0]))
 	w.WriteBulkString(strconv.Itoa(0))
 	w.WriteBulkString(strconv.Itoa(lowLevelKeys.Size()))
 	lowLevelKeysList := lowLevelKeys.List()
 	fmt.Println("Client is requesting")
-	for i := 0; i < len(lowLevelKeysList); i++ {
-		fmt.Println("key", lowLevelKeysList[i].(string))
-		w.WriteBulkString(lowLevelKeysList[i].(string))
+	for m := 0; m < len(lowLevelKeysList); m++ {
+		fmt.Println("key", lowLevelKeysList[m].(string))
+		w.WriteBulkString(lowLevelKeysList[m].(string))
 	}
 
 	// Flush pipeline
@@ -315,7 +315,7 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			}
 			keyValuePairs = append(keyValuePairs, pair)
 		}
-		ret.Set(j, keyValuePairs)
+		ret.Set(i, keyValuePairs)
 	}else{
 		// Read value
 		valReader, err := c.Conns[addr][i].R.StreamBulk()
