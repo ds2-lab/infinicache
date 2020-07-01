@@ -179,12 +179,14 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		return stats.ReqId, nil, false
 	}
 
+	fmt.Println("Finished to decode")
+
 	end := time.Now()
 	stats.Duration = end.Sub(stats.Begin)
 	nanolog.Log(LogClient, "get", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(0), int64(stats.RecLatency), int64(end.Sub(decodeStart)),
 		stats.AllGood, stats.Corrupted)
-	log.Info("Got %s %d ( %d %d )", key, stats.Duration, int64(stats.RecLatency), int64(end.Sub(decodeStart)))
+	fmt.Println("Got", key, stats.Duration, int64(stats.RecLatency), int64(end.Sub(decodeStart)))
 
 	// Try recover
 	if len(failed) > 0 {
