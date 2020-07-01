@@ -86,7 +86,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 		int64(stats.Duration), int64(stats.ReqLatency), int64(0), int64(0),
 		false, false)
 	fmt.Println("mkset ", stats.ReqId, stats.Begin.UnixNano(),
-		stats.Duration, int64(stats.Duration), int64(0), int64(stats.RecLatency),
+		stats.Duration, float64(stats.Duration), int64(0), int64(stats.RecLatency),
 		stats.AllGood, stats.Corrupted)
 
 	if placements != nil {
