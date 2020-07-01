@@ -5,37 +5,26 @@ import (
 	"github.com/fatih/set"
 	"github.com/neboduus/infinicache/proxy/client"
 	"math/rand"
+	"strings"
 )
 
 func main() {
-	var data [3]client.KVGetGroup
-	var g1 = []string{"k1", "k2", "k3"}
-	var g2 = []string{"k4", "k5", "k6"}
-	var g3 = []string{"k7", "k8", "k9"}
 
+	var addrList = "10.4.0.100:6378"
 
-	data[0] = client.KVGetGroup{
-		Keys: g1,
-	}
+	// parse server address
+	addrArr := strings.Split(addrList, ",")
 
-	data[1] = client.KVGetGroup{
-		Keys: g2,
-	}
+	// initial new ecRedis client
+	cli := client.NewClient(10, 2, 32, 3)
+	cli.Dial(addrArr)
+	var data [][3]client.KVSetGroup
 
-	data[2] = client.KVGetGroup{
-		Keys: g3,
-	}
+	d := cli.GenerateSetData()
+	data = append(data, d)
 
-	m := locateLowLevelKeys(data)
-	fmt.Println(m)
-	fmt.Println(len(m))
-
-	s := set.New(set.ThreadSafe)
-	s.Add("ciaoo")
-	lowLevelKeysList := s.List()
-	for i := 0; i < len(lowLevelKeysList); i++ {
-		fmt.Println(lowLevelKeysList[i].(string))
-	}
+	gData := cli.GenerateRandomGet(data)
+	fmt.Println(locateLowLevelKeys(gData[0]))
 }
 
 func locateLowLevelKeys(groups [3]client.KVGetGroup) map[int]set.Interface {

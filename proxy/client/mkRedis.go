@@ -107,7 +107,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyVa
 
 	// Send request and wait
 	var wg sync.WaitGroup
-	locations := locateLowLevelKeys(lowLevelKeys)
+	locations := c.LocateLowLevelKeys(lowLevelKeys)
 	ret := newEcRet(len(locations))
 	j := 0
 	for i, v := range locations {
@@ -130,7 +130,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyVa
 		}
 	}
 
-	keyValuePairs := reasemble(chunks)
+	keyValuePairs := c.Reasemble(chunks)
 	// Try recover
 	if len(failed) > 0 {
 		// c.recover(host, highLevelKey, uuid.New().String(), chunks, failed)
@@ -362,7 +362,7 @@ func replicate(groups [3]KVSetGroup, n int) []KVSetGroup {
 	return replicas
 }
 
-func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
+func (c *Client) LocateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 	var replicas [3]int
 	var m map[int]set.Interface
 
@@ -389,7 +389,7 @@ func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 	return m
 }
 
-func reasemble(keyValuePairs [][]KeyValuePair) (assembled []KeyValuePair) {
+func (c *Client) Reasemble(keyValuePairs [][]KeyValuePair) (assembled []KeyValuePair) {
 	for _, kvps := range keyValuePairs {
 		for _, kvp := range kvps {
 			assembled = append(assembled, kvp)

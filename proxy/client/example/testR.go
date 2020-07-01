@@ -26,7 +26,7 @@ func main() {
 	var setStats []float32
 	var getStats []float32
 
-	for k:=0; k<1000; k++{
+	for k:=0; k<500; k++{
 		key := "foo" + strconv.Itoa(k)
 		if _, stats, ok := cli.RSet(key, val); !ok {
 			log.Fatal("Failed to set ", key)

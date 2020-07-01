@@ -23,7 +23,7 @@ func main() {
 
 	var setStats []float32
 
-	for k:=0; k<1000; k++{
+	for k:=0; k<500; k++{
 		d := cli.GenerateSetData()
 		data = append(data, d)
 		if _, stats, ok := cli.MkSet("foo", d); !ok {
@@ -37,7 +37,7 @@ func main() {
 	var getStats []float32
 	getData := cli.GenerateRandomGet(data)
 	fmt.Println(len(data), " ", len(getData))
-	return
+
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
 		if res, stats, ok := cli.MkGet("foo", d); !ok {
