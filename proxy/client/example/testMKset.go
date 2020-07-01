@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var i = 1
@@ -41,7 +42,7 @@ func main() {
 		}
 	}
 
-	fmt.Println("Average SET time: %d", average(setStats))
+	fmt.Println("Average SET time: %d", toMillisec(average(setStats)))
 
 
 }
@@ -69,4 +70,8 @@ func average(xs[]int64)int64 {
 		total +=v
 	}
 	return total/int64(len(xs))
+}
+
+func toMillisec(m int64) time.Time {
+	return time.Unix(0, m * int64(time.Millisecond))
 }
