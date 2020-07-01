@@ -27,17 +27,21 @@ func main() {
 	cli.Dial(addrArr)
 	var data [][]client.KVSetGroup
 
+	var setStats []int64
+
 	for k:=0; k<200; k++{
 		d := generateSetData()
 		data = append(data, d)
-		if _, ok := cli.MkSet("foo", d); !ok {
+		if _, stats, ok := cli.MkSet("foo", d); !ok {
 			log.Fatal("Failed to SET %v", d)
 			return
 		}else{
+			setStats = append(setStats, stats)
 			fmt.Println("Successfull SET %v", d)
 		}
 	}
 
+	fmt.Println("Average SET time: %d", average(setStats))
 
 
 }
@@ -57,4 +61,12 @@ func generateSetData() []client.KVSetGroup{
 		}
 	}
 	return data
+}
+
+func average(xs[]int64)int64 {
+	total:=int64(0)
+	for _,v:=range xs {
+		total +=v
+	}
+	return total/int64(len(xs))
 }

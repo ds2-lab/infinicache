@@ -27,7 +27,7 @@ type KVGetGroup struct {
 	Keys []string
 }
 
-func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface{}) (string, bool) {
+func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface{}) (string, int64, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -95,7 +95,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 		}
 	}
 
-	return stats.ReqId, true
+	return stats.ReqId, stats.Duration.Milliseconds(), true
 }
 
 func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
