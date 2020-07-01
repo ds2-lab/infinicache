@@ -23,7 +23,7 @@ func main() {
 
 	var setStats []float32
 
-	for k:=0; k<200; k++{
+	for k:=0; k<1000; k++{
 		d := cli.GenerateSetData()
 		data = append(data, d)
 		if _, stats, ok := cli.MkSet("foo", d); !ok {

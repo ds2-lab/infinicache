@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
-	"strconv"
 	"strings"
 )
 
@@ -23,34 +22,25 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var setStats []float32
-	var getStats []float32
 
-	for k:=0; k<200; k++{
-		key := "foo" + strconv.Itoa(k)
-		if _, stats, ok := cli.RSet(key, val); !ok {
-			log.Fatal("Failed to set ", key)
-			return
-		}else{
-			fmt.Println("Succesfully Set")
-			setStats = append(setStats, stats)
-		}
-
-		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
-			log.Fatal("Failed to get ", key)
-			return
-		} else {
-			buf := new(bytes.Buffer)
-			buf.ReadFrom(reader)
-			reader.Close()
-			s := buf.String()
-			fmt.Println("received value: ", s)
-			getStats = append(getStats, stats)
-		}
+	key := "foo"
+	if _, _, ok := cli.RSet(key, val); !ok {
+		log.Fatal("Failed to set ", key)
+		return
+	}else{
+		fmt.Println("Succesfully Set")
 	}
 
-	fmt.Println("Average mkSET time: ", cli.Average(setStats))
-	fmt.Println("Average mkGET time: ", cli.Average(getStats))
+	if _, reader, _, ok := cli.RGet(key, len(val)); !ok {
+		log.Fatal("Failed to get ", key)
+		return
+	} else {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(reader)
+		reader.Close()
+		s := buf.String()
+		fmt.Println("received value: ", s)
+	}
 
 
 }
