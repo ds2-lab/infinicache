@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
@@ -28,15 +27,10 @@ func main() {
 		return
 	}
 
-	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
+	if _, _, ok := cli.EcGet("foo", 1024); !ok {
 		log.Fatal("Failed to get")
 	} else {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(reader)
-		reader.Close()
-		s := buf.String()
-		fmt.Println("received value: ")
-		fmt.Println(s)
+		fmt.Println("Successfull GET")
 	}
 	return
 }
