@@ -20,8 +20,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/mainMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/mainMK.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/mainMK_get.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/mainMK_set.go" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,6 +98,15 @@
     <option name="version" value="2" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VgoProject">

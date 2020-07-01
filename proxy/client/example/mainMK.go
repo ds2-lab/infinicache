@@ -60,6 +60,6 @@ func main() {
 	keys[1] = client.KVGetGroup{Keys: []string{"k4"}}
 	keys[2] = client.KVGetGroup{Keys: []string{"k5"}}
 
-	log.Fatal("Failed to get")
+	fmt.Println(cli.MkGet("foo", keys))
 	return
 }
