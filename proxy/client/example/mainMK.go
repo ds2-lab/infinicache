@@ -9,15 +9,13 @@ import (
 
 func main() {
 	var addrList = "10.4.0.100:6378"
-	// initial object with random value
-	data := generateSetData()
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-
+	data := cli.GenerateSetData()
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
 	if _, _, ok := cli.MkSet("foo", data); !ok {

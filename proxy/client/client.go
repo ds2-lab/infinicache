@@ -2,6 +2,7 @@ package client
 
 import (
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/buraksezer/consistent"
@@ -45,6 +46,8 @@ type Client struct {
 	Shards       int
 	ReplicationFactor int
 	MKReplicationFactors [3]int
+	J int
+	I int
 }
 
 func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replicationFactor int) *Client {
@@ -60,6 +63,8 @@ func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replication
 		Shards:       dataShards + parityShards,
 		ReplicationFactor: replicationFactor,
 		MKReplicationFactors: [3]int{5,4,3},
+		J: 1,
+		I: 1,
 	}
 }
 
@@ -156,6 +161,45 @@ func (c *Client) Close() {
 	}
 	log.Info("Client closed.")
 }
+
+func (c *Client) GenerateSetData() []KVSetGroup{
+	var data []KVSetGroup
+	var g KVSetGroup
+	c.J = c.I
+	c.I = c.I +9
+	for ; c.J <= c.I; c.J++ {
+		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: []byte("v"+string(c.J))}
+		g.KeyValuePairs = append(g.KeyValuePairs, pair)
+		if c.J%3 == 0 && c.J != 0 {
+			data = append(data, g)
+			var newG KVSetGroup
+			g = newG
+		}
+	}
+	return data
+}
+
+func (c *Client) Average(xs[]float32)float32 {
+	total:=float32(0)
+	for _,v:=range xs {
+		total +=v
+	}
+	return total/float32(len(xs))
+}
+
+//func generateRandomGet(data [][]client.KVSetGroup) [][]client.KVGetGroup{
+//	var output [][]client.KVGetGroup
+//	for i:=0; i<len(data); i++{
+//		d := data[i]
+//		query =
+//		for j:=0; j<len(d); j++{
+//			g := d[j]
+//			randomSelect := rand.Intn(len(g.KeyValuePairs))
+//		}
+//
+//	}
+//	return output
+//}
 
 type ecRet struct {
 	Shards int
