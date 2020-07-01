@@ -42,7 +42,7 @@ func main() {
 		}
 	}
 
-	fmt.Println("Average SET time: %d", toMillisec(average(setStats)))
+	fmt.Println("Average SET time: %d", average(setStats))
 
 
 }
