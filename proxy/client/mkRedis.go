@@ -98,7 +98,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 	return stats.ReqId, float32(stats.Duration), true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys []KVGetGroup) []KeyValuePair {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -362,7 +362,7 @@ func replicate(groups []KVSetGroup, n int) []KVSetGroup {
 	return replicas
 }
 
-func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
+func locateLowLevelKeys(groups []KVGetGroup) map[int]set.Interface {
 	var replicas [3]int
 	var m map[int]set.Interface
 

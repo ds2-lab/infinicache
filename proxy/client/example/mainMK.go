@@ -20,14 +20,14 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	if _, ok := cli.MkSet("foo", data); !ok {
+	if _, _, ok := cli.MkSet("foo", data); !ok {
 		log.Fatal("Failed to set")
 		return
 	}else{
 		fmt.Println("successfull SET")
 	}
 
-	var keys [3]client.KVGetGroup
+	var keys []client.KVGetGroup
 	keys[0] = client.KVGetGroup{Keys: []string{"k1", "k2"}}
 	keys[1] = client.KVGetGroup{Keys: []string{"k4"}}
 	keys[2] = client.KVGetGroup{Keys: []string{"k5"}}

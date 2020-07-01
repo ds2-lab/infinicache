@@ -6,17 +6,14 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 )
 
-var i = 1
-var j = 1
+var I = 1
+var J = 1
 
 func main() {
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
-
-
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -42,6 +39,9 @@ func main() {
 		}
 	}
 
+
+
+
 	fmt.Println("Average SET time: %d", average(setStats))
 
 
@@ -50,12 +50,12 @@ func main() {
 func generateSetData() []client.KVSetGroup{
 	var data []client.KVSetGroup
 	var g client.KVSetGroup
-	j = i
-	i = i+9
-	for ;j<=i;j++ {
-		pair := client.KeyValuePair{Key: "k"+strconv.Itoa(j), Value: []byte("v"+string(j))}
+	J = I
+	I = I +9
+	for ; J <= I; J++ {
+		pair := client.KeyValuePair{Key: "k"+strconv.Itoa(J), Value: []byte("v"+string(J))}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
-		if j%3 == 0 && j!= 0 {
+		if J%3 == 0 && J != 0 {
 			data = append(data, g)
 			var newG client.KVSetGroup
 			g = newG
@@ -72,6 +72,16 @@ func average(xs[]float32)float32 {
 	return total/float32(len(xs))
 }
 
-func toMillisec(m int64) time.Time {
-	return time.Unix(0, m * int64(time.Millisecond))
-}
+//func generateRandomGet(data [][]client.KVSetGroup) [][]client.KVGetGroup{
+//	var output [][]client.KVGetGroup
+//	for i:=0; i<len(data); i++{
+//		d := data[i]
+//		query =
+//		for j:=0; j<len(d); j++{
+//			g := d[j]
+//			randomSelect := rand.Intn(len(g.KeyValuePairs))
+//		}
+//
+//	}
+//	return output
+//}
