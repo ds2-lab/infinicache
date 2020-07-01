@@ -27,7 +27,7 @@ type KVGetGroup struct {
 	Keys []string
 }
 
-func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface{}) (string, float32, bool) {
+func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, float32, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -98,7 +98,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 	return stats.ReqId, float32(stats.Duration), true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys []KVGetGroup) []KeyValuePair {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -348,7 +348,7 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	}
 }
 
-func replicate(groups []KVSetGroup, n int) []KVSetGroup {
+func replicate(groups [3]KVSetGroup, n int) []KVSetGroup {
 	var replicas = make([]KVSetGroup, n)
 	var rFs = []int{5,4,3}
 	for i := 0; i < len(groups); i++ {
@@ -362,7 +362,7 @@ func replicate(groups []KVSetGroup, n int) []KVSetGroup {
 	return replicas
 }
 
-func locateLowLevelKeys(groups []KVGetGroup) map[int]set.Interface {
+func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 	var replicas [3]int
 	var m map[int]set.Interface
 

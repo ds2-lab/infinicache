@@ -162,18 +162,20 @@ func (c *Client) Close() {
 	log.Info("Client closed.")
 }
 
-func (c *Client) GenerateSetData() []KVSetGroup{
-	var data []KVSetGroup
+func (c *Client) GenerateSetData() [3]KVSetGroup{
+	var data [3]KVSetGroup
 	var g KVSetGroup
 	c.J = c.I
 	c.I = c.I +9
+	counter := 0
 	for ; c.J <= c.I; c.J++ {
 		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: []byte("v"+string(c.J))}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
 		if c.J%3 == 0 && c.J != 0 {
-			data = append(data, g)
+			data[counter] = g
 			var newG KVSetGroup
 			g = newG
+			counter ++
 		}
 	}
 	return data
