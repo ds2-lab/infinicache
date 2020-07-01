@@ -136,6 +136,12 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyVal
 		log.Error("Some of the chunks are faled, try another replica!")
 	}
 
+	end := time.Now()
+	stats.Duration = end.Sub(stats.Begin)
+	fmt.Println("mkget", stats.ReqId, stats.Begin.UnixNano(),
+		int64(stats.Duration), int64(0), int64(stats.RecLatency),
+		stats.AllGood, stats.Corrupted)
+
 	return keyValuePairs
 }
 
@@ -153,8 +159,6 @@ func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambd
 
 	var pairs = len(replica.KeyValuePairs)
 
-	fmt.Println("mkSetting replica, ", replica)
-
 	w := cn.W
 	w.WriteMultiBulkSize(9+(2*pairs))
 	w.WriteBulkString("mkset")
@@ -167,14 +171,12 @@ func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambd
 	w.WriteBulkString(strconv.Itoa(0))
 	w.WriteBulkString(strconv.Itoa(pairs))
 
-	fmt.Println("Client is Sending")
 	for i := 0; i < pairs; i++ {
 		var pair = replica.KeyValuePairs[i]
 		// Flush pipeline
 		//if err := c.W[i].Flush(); err != nil {
 		w.WriteBulkString(pair.Key)
 		w.WriteBulk(pair.Value)
-		fmt.Println("Pair", pair)
 	}
 
 	if err := w.Flush(); err != nil {
@@ -214,9 +216,7 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 	w.WriteBulkString(strconv.Itoa(0))
 	w.WriteBulkString(strconv.Itoa(lowLevelKeys.Size()))
 	lowLevelKeysList := lowLevelKeys.List()
-	fmt.Println("Client is requesting")
 	for m := 0; m < len(lowLevelKeysList); m++ {
-		fmt.Println("key", lowLevelKeysList[m].(string))
 		w.WriteBulkString(lowLevelKeysList[m].(string))
 	}
 
@@ -275,7 +275,6 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		ret.SetError(i, ErrUnexpectedResponse)
 		return
 	}
-	fmt.Println("respId=",respId)
 
 	chunkId, err := c.Conns[addr][i].R.ReadBulkString()
 	if err != nil {
@@ -287,13 +286,9 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 		log.Debug("Abandon late chunk %d", i)
 		return
 	}
-	fmt.Println("chunkId=",chunkId)
 
 	if strings.Compare(prompt, "mkGot") == 0{
-		fmt.Println("Starting receiving")
-		lowLevelKeyValuePairsN, err := c.Conns[addr][i].R.ReadInt()
-		fmt.Print("lowLevelKeyValuePairsN = ", lowLevelKeyValuePairsN, " err ", err)
-
+		lowLevelKeyValuePairsN, _ := c.Conns[addr][i].R.ReadInt()
 		var keyValuePairs []KeyValuePair
 
 		for m:=0; m<int(lowLevelKeyValuePairsN); m++ {
@@ -302,12 +297,9 @@ func (c *Client) mkRec(prompt string, addr string, i int, reqId string, ret *ecR
 			var err error
 			value, err = c.Conns[addr][i].R.ReadBulk(value)
 			if err != nil {
-				fmt.Println("Error on mkgeting value from chunk %d: %v", i, err)
 				log.Warn("Error on mkgeting value from chunk %d: %v", i, err)
 				c.setError(ret, addr, i, err)
 				return
-			}else{
-				fmt.Println("mkGOT value < %s, %s > from chunk %d: %v", lowLevelKey, string(value), i)
 			}
 			pair := KeyValuePair{
 				Key: lowLevelKey,
@@ -372,7 +364,7 @@ func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 	var replicas [3]int
 	var m map[int]set.Interface
 
-	fmt.Println(groups)
+	fmt.Println("located: ", groups)
 
 	for i:=0; i<len(groups); i++{
 		g := groups[i]
