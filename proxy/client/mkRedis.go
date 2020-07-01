@@ -139,7 +139,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyVal
 	end := time.Now()
 	stats.Duration = end.Sub(stats.Begin)
 	fmt.Println("mkget", stats.ReqId, stats.Begin.UnixNano(),
-		int64(stats.Duration), int64(0), int64(stats.RecLatency),
+		stats.Duration, int64(0), int64(stats.RecLatency),
 		stats.AllGood, stats.Corrupted)
 
 	return keyValuePairs
