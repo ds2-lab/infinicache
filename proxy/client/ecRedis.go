@@ -168,6 +168,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		err := ret.Error(i)
 		if err != nil {
 			failed = append(failed, i)
+			fmt.Println(err)
 		} else {
 			chunks[i] = ret.Ret(i)
 		}

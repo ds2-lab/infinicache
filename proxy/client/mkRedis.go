@@ -364,12 +364,10 @@ func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 	var replicas [3]int
 	var m map[int]set.Interface
 
-	fmt.Println("located: ", groups)
-
 	for i:=0; i<len(groups); i++{
 		g := groups[i]
 		if g.Keys != nil {
-			replicas[i] = rand.Intn(len(groups)+i)
+			replicas[i] = rand.Intn(len(groups))
 		}else{
 			replicas[i] = -1
 		}
@@ -385,7 +383,7 @@ func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 			}
 		}
 	}
-
+	fmt.Println("Located: ", m)
 	return m
 }
 
