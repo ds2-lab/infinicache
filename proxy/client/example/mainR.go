@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -22,20 +23,35 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	if _, ok := cli.RSet("foo", val); !ok {
-		log.Fatal("Failed to set")
-		return
+	var setStats []float32
+	var getStats []float32
+
+	for k:=0; k<200; k++{
+		key := "foo" + strconv.Itoa(k)
+		if _, stats, ok := cli.RSet(key, val); !ok {
+			log.Fatal("Failed to set ", key)
+			return
+		}else{
+			fmt.Println("Succesfully Set")
+			setStats = append(setStats, stats)
+		}
+
+		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
+			log.Fatal("Failed to get ", key)
+			return
+		} else {
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(reader)
+			reader.Close()
+			s := buf.String()
+			fmt.Println("received value: ", s)
+			getStats = append(getStats, stats)
+		}
 	}
 
-	if _, reader, ok := cli.RGet("foo", len(val)); !ok {
-		log.Fatal("Failed to get")
-		return
-	} else {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(reader)
-		reader.Close()
-		s := buf.String()
-		fmt.Println("received value: ")
-		fmt.Println(s)
-	}
+	fmt.Println("Average mkSET time: ", cli.Average(setStats))
+	fmt.Println("Average mkGET time: ", cli.Average(getStats))
+
+
 }
+

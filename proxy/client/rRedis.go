@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func (c *Client) RSet(key string, val []byte) (string, bool) {
+func (c *Client) RSet(key string, val []byte) (string, float32, bool) {
 
 	stats := &c.Data
 	stats.Begin = time.Now()
@@ -43,7 +43,7 @@ func (c *Client) RSet(key string, val []byte) (string, bool) {
 	stats.Duration = stats.ReqLatency
 
 	if ret.Err != nil {
-		return stats.ReqId, false
+		return stats.ReqId, -1, false
 	}
 
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
@@ -51,10 +51,10 @@ func (c *Client) RSet(key string, val []byte) (string, bool) {
 		false, false)
 	log.Info("Set %s %d", key, int64(stats.Duration))
 
-	return stats.ReqId, true
+	return stats.ReqId, float32(stats.Duration), true
 }
 
-func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.ReadCloser, bool) {
+func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float32, bool) {
 	var dryrun int
 	if len(args) > 0 {
 		dryrun, _ = args[0].(int)
@@ -64,7 +64,7 @@ func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.Rea
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
 	if dryrun > 0 {
-		return stats.ReqId, nil, true
+		return stats.ReqId, nil, -1, true
 	}
 
 	//addr, ok := c.getHost(key)
@@ -81,6 +81,7 @@ func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.Rea
 	go c.getR(host, key, rand.Intn(c.ReplicationFactor), stats.ReqId, &wg, ret)
 	wg.Wait()
 	stats.RecLatency = time.Since(stats.Begin)
+	stats.Duration = stats.RecLatency
 
 	// Filter results
 	chunks := make([][]byte, ret.Len())
@@ -101,7 +102,7 @@ func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.Rea
 		c.recoverR(host, key, uuid.New().String(), chunks, failed)
 	}
 
-	return stats.ReqId, reader, true
+	return stats.ReqId, reader, float32(stats.Duration), true
 }
 
 func (c *Client) setR(addr string, key string, val []byte, i int, lambdaId int,

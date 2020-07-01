@@ -30,24 +30,23 @@ func main() {
 			log.Fatal("Failed to mkSET %v", d)
 		}else{
 			setStats = append(setStats, stats)
-			//fmt.Println("Successfull mkSET %v", d)
+			fmt.Println("Successfull mkSET %v", d)
 		}
 	}
-
-	fmt.Println("Average mkSET time: %d", cli.Average(setStats))
 
 	var getStats []float32
 	getData := cli.GenerateRandomGet(data)
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
-		if _, stats, ok := cli.MkGet("foo", d); !ok {
+		if res, stats, ok := cli.MkGet("foo", d); !ok {
 			log.Fatal("Failed to mkGET %v", d)
 		}else{
 			getStats = append(getStats, stats)
-			//fmt.Println("Successfull mkGET %v", res)
+			fmt.Println("Successfull mkGET %v", res)
 		}
 	}
 
-	fmt.Println("Average mkGET time: %d", cli.Average(getStats))
+	fmt.Println("Average mkSET time: ", cli.Average(setStats))
+	fmt.Println("Average mkGET time: ", cli.Average(getStats))
 
 }
