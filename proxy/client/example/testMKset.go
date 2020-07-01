@@ -28,7 +28,7 @@ func main() {
 	cli.Dial(addrArr)
 	var data [][]client.KVSetGroup
 
-	var setStats []int64
+	var setStats []float32
 
 	for k:=0; k<200; k++{
 		d := generateSetData()
@@ -64,12 +64,12 @@ func generateSetData() []client.KVSetGroup{
 	return data
 }
 
-func average(xs[]int64)int64 {
-	total:=int64(0)
+func average(xs[]float32)float32 {
+	total:=float32(0)
 	for _,v:=range xs {
 		total +=v
 	}
-	return total/int64(len(xs))
+	return total/float32(len(xs))
 }
 
 func toMillisec(m int64) time.Time {
