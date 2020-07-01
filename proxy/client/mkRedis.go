@@ -55,7 +55,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 		for i, ret := range index {
 			placements[i] = ret
 		}
-		return stats.ReqId, true
+		return stats.ReqId, 0, true
 	}
 
 	//addr, ok := c.getHost(highLevelKey)
@@ -79,7 +79,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 	stats.Duration = stats.ReqLatency
 
 	if ret.Err != nil {
-		return stats.ReqId, false
+		return stats.ReqId, 0, false
 	}
 
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
