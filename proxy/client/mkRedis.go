@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"github.com/ScottMansfield/nanolog"
 	"github.com/fatih/set"
 	"github.com/google/uuid"
@@ -85,9 +84,9 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(stats.ReqLatency), int64(0), int64(0),
 		false, false)
-	fmt.Println("mkset ", stats.ReqId, stats.Begin.UnixNano(),
-		stats.Duration, float32(stats.Duration), int64(0), int64(stats.RecLatency),
-		stats.AllGood, stats.Corrupted)
+	//fmt.Println("mkset ", stats.ReqId, stats.Begin.UnixNano(),
+	//	stats.Duration, float32(stats.Duration), int64(0), int64(stats.RecLatency),
+	//	stats.AllGood, stats.Corrupted)
 
 	if placements != nil {
 		for i, ret := range ret.Rets {
@@ -141,9 +140,9 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyVa
 
 	end := time.Now()
 	stats.Duration = end.Sub(stats.Begin)
-	fmt.Println("mkget", stats.ReqId, stats.Begin.UnixNano(),
-		stats.Duration, int64(0), int64(stats.RecLatency),
-		stats.AllGood, stats.Corrupted)
+	//fmt.Println("mkget", stats.ReqId, stats.Begin.UnixNano(),
+	//	stats.Duration, int64(0), int64(stats.RecLatency),
+	//	stats.AllGood, stats.Corrupted)
 
 	return keyValuePairs, float32(stats.Duration), true
 }
@@ -386,7 +385,7 @@ func locateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
 			}
 		}
 	}
-	fmt.Println("Located: ", m)
+	//fmt.Println("Located: ", m)
 	return m
 }
 
