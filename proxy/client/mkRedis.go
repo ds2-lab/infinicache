@@ -98,7 +98,7 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 	return stats.ReqId, float32(stats.Duration), true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyValuePair, float32, bool) {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -136,6 +136,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyVal
 	if len(failed) > 0 {
 		// c.recover(host, highLevelKey, uuid.New().String(), chunks, failed)
 		log.Error("Some of the chunks are faled, try another replica!")
+		return nil, -1, false
 	}
 
 	end := time.Now()
@@ -144,7 +145,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyVal
 		stats.Duration, int64(0), int64(stats.RecLatency),
 		stats.AllGood, stats.Corrupted)
 
-	return keyValuePairs
+	return keyValuePairs, float32(stats.Duration), true
 }
 
 func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {

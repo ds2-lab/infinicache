@@ -19,7 +19,7 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var data [][]client.KVSetGroup
+	var data [][3]client.KVSetGroup
 
 	var setStats []float32
 
@@ -27,14 +27,27 @@ func main() {
 		d := cli.GenerateSetData()
 		data = append(data, d)
 		if _, stats, ok := cli.MkSet("foo", d); !ok {
-			log.Fatal("Failed to SET %v", d)
-			return
+			log.Fatal("Failed to mkSET %v", d)
 		}else{
 			setStats = append(setStats, stats)
-			fmt.Println("Successfull SET %v", d)
+			fmt.Println("Successfull mkSET %v", d)
 		}
 	}
 
-	fmt.Println("Average SET time: %d", cli.Average(setStats))
+	fmt.Println("Average mkSET time: %d", cli.Average(setStats))
+
+	var getStats []float32
+	getData := cli.GenerateRandomGet(data)
+	for k:=0; k<len(getData); k++{
+		d := getData[k]
+		if res, stats, ok := cli.MkGet("foo", d); !ok {
+			log.Fatal("Failed to mkGET %v", d)
+		}else{
+			getStats = append(getStats, stats)
+			fmt.Println("Successfull mkGET %v", res)
+		}
+	}
+
+	fmt.Println("Average mkGET time: %d", cli.Average(getStats))
 
 }

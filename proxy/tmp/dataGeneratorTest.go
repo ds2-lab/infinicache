@@ -3,32 +3,58 @@ package main
 import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
+	"math/rand"
 	"strconv"
 )
 
-var i = 1
-var j = 1
+var M = 1
+var N = 1
 
 func main() {
-	for i<30 {
-		fmt.Println(generateSetData())
-		fmt.Println("\n")
-	}
+	a := generateSetData()
+	var array [][3]client.KVSetGroup
+	array = append(array, a)
+	fmt.Println(a)
+	fmt.Println(generateRandomGet(array))
 }
 
-func generateSetData() []client.KVSetGroup{
-	var data []client.KVSetGroup
+func generateSetData() [3]client.KVSetGroup{
+	var data [3]client.KVSetGroup
 	var g client.KVSetGroup
-	j = i
-	i = i+9
-	for ;j<=i;j++ {
-		pair := client.KeyValuePair{Key: "k"+strconv.Itoa(j), Value: []byte("v"+string(j))}
+	N = M
+	M = M +9
+	k := 0
+	for ; N <= M; N++ {
+		pair := client.KeyValuePair{Key: "k"+strconv.Itoa(N), Value: []byte("v"+string(N))}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
-		if j%3 == 0 && j!= 0 {
-			data = append(data, g)
+		if N%3 == 0 && N != 0 {
+			data[k] = g
+			k++
 			var newG client.KVSetGroup
 			g = newG
 		}
 	}
 	return data
+}
+
+func generateRandomGet(data [][3]client.KVSetGroup) [][3]client.KVGetGroup{
+	var output [][3]client.KVGetGroup
+
+	for i:=0; i<len(data); i++{
+		d := data[i]
+		var getGroups [3]client.KVGetGroup
+
+		for j:=0; j<len(d); j++{
+			g := d[j]
+			var getG client.KVGetGroup
+			query := []string{}
+			query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
+			getG.Keys = query
+			getGroups[j] = getG
+		}
+
+		output = append(output, getGroups)
+
+	}
+	return output
 }

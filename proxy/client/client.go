@@ -1,6 +1,7 @@
 package client
 
 import (
+	"math/rand"
 	"net"
 	"strconv"
 	"time"
@@ -189,19 +190,27 @@ func (c *Client) Average(xs[]float32)float32 {
 	return total/float32(len(xs))
 }
 
-//func generateRandomGet(data [][]client.KVSetGroup) [][]client.KVGetGroup{
-//	var output [][]client.KVGetGroup
-//	for i:=0; i<len(data); i++{
-//		d := data[i]
-//		query =
-//		for j:=0; j<len(d); j++{
-//			g := d[j]
-//			randomSelect := rand.Intn(len(g.KeyValuePairs))
-//		}
-//
-//	}
-//	return output
-//}
+func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
+	var output [][3]KVGetGroup
+
+	for i:=0; i<len(data); i++{
+		d := data[i]
+		var getGroups [3]KVGetGroup
+
+		for j:=0; j<len(d); j++{
+			g := d[j]
+			var getG KVGetGroup
+			query := []string{}
+			query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
+			getG.Keys = query
+			getGroups[j] = getG
+		}
+
+		output = append(output, getGroups)
+
+	}
+	return output
+}
 
 type ecRet struct {
 	Shards int
