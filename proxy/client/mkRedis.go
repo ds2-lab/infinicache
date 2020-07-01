@@ -95,7 +95,7 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 		}
 	}
 
-	return stats.ReqId, stats.Duration.Milliseconds(), true
+	return stats.ReqId, int64(stats.Duration), true
 }
 
 func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) []KeyValuePair {
