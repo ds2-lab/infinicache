@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -154,6 +155,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 	for i := 0; i < ret.Len(); i++ {
 		wg.Add(1)
 		go c.get(host, key, i, stats.ReqId, &wg, ret)
+		fmt.Println("Requesting chunk ", i)
 	}
 	wg.Wait()
 	stats.RecLatency = time.Since(stats.Begin)
@@ -181,7 +183,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 	nanolog.Log(LogClient, "get", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(0), int64(stats.RecLatency), int64(end.Sub(decodeStart)),
 		stats.AllGood, stats.Corrupted)
-	log.Info("Got %s %d ( %d %d )", key, int64(stats.Duration), int64(stats.RecLatency), int64(end.Sub(decodeStart)))
+	log.Info("Got %s %d ( %d %d )", key, stats.Duration, int64(stats.RecLatency), int64(end.Sub(decodeStart)))
 
 	// Try recover
 	if len(failed) > 0 {
@@ -287,6 +289,7 @@ func (c *Client) get(addr string, key string, i int, reqId string, wg *sync.Wait
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
+	fmt.Print("Initiated getting %d@%s(%s)", i, key, addr)
 	c.rec("Got", addr, i, reqId, ret, nil)
 }
 
