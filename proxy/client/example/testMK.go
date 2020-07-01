@@ -36,6 +36,8 @@ func main() {
 
 	var getStats []float32
 	getData := cli.GenerateRandomGet(data)
+	fmt.Println(len(data), " ", len(getData))
+	return
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
 		if res, stats, ok := cli.MkGet("foo", d); !ok {
