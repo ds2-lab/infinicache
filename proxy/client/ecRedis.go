@@ -190,8 +190,11 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 
 	// Try recover
 	if len(failed) > 0 {
+		fmt.Println("Recovering ", failed)
 		c.recover(host, key, uuid.New().String(), chunks, failed)
 	}
+
+	fmt.Println("Finished to recover")
 
 	return stats.ReqId, reader, true
 }
