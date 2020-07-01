@@ -85,7 +85,9 @@ func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(stats.ReqLatency), int64(0), int64(0),
 		false, false)
-	log.Info("Set %s %d", highLevelKey, int64(stats.Duration))
+	fmt.Println("mkset ", stats.ReqId, stats.Begin.UnixNano(),
+		stats.Duration, int64(0), int64(stats.RecLatency),
+		stats.AllGood, stats.Corrupted)
 
 	if placements != nil {
 		for i, ret := range ret.Rets {
