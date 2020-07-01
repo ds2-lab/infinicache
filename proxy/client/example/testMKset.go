@@ -1,0 +1,60 @@
+package main
+
+import (
+	"fmt"
+	"github.com/neboduus/infinicache/proxy/client"
+	"log"
+	"strconv"
+	"strings"
+)
+
+var i = 1
+var j = 1
+
+func main() {
+	var addrList = "10.4.0.100:6378"
+	// initial object with random value
+
+
+
+	// parse server address
+	addrArr := strings.Split(addrList, ",")
+
+	// initial new ecRedis client
+	cli := client.NewClient(10, 2, 32, 3)
+
+	// start dial and PUT/GET
+	cli.Dial(addrArr)
+	var data [][]client.KVSetGroup
+
+	for k:=0; k<200; k++{
+		d := generateSetData()
+		data = append(data, d)
+		if _, ok := cli.MkSet("foo", d); !ok {
+			log.Fatal("Failed to SET %v", d)
+			return
+		}else{
+			fmt.Println("Successfull SET %v", d)
+		}
+	}
+
+
+
+}
+
+func generateSetData() []client.KVSetGroup{
+	var data []client.KVSetGroup
+	var g client.KVSetGroup
+	j = i
+	i = i+9
+	for ;j<=i;j++ {
+		pair := client.KeyValuePair{Key: "k"+strconv.Itoa(j), Value: []byte("v"+string(j))}
+		g.KeyValuePairs = append(g.KeyValuePairs, pair)
+		if j%3 == 0 && j!= 0 {
+			data = append(data, g)
+			var newG client.KVSetGroup
+			g = newG
+		}
+	}
+	return data
+}

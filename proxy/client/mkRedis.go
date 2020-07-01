@@ -27,7 +27,7 @@ type KVGetGroup struct {
 	Keys []string
 }
 
-func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, bool) {
+func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface{}) (string, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -346,7 +346,7 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	}
 }
 
-func replicate(groups [3]KVSetGroup, n int) []KVSetGroup {
+func replicate(groups []KVSetGroup, n int) []KVSetGroup {
 	var replicas = make([]KVSetGroup, n)
 	var rFs = []int{5,4,3}
 	for i := 0; i < len(groups); i++ {

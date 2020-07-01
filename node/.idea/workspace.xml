@@ -20,9 +20,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/client/example/mainMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/mainMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/mkRedis.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/tmp/test.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/replicationTest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/tmp/test2.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/locatorTest.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,7 +52,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../../tmp/infinicache" />
     <property name="nodejs_package_manager_path" value="npm" />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -73,9 +75,10 @@
       <screen x="0" y="22" width="1366" height="713" />
     </state>
     <state x="436" y="198" width="494" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587129939956" />
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl" timestamp="1588617929677">
-      <screen x="0" y="22" width="1366" height="713" />
+    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl" timestamp="1593603689225">
+      <screen x="0" y="0" width="1366" height="741" />
     </state>
+    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl/0.0.1366.741@0.0.1366.741" timestamp="1593603689225" />
     <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1588617929677" />
     <state x="479" y="174" width="405" height="393" key="StructurePopup" timestamp="1587566366696">
       <screen x="0" y="22" width="1366" height="713" />
