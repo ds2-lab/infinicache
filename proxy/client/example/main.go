@@ -30,7 +30,6 @@ func main() {
 
 	if _, reader, ok := cli.EcGet("foo", 1024); !ok {
 		log.Fatal("Failed to get")
-		return
 	} else {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(reader)
@@ -39,4 +38,5 @@ func main() {
 		fmt.Println("received value: ")
 		fmt.Println(s)
 	}
+	return
 }

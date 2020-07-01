@@ -60,16 +60,6 @@ func main() {
 	keys[1] = client.KVGetGroup{Keys: []string{"k4"}}
 	keys[2] = client.KVGetGroup{Keys: []string{"k5"}}
 
-	fmt.Println(cli.MkGet("foo", keys))
-	/*if _, reader, ok := cli.RGet("foo", len(val)); !ok {
-		log.Fatal("Failed to get")
-		return
-	} else {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(reader)
-		reader.Close()
-		s := buf.String()
-		fmt.Println("received value: ")
-		fmt.Println(s)
-	}*/
+	log.Fatal("Failed to get")
+	return
 }
