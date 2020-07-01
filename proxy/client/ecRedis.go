@@ -158,6 +158,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		fmt.Println("Requesting chunk ", i)
 	}
 	wg.Wait()
+	fmt.Println("Finished to wait")
 	stats.RecLatency = time.Since(stats.Begin)
 
 	// Filter results
@@ -289,7 +290,7 @@ func (c *Client) get(addr string, key string, i int, reqId string, wg *sync.Wait
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	fmt.Print("Initiated getting %d@%s(%s)", i, key, addr)
+	fmt.Println("Initiated getting %d@%s(%s)", i, key, addr)
 	c.rec("Got", addr, i, reqId, ret, nil)
 }
 
@@ -364,6 +365,7 @@ func (c *Client) rec(prompt string, addr string, i int, reqId string, ret *ecRet
 
 	log.Debug("%s chunk %d", prompt, i)
 	ret.Set(i, val)
+	fmt.Println("Ret SET")
 }
 
 func (c *Client) recover(addr string, key string, reqId string, shards [][]byte, failed []int) {
