@@ -30,7 +30,7 @@ func main() {
 			log.Fatal("Failed to mkSET %v", d)
 		}else{
 			setStats = append(setStats, stats)
-			fmt.Println("Successfull mkSET %v", d)
+			//fmt.Println("Successfull mkSET %v", d)
 		}
 	}
 
@@ -40,11 +40,11 @@ func main() {
 
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
-		if res, stats, ok := cli.MkGet("foo", d); !ok {
+		if _, stats, ok := cli.MkGet("foo", d); !ok {
 			log.Fatal("Failed to mkGET %v", d)
 		}else{
 			getStats = append(getStats, stats)
-			fmt.Println("Successfull mkGET %v", res)
+			//fmt.Println("Successfull mkGET %v", res)
 		}
 	}
 

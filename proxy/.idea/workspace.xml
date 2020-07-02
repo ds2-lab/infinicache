@@ -23,9 +23,7 @@
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/example/testMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testR.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testR.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/mkRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/locatorTest.go" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/locatorTest.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
