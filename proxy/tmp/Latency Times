@@ -5,9 +5,20 @@ Simple Replication
     Average rSET time:  4.516564e+06 ms
     Average rGET time:  2.570904e+06 ms
 
+    - 1000 Consecutive rSET requests followed by 1000 Consecutive rGET requests -
+    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
+    Average mkSET time:  4.3145145e+06
+    Average mkGET time:  2.387181e+06
+
+
 Multikey Operations
 
     - 500 Consecutive mkSET requests followed by 500 Consecutive rGET requests -
     - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
     Average mkSET time:  5.381147e+06
     Average mkGET time:  6.844392e+07
+
+    - 1000 Consecutive mkSET requests followed by 1000 Consecutive rGET requests -
+    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
+    Average mkSET time:  4.9947485e+06
+    Average mkGET time:  2.1112165e+08

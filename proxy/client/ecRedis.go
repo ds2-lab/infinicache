@@ -57,7 +57,7 @@ func NewResponseReader(rd io.Reader) resp.ResponseReader {
 	return resp.NewResponseReader(rd)
 }
 
-func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, bool) {
+func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, float32, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -85,7 +85,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 		for i, ret := range index {
 			placements[i] = ret
 		}
-		return stats.ReqId, true
+		return stats.ReqId, -1, true
 	}
 
 	//addr, ok := c.getHost(key)
@@ -98,7 +98,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	shards, err := c.encode(val)
 	if err != nil {
 		log.Warn("EcSet failed to encode: %v", err)
-		return stats.ReqId, false
+		return stats.ReqId, -1, false
 	}
 
 	var wg sync.WaitGroup
@@ -113,7 +113,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 	stats.Duration = stats.ReqLatency
 
 	if ret.Err != nil {
-		return stats.ReqId, false
+		return stats.ReqId, -1, false
 	}
 
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
@@ -127,10 +127,10 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, boo
 		}
 	}
 
-	return stats.ReqId, true
+	return stats.ReqId, float32(stats.Duration), true
 }
 
-func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.ReadCloser, bool) {
+func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float32, bool) {
 	var dryrun int
 	if len(args) > 0 {
 		dryrun, _ = args[0].(int)
@@ -140,7 +140,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
 	if dryrun > 0 {
-		return stats.ReqId, nil, true
+		return stats.ReqId, nil, -1, true
 	}
 
 	//addr, ok := c.getHost(key)
@@ -177,7 +177,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 	decodeStart := time.Now()
 	reader, err := c.decode(stats, chunks, size)
 	if err != nil {
-		return stats.ReqId, nil, false
+		return stats.ReqId, nil, -1, false
 	}
 
 	fmt.Println("Finished to decode")
@@ -197,7 +197,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 
 	fmt.Println("Finished to recover")
 
-	return stats.ReqId, reader, true
+	return stats.ReqId, reader, float32(stats.Duration), true
 }
 
 func (c *Client) getHost(key string) (addr string, ok bool) {

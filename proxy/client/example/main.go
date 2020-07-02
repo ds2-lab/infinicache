@@ -11,7 +11,7 @@ import (
 func main() {
 	addrList := "10.4.0.100:6378"
 	// initial object with random value
-	val := make([]byte, 1024)
+	val := make([]byte, 160)
 	rand.Read(val)
 
 	// parse server address
@@ -19,18 +19,27 @@ func main() {
 
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-
-	// start dial and PUT/GET
+	var setStats []float32
+	var getStats []float32
 	cli.Dial(addrArr)
-	if _, ok := cli.EcSet("foo", val); !ok {
-		log.Fatal("Failed to set")
-		return
-	}
 
-	if _, _, ok := cli.EcGet("foo", 1024); !ok {
-		log.Fatal("Failed to get")
-	} else {
-		fmt.Println("Successfull GET")
+	for k:=0; k<=500; k++{
+		key := fmt.Sprintf("k%d", k)
+		if _, stats, ok := cli.EcSet(key, val); !ok {
+			log.Println("Failed to SET ", key)
+		}else{
+			log.Println("Successfull SET ", k)
+			setStats = append(setStats, stats)
+		}
+
+		if _, _, stats, ok := cli.EcGet("foo", 160); !ok {
+			log.Println("Failed to GET ", key)
+		} else {
+			log.Println("Successfull GET ", key)
+			setStats = append(getStats, stats)
+		}
 	}
+	log.Println("Average SET time: ", cli.Average(setStats))
+	log.Println("Average GET time: ", cli.Average(getStats))
 	return
 }
