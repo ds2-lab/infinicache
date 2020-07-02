@@ -44,7 +44,7 @@ func main() {
 			log.Fatal("Failed to mkGET %v", d)
 		}else{
 			getStats = append(getStats, stats)
-			log.Println("Successfull mkGET %v", res)
+			log.Println("Successfull mkGET ", res, stats, " ms")
 		}
 	}
 
