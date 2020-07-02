@@ -26,6 +26,8 @@ func main() {
 	//var getStats []float64
 	cli.Dial(addrArr)
 
+
+
 	for k:=0; k<=1000; k++{
 		key := fmt.Sprintf("k%d", k)
 
@@ -35,7 +37,7 @@ func main() {
 
 			key := fmt.Sprintf("%s%d", key, l)
 			wg.Add(1)
-			go concurrentSet(cli, key, val, wg, s, l)
+			go concurrentSet(cli, key, val, &wg, s, l)
 
 		}
 		wg.Wait()
@@ -70,7 +72,7 @@ func main() {
 	return
 }
 
-func concurrentSet(cli *client.Client, key string, val []byte, waitGroup sync.WaitGroup, stats [9]float64, i int){
+func concurrentSet(cli *client.Client, key string, val []byte, waitGroup *sync.WaitGroup, stats [9]float64, i int){
 	defer waitGroup.Done()
 
 	if _, s, ok := cli.EcSet(key, val); !ok {
