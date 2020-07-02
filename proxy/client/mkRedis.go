@@ -26,7 +26,7 @@ type KVGetGroup struct {
 	Keys []string
 }
 
-func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, float32, bool) {
+func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, float64, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -94,10 +94,10 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 		}
 	}
 
-	return stats.ReqId, float32(stats.Duration), true
+	return stats.ReqId, stats.Duration.Seconds() * 1e3, true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyValuePair, float32, bool) {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyValuePair, float64, bool) {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -144,7 +144,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyVa
 	//	stats.Duration, int64(0), int64(stats.RecLatency),
 	//	stats.AllGood, stats.Corrupted)
 
-	return keyValuePairs, float32(stats.Duration), true
+	return keyValuePairs, stats.Duration.Seconds() * 1e3, true
 }
 
 func (c *Client) mkSet(addr string, key string, replica KVSetGroup, i int, lambdaId int, reqId string, wg *sync.WaitGroup, ret *ecRet) {

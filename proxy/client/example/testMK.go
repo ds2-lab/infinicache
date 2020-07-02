@@ -21,7 +21,8 @@ func main() {
 	cli.Dial(addrArr)
 	var data [][3]client.KVSetGroup
 
-	var setStats []float32
+	var setStats []float64
+	var getStats []float64
 
 	for k:=0; k<1000; k++{
 		d := cli.GenerateSetData()
@@ -34,7 +35,6 @@ func main() {
 		}
 	}
 
-	var getStats []float32
 	getData := cli.GenerateRandomGet(data)
 
 	for k:=0; k<len(getData); k++{

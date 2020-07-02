@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func (c *Client) RSet(key string, val []byte) (string, float32, bool) {
+func (c *Client) RSet(key string, val []byte) (string, float64, bool) {
 
 	stats := &c.Data
 	stats.Begin = time.Now()
@@ -51,10 +51,10 @@ func (c *Client) RSet(key string, val []byte) (string, float32, bool) {
 		false, false)
 	log.Info("Set %s %d", key, int64(stats.Duration))
 
-	return stats.ReqId, float32(stats.Duration), true
+	return stats.ReqId, stats.Duration.Seconds() * 1e3, true
 }
 
-func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float32, bool) {
+func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float64, bool) {
 	var dryrun int
 	if len(args) > 0 {
 		dryrun, _ = args[0].(int)
@@ -102,7 +102,7 @@ func (c *Client) RGet(key string, size int, args ...interface{}) (string, io.Rea
 		c.recoverR(host, key, uuid.New().String(), chunks, failed)
 	}
 
-	return stats.ReqId, reader, float32(stats.Duration), true
+	return stats.ReqId, reader, stats.Duration.Seconds() * 1e3, true
 }
 
 func (c *Client) setR(addr string, key string, val []byte, i int, lambdaId int,

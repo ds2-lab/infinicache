@@ -27,8 +27,8 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var setStats []float32
-	var getStats []float32
+	var setStats []float64
+	var getStats []float64
 
 	for k:=0; k<1000; k++{
 		key := "foo" + strconv.Itoa(k)
