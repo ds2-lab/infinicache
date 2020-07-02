@@ -296,7 +296,6 @@ func (c *Client) get(addr string, key string, i int, reqId string, wg *sync.Wait
 	cn.conn.SetWriteDeadline(time.Time{})
 
 	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
-	fmt.Println("Initiated getting %d@%s(%s)", i, key, addr)
 	c.rec("Got", addr, i, reqId, ret, nil)
 }
 

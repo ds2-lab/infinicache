@@ -231,7 +231,6 @@ func (c *Client) mkGet(addr string, key string, i int, lowLevelKeys set.Interfac
 	}
 	cn.conn.SetWriteDeadline(time.Time{})
 
-	log.Debug("Initiated getting %d@%s(%s)", i, key, addr)
 	c.mkRec("mkGot", addr, i, reqId, ret, nil, j)
 }
 

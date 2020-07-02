@@ -28,10 +28,14 @@ func main() {
 		if _, stats, ok := cli.EcSet(key, val); !ok {
 			log.Println("Failed to SET ", key)
 		}else{
-			log.Println("Successfull SET ", k)
+			log.Println("Successfull SET ", key)
 			setStats = append(setStats, stats)
 		}
 
+	}
+
+	for k:=0; k<=500; k++{
+		key := fmt.Sprintf("k%d", k)
 		if _, _, stats, ok := cli.EcGet("foo", 160); !ok {
 			log.Println("Failed to GET ", key)
 		} else {
