@@ -23,7 +23,7 @@ func main() {
 	var getStats []float32
 	cli.Dial(addrArr)
 
-	for k:=0; k<=500; k++{
+	for k:=0; k<=1000; k++{
 		key := fmt.Sprintf("k%d", k)
 		if _, stats, ok := cli.EcSet(key, val); !ok {
 			log.Println("Failed to SET ", key)
@@ -34,7 +34,7 @@ func main() {
 
 	}
 
-	for k:=0; k<=500; k++{
+	for k:=0; k<=1000; k++{
 		key := fmt.Sprintf("k%d", k)
 		if _, _, stats, ok := cli.EcGet(key, 160); !ok {
 			log.Println("Failed to GET ", key)
