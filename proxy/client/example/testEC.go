@@ -19,8 +19,8 @@ func main() {
 
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-	var setStats []float32
-	var getStats []float32
+	var setStats []float64
+	var getStats []float64
 	cli.Dial(addrArr)
 
 	for k:=0; k<=1000; k++{

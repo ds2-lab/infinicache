@@ -187,12 +187,12 @@ func (c *Client) GenerateSetData() [3]KVSetGroup{
 	return data
 }
 
-func (c *Client) Average(xs[]float32)float32 {
-	total:=float32(0)
+func (c *Client) Average(xs[]float64)float64 {
+	total:=float64(0)
 	for _,v:=range xs {
 		total +=v
 	}
-	return total/float32(len(xs))
+	return total/float64(len(xs))
 }
 
 func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{

@@ -57,7 +57,7 @@ func NewResponseReader(rd io.Reader) resp.ResponseReader {
 	return resp.NewResponseReader(rd)
 }
 
-func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, float32, bool) {
+func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, float64, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -119,7 +119,7 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, flo
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(stats.ReqLatency), int64(0), int64(0),
 		false, false)
-	log.Info("Set %s %d", key, int64(stats.Duration))
+	log.Info("Set %s %d", key, stats.Duration.Seconds() * 1e3)
 
 	if placements != nil {
 		for i, ret := range ret.Rets {
@@ -127,10 +127,10 @@ func (c *Client) EcSet(key string, val []byte, args ...interface{}) (string, flo
 		}
 	}
 
-	return stats.ReqId, float32(stats.Duration), true
+	return stats.ReqId, stats.Duration.Seconds() * 1e3, true
 }
 
-func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float32, bool) {
+func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.ReadCloser, float64, bool) {
 	var dryrun int
 	if len(args) > 0 {
 		dryrun, _ = args[0].(int)
@@ -191,7 +191,7 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		c.recover(host, key, uuid.New().String(), chunks, failed)
 	}
 
-	return stats.ReqId, reader, float32(stats.Duration), true
+	return stats.ReqId, reader, stats.Duration.Seconds() * 1e3, true
 }
 
 func (c *Client) getHost(key string) (addr string, ok bool) {
