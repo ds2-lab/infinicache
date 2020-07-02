@@ -18,7 +18,6 @@ var (
 	BaseMigratorPort = 6380
 	ServerIp         string
 	Prefix           string
-	AWSRegion        string
 )
 
 func init() {
