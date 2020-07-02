@@ -13,7 +13,11 @@ func main() {
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
 	var val []byte
-	val = []byte("test")
+	var s string = ""
+	for k:=0;k<160;k++{
+		s = fmt.Sprintf("v%s", s)
+	}
+	val = []byte(s)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -26,31 +30,30 @@ func main() {
 	var setStats []float32
 	var getStats []float32
 
-	for k:=0; k<500; k++{
+	for k:=0; k<1000; k++{
 		key := "foo" + strconv.Itoa(k)
 		if _, stats, ok := cli.RSet(key, val); !ok {
-			log.Fatal("Failed to set ", key)
-			return
+			log.Println("Failed to set ", key)
 		}else{
-			fmt.Println("Succesfully Set")
+			log.Println("Succesfully rSET", key)
 			setStats = append(setStats, stats)
 		}
 
 		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
-			log.Fatal("Failed to get ", key)
+			log.Println("Failed to get ", key)
 			return
 		} else {
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(reader)
 			reader.Close()
-			s := buf.String()
-			fmt.Println("received value: ", s)
+			//s := buf.String()
+			log.Println("Successfull rGET", key)
 			getStats = append(getStats, stats)
 		}
 	}
 
-	fmt.Println("Average mkSET time: ", cli.Average(setStats))
-	fmt.Println("Average mkGET time: ", cli.Average(getStats))
+	log.Println("Average mkSET time: ", cli.Average(setStats))
+	log.Println("Average mkGET time: ", cli.Average(getStats))
 
 
 }

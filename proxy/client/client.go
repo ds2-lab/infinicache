@@ -172,7 +172,7 @@ func (c *Client) GenerateSetData() [3]KVSetGroup{
 	counter := 0
 	for ; c.J <= c.I; c.J++ {
 		s := ""
-		for t:=0; t<0; t++ {
+		for t:=0; t<160; t++ {
 			s = fmt.Sprintf("v%s", s)
 		}
 		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: []byte(s+string(c.J))}

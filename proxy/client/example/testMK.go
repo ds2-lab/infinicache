@@ -23,28 +23,31 @@ func main() {
 
 	var setStats []float32
 
-	for k:=0; k<500; k++{
+	for k:=0; k<1000; k++{
 		d := cli.GenerateSetData()
 		data = append(data, d)
 		if _, stats, ok := cli.MkSet("foo", d); !ok {
-			log.Fatal("Failed to mkSET %v", d)
+			log.Println("Failed to mkSET", d)
 		}else{
 			setStats = append(setStats, stats)
-			log.Println("Successfull mkSET %v", d)
+			log.Println("Successfull mkSET", d)
 		}
 	}
 
 	var getStats []float32
 	getData := cli.GenerateRandomGet(data)
-	fmt.Println(len(data), " ", len(getData))
 
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
 		if res, stats, ok := cli.MkGet("foo", d); !ok {
-			log.Fatal("Failed to mkGET %v", d)
+			log.Println("Failed to mkGET %v", d)
 		}else{
 			getStats = append(getStats, stats)
-			log.Println("Successfull mkGET ", res, stats, " ms")
+			var v string = ""
+			for c := range res {
+				v = fmt.Sprintf("%s %s", v, c)
+			}
+			log.Println("Successfull mkGET ", v, stats, " ms")
 		}
 	}
 
