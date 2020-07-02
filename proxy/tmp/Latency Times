@@ -1,32 +1,59 @@
-Original Erasure Coding Operations
+1) Multikey with LowLevelKeys Replication Operations
 
-    - 500 Consecutive SET requests followed by 500 Consecutive GET requests -
-    - low-level-value-size = 160 Bytes
-    Average SET time:  6.9467175e+06
-    Average GET time:  7.024506e+07
+    EXPERIMENT (1.1)
+    - 500 Consecutive mkSET requests followed by 500 Consecutive rGET requests -
+    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
+    - for each SET we set a  high-level-key which contains 9 low-level-keys (1404 B in total)
+    - for each GET we retrieve 3 low-level key-value pairs (480 B)
+    Average mkSET time:  5.381147e+06
+    Average mkGET time:  6.844392e+07
 
+    EXPERIMENT (1.2)
+    - 1000 Consecutive mkSET requests followed by 1000 Consecutive rGET requests -
+    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
+    - for each SET we set a  high-level-key which contains 9 low-level-keys (1404 B in total)
+    - for each GET we retrieve 3 low-level key-value pairs (480 B)
+    Average mkSET time:  4.9947485e+06
+    Average mkGET time:  2.1112165e+08
 
-Simple Replication Operations
+2) Simple Replication Operations
 
+    EXPERIMENT (2.1)
     - 500 Consecutive rSET requests followed by 500 Consecutive rGET requests -
     - low-level-value-size = 2 Bytes (first test)
     Average rSET time:  4.516564e+06 ms
     Average rGET time:  2.570904e+06 ms
 
+    EXPERIMENT (2.2)
     - 1000 Consecutive rSET requests followed by 1000 Consecutive rGET requests -
     - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
     Average mkSET time:  4.3145145e+06
     Average mkGET time:  2.387181e+06
 
+3) Original Erasure Coding Operations
 
-Multikey with LowLevelKeys Replication Operations
+    EXPERIMENT (3.1)
+    - 500 Consecutive SET requests followed by 500 Consecutive GET requests -
+    - value-size = 160 Bytes
+    Average SET time:  6.676049121756492
+    Average GET time:  159.64132920758456
 
-    - 500 Consecutive mkSET requests followed by 500 Consecutive rGET requests -
-    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
-    Average mkSET time:  5.381147e+06
-    Average mkGET time:  6.844392e+07
+    EXPERIMENT (3.2)
+    - 1000 Consecutive SET requests followed by 1000 Consecutive GET requests -
+    - value size = 160 Bytes
+    Average SET time:  6.410645341658353
+    Average GET time:  169.11462692007993
 
-    - 1000 Consecutive mkSET requests followed by 1000 Consecutive rGET requests -
-    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
-    Average mkSET time:  4.9947485e+06
-    Average mkGET time:  2.1112165e+08
+
+    EXPERIMENT (3.3)
+    - tries to simulate the Multikey operation
+    - basically we assume that every time we need to save data into the cache
+    we need to SET 9 key-value pairs (we replicate the Multi Key operation)
+    - then when we need to retrieve data, we need to GET 3 key-value pairs (480 B)
+    Average GET time:  500.924516480519
+    Average SET time:  62.18107363036967
+
+
+
+
+

@@ -14,7 +14,7 @@ func main() {
 	// initial object with random value
 	var val []byte
 	var s string = ""
-	for k:=0;k<160;k++{
+	for k:=0;k<1313;k++{
 		s = fmt.Sprintf("v%s", s)
 	}
 	val = []byte(s)

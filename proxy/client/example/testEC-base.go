@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
-	"math/rand"
 	"strings"
 )
 
 func main() {
 	addrList := "10.4.0.100:6378"
-	// initial object with random value
-	val := make([]byte, 160)
-	rand.Read(val)
+
+	s := ""
+	for k:=0;k<1313;k++{
+		s = fmt.Sprintf("v%s", s)
+	}
+	val := []byte(s)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")

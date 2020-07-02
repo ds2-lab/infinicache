@@ -25,7 +25,7 @@ func main() {
 	var getStats []float64
 
 	for k:=0; k<1000; k++{
-		d := cli.GenerateSetData()
+		d := cli.GenerateSetData(1313)
 		data = append(data, d)
 		if _, stats, ok := cli.MkSet("foo", d); !ok {
 			log.Println("Failed to mkSET", d)
