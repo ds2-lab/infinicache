@@ -155,10 +155,8 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 	for i := 0; i < ret.Len(); i++ {
 		wg.Add(1)
 		go c.get(host, key, i, stats.ReqId, &wg, ret)
-		fmt.Println("Requesting chunk ", i)
 	}
 	wg.Wait()
-	fmt.Println("Finished to wait")
 	stats.RecLatency = time.Since(stats.Begin)
 
 	// Filter results
@@ -180,8 +178,6 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		return stats.ReqId, nil, -1, false
 	}
 
-	fmt.Println("Finished to decode")
-
 	end := time.Now()
 	stats.Duration = end.Sub(stats.Begin)
 	nanolog.Log(LogClient, "get", stats.ReqId, stats.Begin.UnixNano(),
@@ -194,8 +190,6 @@ func (c *Client) EcGet(key string, size int, args ...interface{}) (string, io.Re
 		fmt.Println("Recovering ", failed)
 		c.recover(host, key, uuid.New().String(), chunks, failed)
 	}
-
-	fmt.Println("Finished to recover")
 
 	return stats.ReqId, reader, float32(stats.Duration), true
 }

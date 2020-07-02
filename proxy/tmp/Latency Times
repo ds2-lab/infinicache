@@ -1,4 +1,12 @@
-Simple Replication
+Original Erasure Coding Operations
+
+    - 500 Consecutive SET requests followed by 500 Consecutive GET requests -
+    - low-level-value-size = 160 Bytes
+    Average SET time:  6.9467175e+06
+    Average GET time:  7.024506e+07
+
+
+Simple Replication Operations
 
     - 500 Consecutive rSET requests followed by 500 Consecutive rGET requests -
     - low-level-value-size = 2 Bytes (first test)
@@ -11,7 +19,7 @@ Simple Replication
     Average mkGET time:  2.387181e+06
 
 
-Multikey Operations
+Multikey with LowLevelKeys Replication Operations
 
     - 500 Consecutive mkSET requests followed by 500 Consecutive rGET requests -
     - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
