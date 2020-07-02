@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"strconv"
@@ -170,7 +171,11 @@ func (c *Client) GenerateSetData() [3]KVSetGroup{
 	c.I = c.I +9
 	counter := 0
 	for ; c.J <= c.I; c.J++ {
-		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: []byte("v"+string(c.J))}
+		s := ""
+		for t:=0; t<160; t++ {
+			s = fmt.Sprintf("v%s", s)
+		}
+		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: []byte(s+string(c.J))}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
 		if c.J%3 == 0 && c.J != 0 {
 			data[counter] = g
