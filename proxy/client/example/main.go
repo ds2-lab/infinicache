@@ -36,11 +36,11 @@ func main() {
 
 	for k:=0; k<=500; k++{
 		key := fmt.Sprintf("k%d", k)
-		if _, _, stats, ok := cli.EcGet("foo", 160); !ok {
+		if _, _, stats, ok := cli.EcGet(key, 160); !ok {
 			log.Println("Failed to GET ", key)
 		} else {
 			log.Println("Successfull GET ", key)
-			setStats = append(getStats, stats)
+			getStats = append(getStats, stats)
 		}
 	}
 	log.Println("Average SET time: ", cli.Average(setStats))

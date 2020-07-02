@@ -370,7 +370,6 @@ func (c *Client) rec(prompt string, addr string, i int, reqId string, ret *ecRet
 
 	log.Debug("%s chunk %d", prompt, i)
 	ret.Set(i, val)
-	fmt.Println("Ret SET")
 }
 
 func (c *Client) recover(addr string, key string, reqId string, shards [][]byte, failed []int) {
