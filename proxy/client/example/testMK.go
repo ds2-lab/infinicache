@@ -29,10 +29,10 @@ func main() {
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
-			log.Println("Failed to mkSET", d)
+			log.Println("Failed to mkSET", key)
 		}else{
 			setStats = append(setStats, stats)
-			log.Println("Successfull mkSET", d)
+			log.Println("Successfull mkSET", key)
 		}
 	}
 
@@ -46,8 +46,9 @@ func main() {
 		}else{
 			getStats = append(getStats, stats)
 			var v string = ""
-			for c := range res {
-				v = fmt.Sprintf("%s %s", v, c)
+			for c:=0; c<len(res);c++ {
+				kvp := res[c]
+				v = fmt.Sprintf("%s %s", v, kvp.Key)
 			}
 			log.Println("Successfull mkGET ", v, stats, " ms")
 		}
