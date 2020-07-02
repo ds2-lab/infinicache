@@ -6,8 +6,8 @@ import (
 	"github.com/neboduus/infinicache/proxy/proxy/lambdastore"
 )
 
-const LambdaMaxDeployments = 20
-const NumLambdaClusters = 20
+const LambdaMaxDeployments = 5
+const NumLambdaClusters = 5
 // fixed size array with lambdas addresses
 var LambdaAddresses = [...]string {
 /*	"http://infinicache-node-0.default.34.91.116.154.xip.io",
