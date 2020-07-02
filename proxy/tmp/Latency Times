@@ -16,6 +16,10 @@
     Average mkSET time:  4.9947485e+06
     Average mkGET time:  2.1112165e+08
 
+    EXPERIMENT (1.3)
+    - same as 1.2 but with low-level-value-size = 1313 B which is the max value for Fraudio's Data
+
+
 2) Simple Replication Operations
 
     EXPERIMENT (2.1)
