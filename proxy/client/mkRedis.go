@@ -372,7 +372,6 @@ func (c *Client) LocateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface 
 	for i:=0; i<len(groups); i++{
 		g := groups[i]
 		if g.Keys != nil {
-			fmt.Println(len(groups)+i)
 			replicas[i] = rand.Intn(5-i)
 		}else{
 			replicas[i] = -1
