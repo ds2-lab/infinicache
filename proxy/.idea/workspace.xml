@@ -23,6 +23,7 @@
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tmp/Latency Times" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/Latency Times" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,6 +120,10 @@
     <proxy>direct</proxy>
   </component>
   <component name="WindowStateProjectService">
+    <state x="142" y="27" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1593679958523">
+      <screen x="0" y="0" width="1366" height="741" />
+    </state>
+    <state x="142" y="27" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1366.741@0.0.1366.741" timestamp="1593679958523" />
     <state x="424" y="183" width="554" height="373" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1593617101375">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
@@ -174,9 +179,9 @@
     </state>
     <state x="395" y="219" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1593616395112" />
     <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
-    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1592988042666">
+    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1593679906005">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup/0.0.1366.741@0.0.1366.741" timestamp="1592988042666" />
+    <state x="346" y="61" width="672" height="678" key="search.everywhere.popup/0.0.1366.741@0.0.1366.741" timestamp="1593679906005" />
   </component>
 </project>
