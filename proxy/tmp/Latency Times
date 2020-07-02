@@ -18,6 +18,8 @@
 
     EXPERIMENT (1.3)
     - same as 1.2 but with low-level-value-size = 1313 B which is the max value for Fraudio's Data
+    Average mkSET time:  7.928871052999994
+    Average mkGET time:  245.823701719
 
 
 2) Simple Replication Operations
@@ -39,14 +41,14 @@
     EXPERIMENT (3.1)
     - 500 Consecutive SET requests followed by 500 Consecutive GET requests -
     - value-size = 160 Bytes
-    Average SET time:  6.676049121756492
-    Average GET time:  159.64132920758456
+    Average SET time:  6.676049121756492 ns
+    Average GET time:  159.64132920758456 ms
 
     EXPERIMENT (3.2)
     - 1000 Consecutive SET requests followed by 1000 Consecutive GET requests -
     - value size = 160 Bytes
-    Average SET time:  6.410645341658353
-    Average GET time:  169.11462692007993
+    Average SET time:  6.410645341658353 ms
+    Average GET time:  169.11462692007993 ms
 
 
     EXPERIMENT (3.3)
@@ -54,9 +56,23 @@
     - basically we assume that every time we need to save data into the cache
     we need to SET 9 key-value pairs (we replicate the Multi Key operation)
     - then when we need to retrieve data, we need to GET 3 key-value pairs (480 B)
-    Average GET time:  500.924516480519
-    Average SET time:  62.18107363036967
+    Average GET time:  500.924516480519 ms
+    Average SET time:  62.18107363036967 ms
 
+    EXPERIMENT (3.4)
+    - 3 clients concurrently SETting and GETting different keys into the system
+    - the value of each kv pair is the maximum value from Fraudio's data 1313 B
+    - we basically launch 3 contemporan go script which represent the clients and
+    then take the average of their averages as the average of the concurrent calls
+    Average SET time:  105.84354689310699 ms
+    Average GET time:  1559.4027978676472 ms
+
+    OBSERVATION:
+    When we perform many operations against infinicache classical version we observe
+    that many chunks are lost and then many of them have to be recovered, which obviously
+    increases the latency and deteriorates performance. This may happen because of the
+    large number of connections that the proxy has to manage and on too many concurrent
+    calls many of the packets may get lost and therefore there is the need for recovery
 
 
 

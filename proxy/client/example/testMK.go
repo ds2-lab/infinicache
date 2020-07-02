@@ -27,7 +27,8 @@ func main() {
 	for k:=0; k<1000; k++{
 		d := cli.GenerateSetData(1313)
 		data = append(data, d)
-		if _, stats, ok := cli.MkSet("foo", d); !ok {
+		key := fmt.Sprintf("HighLevelKey-%d", k)
+		if _, stats, ok := cli.MkSet(key, d); !ok {
 			log.Println("Failed to mkSET", d)
 		}else{
 			setStats = append(setStats, stats)
@@ -39,7 +40,8 @@ func main() {
 
 	for k:=0; k<len(getData); k++{
 		d := getData[k]
-		if res, stats, ok := cli.MkGet("foo", d); !ok {
+		key := fmt.Sprintf("HighLevelKey-%d", k)
+		if res, stats, ok := cli.MkGet(key, d); !ok {
 			log.Println("Failed to mkGET %v", d)
 		}else{
 			getStats = append(getStats, stats)
