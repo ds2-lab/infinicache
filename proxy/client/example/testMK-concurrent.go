@@ -5,15 +5,19 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"strings"
+	"sync"
 )
 
 func main() {
+	var wg sync.WaitGroup
 	for i:=0; i<3; i++{
-		go test(i)
+		wg.Add(1)
+		go test(i, &wg)
 	}
+	wg.Wait()
 }
 
-func test(i int){
+func test(i int, wg *sync.WaitGroup){
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
 
@@ -28,7 +32,7 @@ func test(i int){
 	var data [][3]client.KVSetGroup
 
 	var setStats []float64
-	var getStats []float64
+	//var getStats []float64
 
 	for k:=0; k<500; k++{
 		d := cli.GenerateSetData(1)
@@ -41,22 +45,23 @@ func test(i int){
 			log.Println("Successfull mkSET ", i, " ", key)
 		}
 	}
+	wg.Done()
 
-	getData := cli.GenerateRandomGet(data)
-
-	for k:=0; k<len(getData); k++{
-		d := getData[k]
-		key := fmt.Sprintf("HighLevelKey-%d", k)
-		if res, stats, ok := cli.MkGet(key, d); !ok {
-			log.Println("Failed to mkGET ", i, " ", key)
-		}else{
-			getStats = append(getStats, stats)
-			var v string = ""
-			for c:=0; c<len(res);c++ {
-				kvp := res[c]
-				v = fmt.Sprintf("%s %s", v, kvp.Key)
-			}
-			log.Println("Successfull mkGET ",i, " ", v, stats, " ms")
-		}
-	}
+	//getData := cli.GenerateRandomGet(data)
+	//
+	//for k:=0; k<len(getData); k++{
+	//	d := getData[k]
+	//	key := fmt.Sprintf("HighLevelKey-%d", k)
+	//	if res, stats, ok := cli.MkGet(key, d); !ok {
+	//		log.Println("Failed to mkGET ", i, " ", key)
+	//	}else{
+	//		getStats = append(getStats, stats)
+	//		var v string = ""
+	//		for c:=0; c<len(res);c++ {
+	//			kvp := res[c]
+	//			v = fmt.Sprintf("%s %s", v, kvp.Key)
+	//		}
+	//		log.Println("Successfull mkGET ",i, " ", v, stats, " ms")
+	//	}
+	//}
 }
