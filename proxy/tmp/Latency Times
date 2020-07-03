@@ -36,6 +36,14 @@
     - we then take the average of the averages of each client as the average time
     Average mkSET time:  9.49622103
 
+    EXPERIMENT (1.5)
+    - after having set 1000 high-level-keys
+    - we launch 3 clients which perform concurrently 1000 mkGET
+    of 3 random low-level-keys each against the same proxy
+    - low-level-value-size = 1313 B
+    - we then take the average of the averages of each client as the average time
+    Average mkSET time:  50ms
+
 
 2) Simple Replication Operations
 
@@ -107,7 +115,8 @@
     calls many of the packets may get lost and therefore there is the need for recovery
 
     Next:
-    OK concurrent with 1 proxy also for R and MK
+    - DONE - concurrent with 1 proxy also for R and MK
+    - design a testing mechanism which allows to configure the requests rate
     - experiments with more proxies, concurrent and consecutive
     - run real workload and analyze logs
     - test other configurations, different number of replicas
