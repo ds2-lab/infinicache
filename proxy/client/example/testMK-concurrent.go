@@ -18,6 +18,7 @@ func main() {
 }
 
 func test(i int, wg *sync.WaitGroup){
+	defer wg.Done()
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
 
@@ -34,18 +35,17 @@ func test(i int, wg *sync.WaitGroup){
 	var setStats []float64
 	//var getStats []float64
 
-	for k:=0; k<500; k++{
-		d := cli.GenerateSetData(1)
+	for k:=0; k<1000; k++{
+		d := cli.GenerateSetData(160)
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
-			log.Println("Failed to mkSET ", i, " ", key)
+			log.Println("Failed to mkSET", i, key)
 		}else{
 			setStats = append(setStats, stats)
-			log.Println("Successfull mkSET ", i, " ", key)
+			log.Println("Successfull mkSET", i, key)
 		}
 	}
-	wg.Done()
 
 	//getData := cli.GenerateRandomGet(data)
 	//
@@ -64,4 +64,6 @@ func test(i int, wg *sync.WaitGroup){
 	//		log.Println("Successfull mkGET ",i, " ", v, stats, " ms")
 	//	}
 	//}
+
+	log.Println(cli.Average(setStats))
 }
