@@ -87,6 +87,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		log.Error("Unable to decode request body: %v, %v", err, r.Body)
+	}else{
+		log.Debug("r.Body: %v",input)
 	}
 
 	// gorouting start from 3

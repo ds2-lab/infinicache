@@ -319,19 +319,6 @@ func (ins *Instance) triggerLambdaLocked(warmUp bool) {
 	if warmUp {
 		event.Cmd="warmup"
 	}
-
-/*	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String(global.AWSRegion)})
-	payload, _ := json.Marshal(event)
-	input := &lambda.InvokeInput{
-		FunctionName: aws.String(ins.Name()),
-		Payload:      payload,
-	}
-	_, err := client.Invoke(input)*/
-
-
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(event)
 	resp, err := http.Post(ins.address, "application/json", payload)

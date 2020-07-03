@@ -74,6 +74,20 @@
     large number of connections that the proxy has to manage and on too many concurrent
     calls many of the packets may get lost and therefore there is the need for recovery
 
-
-
+    Next:
+    - concurrent with 1 proxy also for R and MK
+    - experiments with more proxies, concurrent and consecutive
+    - run real workload and analyze logs
+    - test other configurations, different number of replicas
+    - try simple replication for all data, without low-level-keys,
+    but retrieve concurrently multiple keys, based on how many keys
+    the Scoring API needs
+    - understand how the number of connections is related to economical
+    costs in the new setups
+    - evaluate to modify infinicache in a way is trully elastic using
+    the serverless features of knative; we could basically organize
+    the nodes pool of each proxy using consistent hashing and trigger
+    a new lambda, whenever the space becomes limitate but the requests
+    rate still grows; of course whenever a new node joins a migration
+    would be required
 
