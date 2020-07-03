@@ -38,9 +38,15 @@
 
     EXPERIMENT (2.2)
     - 1000 Consecutive rSET requests followed by 1000 Consecutive rGET requests -
-    - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
+    - value-size = 160 B (the same as the average size of Fraudio's data)
     Average mkSET time:  4.3145145e+06
     Average mkGET time:  2.387181e+06
+
+    EXPERIMENT (2.4)
+    - 3 clients launching 1000 concurrent requests each against the same proxy
+    - pool of 20 cache nodes
+    - value size = 1313 B
+    Average rSET time: 8.89 ms
 
 3) Original Erasure Coding Operations
 

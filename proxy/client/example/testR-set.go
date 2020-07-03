@@ -38,7 +38,7 @@ func main() {
 		}
 	}
 
-	log.Println("Average mkSET time: ", cli.Average(setStats))
+	log.Println("Average rSET time: ", cli.Average(setStats))
 
 }
 
