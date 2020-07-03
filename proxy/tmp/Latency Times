@@ -1,25 +1,34 @@
 1) Multikey with LowLevelKeys Replication Operations
 
+    EXPERIMENT (1.0) (first test)
+    - 500 Consecutive mkSET requests followed by 500 Consecutive mkGET requests
+    - low-level-valuessize = 2 B
+    - for each SET we set a  high-level-key which contains 9 low-level-keys
+    - for each GET we retrieve 3 low-level key-value pairs
+    Average mkSET time:  4.739296779999997
+    Average mkGET time:  10.218054366000006
+
+
     EXPERIMENT (1.1)
-    - 500 Consecutive mkSET requests followed by 500 Consecutive rGET requests -
+    - 500 Consecutive mkSET requests followed by 500 Consecutive mkGET requests -
     - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
     - for each SET we set a  high-level-key which contains 9 low-level-keys (1404 B in total)
     - for each GET we retrieve 3 low-level key-value pairs (480 B)
-    Average mkSET time:  5.381147e+06
-    Average mkGET time:  6.844392e+07
+    Average mkSET time:  5.7761036919999995
+    Average mkGET time:  8.793466639999998
 
     EXPERIMENT (1.2)
     - 1000 Consecutive mkSET requests followed by 1000 Consecutive rGET requests -
     - low-level-value-size = 160 B (the same as the average size of Fraudio's data)
     - for each SET we set a  high-level-key which contains 9 low-level-keys (1404 B in total)
     - for each GET we retrieve 3 low-level key-value pairs (480 B)
-    Average mkSET time:  4.9947485e+06
-    Average mkGET time:  2.1112165e+08
+    Average mkSET time:  5.987684302000001
+    Average mkGET time:  21.932362953000005
 
     EXPERIMENT (1.3)
     - same as 1.2 but with low-level-value-size = 1313 B which is the max value for Fraudio's Data
-    Average mkSET time:  7.928871052999994
-    Average mkGET time:  245.823701719
+    Average mkSET time:  8.077950724999997
+    Average mkGET time:  20.197735195999986
 
     EXPERIMENT (1.4)
     - we launch 3 clients which perform concurrently 1000 mkSET each against the same proxy
@@ -30,30 +39,41 @@
 
 2) Simple Replication Operations
 
-    EXPERIMENT (2.1)
+    EXPERIMENT (2.0) (first test)
     - 500 Consecutive rSET requests followed by 500 Consecutive rGET requests -
-    - low-level-value-size = 2 Bytes (first test)
-    Average rSET time:  4.516564e+06 ms
-    Average rGET time:  2.570904e+06 ms
+    - value-size = 2 Bytes
+    Average rSET time:  3.934466188000003
+    Average rGET time:  3.7991589939999986
 
-    EXPERIMENT (2.2)
+    EXPERIMENT (2.1)
     - 1000 Consecutive rSET requests followed by 1000 Consecutive rGET requests -
     - value-size = 160 B (the same as the average size of Fraudio's data)
-    Average mkSET time:  4.3145145e+06
-    Average mkGET time:  2.387181e+06
+    Average rSET time:  4.172528283000005
+    Average rGET time:  3.4955924879999976
 
-    EXPERIMENT (2.4)
-    - 3 clients launching 1000 concurrent requests each against the same proxy
+    EXPERIMENT (2.2)
+    - same as 2.2 but with value-size = 1313 B
+    Average rSET time:  3.7058410259999963
+    Average rGET time:  3.4685202250000016
+
+    EXPERIMENT (2.3)
+    - 3 clients launching 1000 concurrent rSET requests each against the same proxy
     - pool of 20 cache nodes
     - value size = 1313 B
     Average rSET time: 8.89 ms
+
+    EXPERIMENT (2.4)
+    - 3 clients launching 1000 concurrent rGET requests each against the same proxy
+    - pool of 20 cache nodes
+    - value size = 1313 B
+    Average rGET time: 2.6 ms
 
 3) Original Erasure Coding Operations
 
     EXPERIMENT (3.1)
     - 500 Consecutive SET requests followed by 500 Consecutive GET requests -
     - value-size = 160 Bytes
-    Average SET time:  6.676049121756492 ns
+    Average SET time:  6.676049121756492 ms
     Average GET time:  159.64132920758456 ms
 
     EXPERIMENT (3.2)
@@ -68,13 +88,13 @@
     - basically we assume that every time we need to save data into the cache
     we need to SET 9 key-value pairs (we replicate the Multi Key operation)
     - then when we need to retrieve data, we need to GET 3 key-value pairs (480 B)
-    Average GET time:  500.924516480519 ms
     Average SET time:  62.18107363036967 ms
+    Average GET time:  500.924516480519 ms
 
     EXPERIMENT (3.4)
     - 3 clients concurrently SETting and GETting different keys into the system
     - the value of each kv pair is the maximum value from Fraudio's data 1313 B
-    - we basically launch 3 contemporan go script which represent the clients and
+    - we basically launch 3 concurrent go script which represent the clients and
     then take the average of their averages as the average of the concurrent calls
     Average SET time:  105.84354689310699 ms
     Average GET time:  1559.4027978676472 ms
@@ -87,7 +107,7 @@
     calls many of the packets may get lost and therefore there is the need for recovery
 
     Next:
-    - concurrent with 1 proxy also for R and MK
+    OK concurrent with 1 proxy also for R and MK
     - experiments with more proxies, concurrent and consecutive
     - run real workload and analyze logs
     - test other configurations, different number of replicas

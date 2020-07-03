@@ -24,6 +24,11 @@ func main() {
 	var setStats []float64
 	var getStats []float64
 
+	for k:=0; k<1000; k++{
+		d := cli.GenerateSetData(1313)
+		data = append(data, d)
+	}
+
 	getData := cli.GenerateRandomGet(data)
 
 	for k:=0; k<len(getData); k++{

@@ -24,8 +24,8 @@ func main() {
 	var setStats []float64
 	var getStats []float64
 
-	for k:=0; k<1000; k++{
-		d := cli.GenerateSetData(1313)
+	for k:=0; k<500; k++{
+		d := cli.GenerateSetData(1)
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
