@@ -21,6 +21,12 @@
     Average mkSET time:  7.928871052999994
     Average mkGET time:  245.823701719
 
+    EXPERIMENT (1.4)
+    - we launch 3 clients which perform concurrently 1000 mkSET each against the same proxy
+    - low-level-value-size = 1313 B
+    - we then take the average of the averages of each client as the average time
+    Average mkSET time:  9.49622103
+
 
 2) Simple Replication Operations
 

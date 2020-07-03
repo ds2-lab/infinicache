@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
@@ -26,16 +27,20 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var setStats []float64
 	var getStats []float64
 
 	for k:=0; k<1000; k++{
 		key := "foo" + strconv.Itoa(k)
-		if _, stats, ok := cli.RSet(key, val); !ok {
-			log.Println("Failed to set ", key)
-		}else{
-			log.Println("Succesfully rSET", key)
-			setStats = append(setStats, stats)
+		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
+			log.Println("Failed to get ", key)
+			return
+		} else {
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(reader)
+			reader.Close()
+			//s := buf.String()
+			log.Println("Successfull rGET", key)
+			getStats = append(getStats, stats)
 		}
 	}
 
