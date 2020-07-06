@@ -36,7 +36,7 @@ func test(i int, wg *sync.WaitGroup){
 	//var getStats []float64
 
 	for k:=0; k<1000; k++{
-		d := cli.GenerateSetData(160)
+		d := cli.GenerateSetData(5)
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
