@@ -4,6 +4,7 @@ import(
 	"errors"
 	"fmt"
 	"github.com/cornelk/hashmap"
+	"strconv"
 
 	"github.com/neboduus/infinicache/proxy/proxy/types"
 	"github.com/neboduus/infinicache/proxy/proxy/global"
@@ -30,8 +31,9 @@ func NewScheduler(numCluster int, numDeployment int) *Scheduler {
 		pool: make(chan *lambdastore.Deployment, numDeployment + 1), // Allocate extra 1 buffer to avoid blocking
 		actives: hashmap.New(uintptr(numCluster)),
 	}
-	for i := 0; i < len(LambdaAddresses); i++ {
-		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(i), false, LambdaAddresses[i])
+
+	for _, address := range LambdaAddresses {
+		s.pool <- lambdastore.NewDeployment(LambdaPrefix, uint64(findIndexFromStaticName(address)), false, address)
 	}
 	return s
 }
@@ -154,4 +156,27 @@ func CleanUpScheduler() {
 	scheduler = nil
 
 	migrator.CleanUp()
+}
+
+func findIndexFromStaticName(address string) int {
+	var a string
+	var b int
+	for j, char := range address {
+		if j < 24 {
+			continue
+		}
+		if j == 24 {
+			a = string(char)
+		}
+		if j == 25 {
+			c, e := strconv.Atoi(string(char))
+			b = c
+			if e == nil {
+				a = fmt.Sprintf("%s%d", a, b)
+			}
+			break
+		}
+	}
+	i, _ := strconv.Atoi(a)
+	return i
 }

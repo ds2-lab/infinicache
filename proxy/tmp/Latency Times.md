@@ -113,7 +113,11 @@
 
    Next:
    - **DONE** - concurrent with 1 proxy also for R and MK
-   - **IN PROGRESS** - design a testing mechanism which allows to configure the requests rate
+   - **DONE** - design a testing mechanism which allows to configure the requests rate
+        - Conclusion: It doesn't make much sense to set up a request rate as a static parameter for experiments 
+        of such dynamic system. It's more worth to make more performance testing where different clients access 
+        data simultaneously. This allows seeing how the system reacts in stressful situations and 
+        including situations of high request rates.
    - **IN PROGRESS** - make experiments with more proxies, concurrent and consecutive
    - run real workload and analyze logs
    - test other configurations, different number of replicas
