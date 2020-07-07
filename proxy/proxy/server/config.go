@@ -75,7 +75,7 @@ const LambdaPrefix = "CacheNode"
 const InstanceWarmTimout = 1 * time.Minute
 const InstanceCapacity = 1536 * 1000000 // MB
 const InstanceOverhead = 100 * 1000000  // MB
-const ServerPublicIp = "10.4.0.101" // Leave it empty if using VPC.
+const ServerPublicIp = "10.4.14.71" // Leave it empty if using VPC.
 
 func init() {
 	lambdastore.WarmTimout = InstanceWarmTimout
