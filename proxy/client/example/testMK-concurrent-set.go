@@ -4,22 +4,25 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
 
 func main() {
 	var wg sync.WaitGroup
+	requestsNumber, _ := strconv.Atoi(os.Args[0])
 	for i:=0; i<3; i++{
 		wg.Add(1)
-		go test(i, &wg)
+		go test(i, &wg, requestsNumber)
 	}
 	wg.Wait()
 }
 
-func test(i int, wg *sync.WaitGroup){
+func test(i int, wg *sync.WaitGroup, requestsNumber int){
 	defer wg.Done()
-	var addrList = "10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378,10.4.0.100:6378"
 	// initial object with random value
 
 	// parse server address
@@ -32,10 +35,11 @@ func test(i int, wg *sync.WaitGroup){
 	cli.Dial(addrArr)
 	var data [][3]client.KVSetGroup
 
+	// ToDo: Replace with a channel
 	var setStats []float64
 	//var getStats []float64
 
-	for k:=0; k<1000; k++{
+	for k:=0; k<requestsNumber; k++{
 		d := cli.GenerateSetData(5)
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)

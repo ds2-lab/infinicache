@@ -200,6 +200,15 @@ func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
 
 	for i:=0; i<len(data); i++{
 		d := data[i]
+		var getGroups [3]KVGetGroup = c.GenerateSingleRandomGet(d)
+		output = append(output, getGroups)
+
+	}
+	return output
+}
+
+func (c *Client) GenerateSingleRandomGet(d [3]KVSetGroup) [3]KVGetGroup{
+
 		var getGroups [3]KVGetGroup
 
 		for j:=0; j<len(d); j++{
@@ -211,10 +220,7 @@ func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
 			getGroups[j] = getG
 		}
 
-		output = append(output, getGroups)
-
-	}
-	return output
+		return getGroups
 }
 
 type ecRet struct {

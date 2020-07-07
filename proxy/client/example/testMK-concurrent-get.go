@@ -7,15 +7,24 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378"
-	// initial object with random value
-	requestsNumber, err := strconv.Atoi(os.Args[0])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
+	var wg sync.WaitGroup
+	requestsNumber, _ := strconv.Atoi(os.Args[0])
+	for i:=0; i<3; i++{
+		wg.Add(1)
+		go test2(i, &wg, requestsNumber)
 	}
+	wg.Wait()
+}
+
+func test2(i int, wg *sync.WaitGroup, reqNumber int){
+	defer wg.Done()
+	var addrList = "10.4.0.100:6378,10.4.0.100:6378"
+	// initial object with random value
+
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
@@ -24,22 +33,17 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var data [][3]client.KVSetGroup
 
+	// ToDo: Replace with a channel
 	var getStats []float64
 
-	for k:=0; k<requestsNumber; k++{
-		d := cli.GenerateSetData(1313)
-		data = append(data, d)
-	}
-
-	getData := cli.GenerateRandomGet(data)
-
-	for k:=0; k<len(getData); k++{
-		d := getData[k]
+	for k:=0; k<reqNumber; k++{
+		sD := cli.GenerateSetData(5)
+		d := cli.GenerateSingleRandomGet(sD)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
+
 		if res, stats, ok := cli.MkGet(key, d); !ok {
-			log.Println("Failed to mkGET %v", d)
+			log.Println("Failed to mkGET ", i, " ", key)
 		}else{
 			getStats = append(getStats, stats)
 			var v string = ""
@@ -47,10 +51,10 @@ func main() {
 				kvp := res[c]
 				v = fmt.Sprintf("%s %s", v, kvp.Key)
 			}
-			log.Println("Successfull mkGET ", v, stats, " ms")
+			log.Println("Successfull mkGET ",i, " ", v, stats, " ms")
 		}
 	}
 
-	fmt.Println("Average mkGET time: ", cli.Average(getStats))
 
+	log.Println(cli.Average(getStats))
 }

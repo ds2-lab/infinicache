@@ -111,6 +111,13 @@
    large number of connections that the proxy has to manage and on too many concurrent
    calls many of the packets may get lost and therefore there is the need for recovery
 
+### Multi-Proxy Infinicache
+
+   We start our evaluation with the following configuration:
+   - 2 proxies, each managing a pool of 20 nodes
+   
+   
+
    Next:
    - **DONE** - concurrent with 1 proxy also for R and MK
    - **DONE** - design a testing mechanism which allows to configure the requests rate

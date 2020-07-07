@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378,10.4.0.100:6378"
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
