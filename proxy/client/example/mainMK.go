@@ -16,7 +16,7 @@ func main() {
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
 	data := cli.GenerateSetData(3)
-	fmt.Println(data)
+	fmt.Println("data:", data)
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
 	if _, _, ok := cli.MkSet("foo", data); !ok {

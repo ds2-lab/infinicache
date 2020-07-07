@@ -20,21 +20,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/example/mainMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/mainMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/mainR.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/mainR.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testEC-base-concurrent.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testEC-base-concurrent.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testEC-base.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testEC-base.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testEC-simple.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testEC-simple.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK-concurrent-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK-concurrent-get.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK-concurrent-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK-concurrent-set.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK-get.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK-periodic.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK-periodic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK-set.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testR-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testR-get.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testR-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testR-set.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testR.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testR.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
