@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
 	// initial object with random value
 	requestsNumber, err := strconv.Atoi(os.Args[1])
 	if err!=nil{

@@ -22,7 +22,7 @@ func main() {
 
 func test2(i int, wg *sync.WaitGroup, reqNumber int){
 	defer wg.Done()
-	var addrList = "10.4.0.100:6378,10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
 	// initial object with random value
 
 	// parse server address

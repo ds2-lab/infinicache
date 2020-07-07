@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378"
+	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
 	requestsNumber, err := strconv.Atoi(os.Args[1])
 	if err!=nil{
 		log.Fatal("No arguments for test. requests number expected")
