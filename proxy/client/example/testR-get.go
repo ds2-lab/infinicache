@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -28,8 +29,12 @@ func main() {
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
 	var getStats []float64
+	requestsNumber, err := strconv.Atoi(os.Args[1])
+	if err!=nil{
+		log.Fatal("No arguments for test. requests number expected")
+	}
 
-	for k:=0; k<1000; k++{
+	for k:=0; k<requestsNumber; k++{
 		key := "foo" + strconv.Itoa(k)
 		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
 			log.Println("Failed to get ", key)

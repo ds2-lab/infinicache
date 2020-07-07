@@ -13,7 +13,7 @@ func main() {
 	var addrList = "10.4.0.100:6378"
 	// initial object with random value
 
-	requestsNumber, _ := strconv.Atoi(os.Args[0])
+	requestsNumber, _ := strconv.Atoi(os.Args[1])
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")

@@ -12,7 +12,7 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
-	requestsNumber, _ := strconv.Atoi(os.Args[0])
+	requestsNumber, _ := strconv.Atoi(os.Args[1])
 	for i:=0; i<3; i++{
 		wg.Add(1)
 		go test2(i, &wg, requestsNumber)
