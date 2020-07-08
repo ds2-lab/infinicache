@@ -22,8 +22,7 @@
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testMK.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/Latency Times.md" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/Latency Times.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/client.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
