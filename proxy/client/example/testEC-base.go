@@ -7,20 +7,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"math/rand"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
-	s := ""
-	for k:=0;k<1313;k++{
-		s = fmt.Sprintf("v%s", s)
-	}
-	val := []byte(s)
+	requestsNumber, size, addrList := getArgs(os.Args)
 
+	val := make([]byte, size)
+	rand.Read(val)
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
@@ -70,4 +64,28 @@ func main() {
 	log.Println("Average SET time: ", cli.Average(setStats))
 	log.Println("Average GET time: ", cli.Average(getStats))
 	return
+}
+
+func getArgs(args []string) (int,int,string){
+	var proxies string
+	proxiesOpt, err := strconv.Atoi(args[1])
+	if err!=nil{
+		log.Fatal("No arguments for test. number of proxies expected")
+	}
+	if proxiesOpt == 2 {
+		proxies = "10.4.0.100:6378,10.4.14.71:6378"
+	}else if proxiesOpt == 1{
+		proxies = "10.4.0.100:6378"
+	}else{
+		log.Fatal("Unknown no of proxies on launch args")
+	}
+	requestsNumber, err := strconv.Atoi(args[2])
+	if err!=nil{
+		log.Fatal("No arguments for test. requests number expected")
+	}
+	size, err := strconv.Atoi(args[3])
+	if err!=nil{
+		log.Fatal("No arguments for test. size expected")
+	}
+	return requestsNumber,size,proxies
 }

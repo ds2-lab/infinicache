@@ -5,23 +5,16 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
+	"math/rand"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
-	s := ""
-	for k:=0;k<1313;k++{
-		s = fmt.Sprintf("v%s", s)
-	}
-	val := []byte(s)
+	requestsNumber, size, addrList := getArgs(os.Args)
 
+	val := make([]byte, size)
+	rand.Read(val)
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
@@ -30,8 +23,6 @@ func main() {
 	var setStats []float64
 	//var getStats []float64
 	cli.Dial(addrArr)
-
-
 
 	for k:=0; k<=requestsNumber; k++{
 		key := fmt.Sprintf("k%d", k)
@@ -51,7 +42,6 @@ func main() {
 				setStats = append(setStats, s[l])
 			}
 		}
-
 	}
 
 /*	for k:=0; k<=1000; k++{

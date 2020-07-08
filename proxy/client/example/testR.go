@@ -2,27 +2,18 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"math/rand"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	// initial object with random value
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
-	var val []byte
-	var s string = ""
-	for k:=0;k<1313;k++{
-		s = fmt.Sprintf("v%s", s)
-	}
-	val = []byte(s)
+	requestsNumber, size, addrList := getArgs(os.Args)
+	val := make([]byte, size)
+	rand.Read(val)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -60,8 +51,8 @@ func main() {
 		}
 	}
 
-	log.Println("Average mkSET time: ", cli.Average(setStats))
-	log.Println("Average mkGET time: ", cli.Average(getStats))
+	log.Println("Average rSET time: ", cli.Average(setStats))
+	log.Println("Average rGET time: ", cli.Average(getStats))
 
 
 }

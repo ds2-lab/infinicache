@@ -5,17 +5,12 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	// initial object with random value
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
+	requestsNumber, size, addrList := getArgs(os.Args)
+
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
@@ -28,7 +23,7 @@ func main() {
 	var getStats []float64
 
 	for k:=0; k<requestsNumber; k++{
-		d_in := cli.GenerateSetData(1313)
+		d_in := cli.GenerateSetData(size)
 		d_out := cli.GenerateSingleRandomGet(d_in)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if res, stats, ok := cli.MkGet(key, d_out); !ok {

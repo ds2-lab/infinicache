@@ -6,18 +6,14 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
+	requestsNumber, size, addrList := getArgs(os.Args)
+
 	// initial object with random value
-	val := make([]byte, 160)
+	val := make([]byte, size)
 	rand.Read(val)
 
 	// parse server address
@@ -53,3 +49,4 @@ func main() {
 	log.Println("Average GET time: ", cli.Average(getStats))
 	return
 }
+

@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"os"
 	"strings"
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
+	_, size, addrList := getArgs(os.Args)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-	data := cli.GenerateSetData(3)
-	fmt.Println("data:", data)
+	data := cli.GenerateSetData(size)
+
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
 	if _, _, ok := cli.MkSet("foo", data); !ok {
@@ -26,12 +27,6 @@ func main() {
 		fmt.Println("successfull SET")
 	}
 
-	var keys [3]client.KVGetGroup
-	keys[0] = client.KVGetGroup{Keys: []string{"k1", "k2"}}
-	keys[1] = client.KVGetGroup{Keys: []string{"k4"}}
-	keys[2] = client.KVGetGroup{Keys: []string{"k5"}}
-
-	fmt.Println(keys)
-	fmt.Println(cli.MkGet("foo", keys))
+	fmt.Println(cli.MkGet("foo", cli.GenerateSingleRandomGet(data)))
 	return
 }

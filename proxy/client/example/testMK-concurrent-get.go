@@ -5,25 +5,22 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 )
 
 func main() {
+	requestsNumber, size, addrList := getArgs(os.Args)
 	var wg sync.WaitGroup
-	requestsNumber, _ := strconv.Atoi(os.Args[1])
 	for i:=0; i<3; i++{
 		wg.Add(1)
-		go test2(i, &wg, requestsNumber)
+		go test2(i, &wg, addrList, requestsNumber, size)
 	}
 	wg.Wait()
 }
 
-func test2(i int, wg *sync.WaitGroup, reqNumber int){
+func test2(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	defer wg.Done()
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	// initial object with random value
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -38,7 +35,7 @@ func test2(i int, wg *sync.WaitGroup, reqNumber int){
 	var getStats []float64
 
 	for k:=0; k<reqNumber; k++{
-		sD := cli.GenerateSetData(5)
+		sD := cli.GenerateSetData(size)
 		d := cli.GenerateSingleRandomGet(sD)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 

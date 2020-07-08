@@ -5,13 +5,14 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 )
 
 func main() {
-	addrList := "10.4.0.100:6378"
+	_, size, addrList := getArgs(os.Args)
 	// initial object with random value
-	val := make([]byte, 160)
+	val := make([]byte, size)
 	rand.Read(val)
 
 	// parse server address

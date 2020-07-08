@@ -10,10 +10,7 @@ import (
 )
 
 func main() {
-	var addrList = "10.4.0.100:6378,10.4.14.71:6378"
-	// initial object with random value
-
-	requestsNumber, _ := strconv.Atoi(os.Args[1])
+	requestsNumber, size, addrList := getArgs(os.Args)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
@@ -28,7 +25,7 @@ func main() {
 	var setStats []float64
 
 	for k:=0; k<requestsNumber; k++{
-		d := cli.GenerateSetData(1313)
+		d := cli.GenerateSetData(size)
 		data = append(data, d)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
