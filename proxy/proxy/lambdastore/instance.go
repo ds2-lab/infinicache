@@ -55,6 +55,7 @@ type Instance struct {
 	lastValidated *Connection
 	mu            sync.Mutex
 	closed        chan struct{}
+	muCoolTimer            sync.Mutex
 	coolTimer     *time.Timer
 }
 
@@ -496,5 +497,7 @@ func (ins *Instance) warmUp() {
 		default:
 		}
 	}
+	ins.muCoolTimer.Lock()
 	ins.coolTimer.Reset(WarmTimout)
+	ins.muCoolTimer.Unlock()
 }
