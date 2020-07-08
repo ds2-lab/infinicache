@@ -14,16 +14,21 @@
 
    **EXPERIMENT (2.2)**
    - same as 2.2 but with value-size = 1313 B
-   **Average rSET time:  3.7058410259999963 ms**
-   **Average rGET time:  3.4685202250000016 ms**
-
+   - **Average rSET time:  15.131563470999987**
+   - **Average rGET time:  3.9848622660000013**
+   
    **EXPERIMENT (2.3)**
+   - same as 2.2 but 10000 requests
+   - **Average rSET time:  7.416319824999994**
+   - **Average tGET time:  11.369112573299988**
+
+   **EXPERIMENT (2.4)**
    - 3 clients launching 1000 concurrent rSET requests each against the same proxy
    - pool of 20 cache nodes
    - value size = 1313 B
    **Average rSET time: 8.89 ms**
 
-   **EXPERIMENT (2.4)**
+   **EXPERIMENT (2.5)**
    - 3 clients launching 1000 concurrent rGET requests each against the same proxy
    - pool of 20 cache nodes
    - value size = 1313 B
@@ -114,8 +119,37 @@
 ### Multi-Proxy Infinicache
 
    We start our evaluation with the following configuration:
-   - 2 proxies, each managing a pool of 20 nodes
+        - 2 proxies, each managing a pool of 20 nodes
+
+   ##### MK OPS
    
+  **EXPERIMENT (4.0)**
+  - 2000 mkSET of different high-level-keys containing 9
+     low-level-keys (1313 B each) followed by 2000 mkGET of 
+     3 low-level-keys (1313 B each) by 1 single clientby 1 single client
+  - **Average mkSET time:  14.603984662000023**
+  _ **Average mkGET time:  78.19207285049993**
+   
+   **EXPERIMENT (4.1)**
+   - 10000 mkSET of different high-level-keys containing 9
+   low-level-keys (1313 B each) followed by 10000 mkGET of 
+   3 low-level-keys (1313 B each) by 1 single clientby 1 single client
+   - **Average mkSET time:  16.560812107200025**
+   - **Average mkSET time:  160 ms**
+   
+   
+   **EXPERIMENT (4.0)**
+   - 3000 mkSET of 9 low-level-keys (1313 B each) followed by 
+   3000 mkGET of 3 low-level-keys (1313 B each)
+   Average mkSET time:  23.630190867666695
+   Average mkGET time:  44.61256727299992
+
+   ##### R Ops
+   
+   **EXPERIMENT (5.1)**
+   - 10000 rSET of 1313 B key-values pairs followed by same rGET
+   Average rSET time:  10.188824880499956
+   Average rGET time:  39.50156890679989
    
 
    Next:

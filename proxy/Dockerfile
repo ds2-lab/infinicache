@@ -13,6 +13,7 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
 RUN apt-get -y upgrade
 RUN apt-get install -qq wget unzip build-essential cmake gcc libcunit1-dev libudev-dev nano
+RUN apt-get install zip lsof curl -y
 # Install git
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q git
 
@@ -34,10 +35,6 @@ RUN mv go /usr/local
 ENV GOROOT /usr/local/go
 ENV GOPATH $HOME/project
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-
-# Configure AWS
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -q awscli
-RUN apt install zip
 
 # Install project dependencies
 ENV GO111MODULE="on"

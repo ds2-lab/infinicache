@@ -23,9 +23,12 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/client/example/testMK-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/example/testMK-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy-deploymnt.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy-deploymnt.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/lambdastore/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/lambdastore/connection.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/config.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/tmp/Latency Times.md" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/Latency Times.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

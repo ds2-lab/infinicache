@@ -16,6 +16,10 @@ spec:
       - name: infinicache-proxy
         image: gcr.io/serverless-research-274508/infinicache-proxy
         command: [ "/bin/bash", "-ce", "tail -f /dev/null" ]
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "cd /project/src/proxy/", "git pull origin replica", "make -f /project/src/proxy/Makefile"]
         ports:
           - containerPort: 8080
             name: hello-port

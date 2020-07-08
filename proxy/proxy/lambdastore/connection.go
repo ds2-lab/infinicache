@@ -365,7 +365,7 @@ func (conn *Connection) mkGetHandler(start time.Time)  {
 		lowLevelValue, _ = conn.r.ReadBulk(lowLevelValue)
 		lowLevelKeyPairs[lowLevelKey] = lowLevelValue
 	}
-	conn.log.Debug("received: %v", lowLevelKeyPairs)
+	//conn.log.Debug("received: %v", lowLevelKeyPairs)
 	_, ok := global.ReqMap.Get(reqId) //req counter
 	if ok == false {
 		conn.log.Warn("Request not found: %s", reqId)
