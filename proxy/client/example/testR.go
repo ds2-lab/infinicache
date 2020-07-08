@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 	val := make([]byte, size)
 	rand.Read(val)
 

@@ -199,7 +199,7 @@ func (c *Client) GetStats(xs[]float64) (float64,float64,float64,float64,[]float6
 	return min, max, mean, sd, percentiles
 }
 
-func (c *Client) GetArgs(args []string) (int,int,string){
+func GetArgs(args []string) (int,int,string){
 	var proxies string
 	proxiesOpt, err := strconv.Atoi(args[1])
 	if err!=nil{

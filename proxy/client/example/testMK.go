@@ -14,7 +14,7 @@ func main() {
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
 
-	requestsNumber, size, addrList := cli.GetArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 

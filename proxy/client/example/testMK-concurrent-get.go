@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 	var wg sync.WaitGroup
 	for i:=0; i<3; i++{
 		wg.Add(1)

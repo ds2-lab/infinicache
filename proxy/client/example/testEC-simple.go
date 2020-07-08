@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 
 	// initial object with random value
 	val := make([]byte, size)

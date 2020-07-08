@@ -12,7 +12,7 @@ import (
 func main() {
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-	_, size, addrList := cli.GetArgs(os.Args)
+	_, size, addrList := client.GetArgs(os.Args)
 
 	// initial object with random value
 	val := make([]byte, size)

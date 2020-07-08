@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")

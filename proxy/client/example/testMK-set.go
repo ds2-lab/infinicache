@@ -5,12 +5,11 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
+	requestsNumber, size, addrList := client.GetArgs(os.Args)
 
 	// parse server address
 	addrArr := strings.Split(addrList, ",")

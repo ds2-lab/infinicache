@@ -11,7 +11,7 @@ import (
 func main() {
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
-	_, size, addrList := cli.GetArgs(os.Args)
+	_, size, addrList := client.GetArgs(os.Args)
 
 	addrArr := strings.Split(addrList, ",")
 	data := cli.GenerateSetData(size)
