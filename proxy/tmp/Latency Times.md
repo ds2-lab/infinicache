@@ -62,8 +62,8 @@
 
    **EXPERIMENT (1.3)**
    - same as 1.2 but with low-level-value-size = 1313 B which is the max value for Fraudio's Data
-   **Average mkSET time:  8.077950724999997 ms**
-   **Average mkGET time:  20.197735195999986 ms**
+   - **Average mkSET time:  7.292272099999998**
+   - **Average mkGET time:  27.343824769999998**
 
    **EXPERIMENT (1.4)**
    - we launch 3 clients which perform concurrently 1000 mkSET each against the same proxy
@@ -126,30 +126,40 @@
   **EXPERIMENT (4.0)**
   - 2000 mkSET of different high-level-keys containing 9
      low-level-keys (1313 B each) followed by 2000 mkGET of 
-     3 low-level-keys (1313 B each) by 1 single clientby 1 single client
+     3 low-level-keys (1313 B each) by 1 single client
   - **Average mkSET time:  14.603984662000023**
   _ **Average mkGET time:  78.19207285049993**
    
-   **EXPERIMENT (4.1)**
-   - 10000 mkSET of different high-level-keys containing 9
-   low-level-keys (1313 B each) followed by 10000 mkGET of 
-   3 low-level-keys (1313 B each) by 1 single clientby 1 single client
-   - **Average mkSET time:  16.560812107200025**
-   - **Average mkSET time:  160 ms**
-   
    
    **EXPERIMENT (4.0)**
-   - 3000 mkSET of 9 low-level-keys (1313 B each) followed by 
-   3000 mkGET of 3 low-level-keys (1313 B each)
+   - 3000 mkSET of different high-level-key formed by 
+   9 low-level-keys followed by 3000 mkGET of 
+   1 high-level-key formed by 3 low-level-keys performed 
+   by 1 single client
+   - low-level-value size = 1313 B 
    Average mkSET time:  23.630190867666695
    Average mkGET time:  44.61256727299992
+   
+   **EXPERIMENT (4.1)**
+   - 10000 mkSET of different high-level-keys containing 9
+   low-level-keys followed by 10000 mkGET of 3 low-level-keys 
+   by 1 single client
+   - low-level-value size = 1313 B each
+   - **Average mkSET time:  16.560812107200025**
+   - **Average mkSET time:  160 ms**
 
    ##### R Ops
    
+   **EXPERIMENT (5.0)**
+   - 3000 consecutive rSET followed by 3000 rGET 1313 B kv pairs
+   - **Average mkSET time:  10.533003250333326**
+   - **Average mkGET time:  25.381107197999974**
+      
+   
    **EXPERIMENT (5.1)**
    - 10000 rSET of 1313 B key-values pairs followed by same rGET
-   Average rSET time:  10.188824880499956
-   Average rGET time:  39.50156890679989
+   - **Average rSET time:  10.188824880499956**
+   - **Average rGET time:  39.50156890679989**
    
 
    Next:
