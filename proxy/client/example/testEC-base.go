@@ -8,10 +8,12 @@ import (
 	"strconv"
 	"strings"
 	"math/rand"
+	"github.com/montanaflynn/stats"
 )
 
 func main() {
 	requestsNumber, size, addrList := getArgs(os.Args)
+
 
 	val := make([]byte, size)
 	rand.Read(val)
@@ -29,7 +31,6 @@ func main() {
 
 		var s float64 = 0
 		for l:=0; l<9; l++ {
-			key := fmt.Sprintf("%s%d", key, l)
 			if _, stats, ok := cli.EcSet(key, val); !ok {
 				log.Println("Failed to SET ", key)
 			}else{
@@ -43,7 +44,7 @@ func main() {
 
 	}
 
-	for k:=0; k<=1000; k++{
+	for k:=0; k<=requestsNumber; k++{
 		key := fmt.Sprintf("k%d", k)
 
 		var s float64 = 0
@@ -61,8 +62,11 @@ func main() {
 		}
 
 	}
-	log.Println("Average SET time: ", cli.Average(setStats))
-	log.Println("Average GET time: ", cli.Average(getStats))
+
+	sMin, sMax, sAvg, sSd, sPercentiles := cli.GetStats(getStats)
+	log.Println("SET stats ", sMin, sMax, sAvg, sSd, sPercentiles)
+	gMin, gMax, gAvg, gSd, gPercentiles := cli.GetStats(getStats)
+	log.Println("GET stats ", gMin, gMax, gAvg, gSd, gPercentiles)
 	return
 }
 

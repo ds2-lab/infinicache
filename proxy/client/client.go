@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/montanaflynn/stats"
 	"math/rand"
 	"net"
 	"strconv"
@@ -182,6 +183,19 @@ func (c *Client) GenerateSetData(size int) [3]KVSetGroup{
 		}
 	}
 	return data
+}
+
+func (c *Client) GetStats(xs[]float64) (float64,float64,float64,float64,[]float64){
+	mean, _ := stats.Mean(xs)
+	percentile75, _ := stats.Percentile(xs, 0.75)
+	percentile90, _ := stats.Percentile(xs, 0.90)
+	percentile95, _ := stats.Percentile(xs, 0.95)
+	percentile99, _ := stats.Percentile(xs, 0.99)
+	percentiles := []float64{percentile75, percentile90, percentile95, percentile99}
+	min, _ := stats.Min(xs)
+	max, _ := stats.Max(xs)
+	sd, _ := stats.StandardDeviation(xs)
+	return min, max, mean, sd, percentiles
 }
 
 func (c *Client) Average(xs[]float64)float64 {

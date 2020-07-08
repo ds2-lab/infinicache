@@ -16,6 +16,7 @@ require (
 	github.com/mason-leap-lab/redeo v0.0.0-20200204235730-31ffc7d166db
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
+	github.com/montanaflynn/stats v0.6.3
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20200416141329-862a88987de7
