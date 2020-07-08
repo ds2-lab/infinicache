@@ -44,7 +44,8 @@ func main() {
 		}
 	}
 
-	log.Println("Average rGET time: ", cli.Average(getStats))
-
+	gMin, gMax, gAvg, gSd, gPercentiles := cli.GetStats(getStats)
+	log.Println("GET stats ", gMin, gMax, gAvg, gSd, gPercentiles)
+	return
 }
 

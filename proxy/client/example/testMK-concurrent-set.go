@@ -66,5 +66,7 @@ func test(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	//	}
 	//}
 
-	log.Println(cli.Average(setStats))
+	sMin, sMax, sAvg, sSd, sPercentiles := cli.GetStats(setStats)
+	log.Println("SET stats ", sMin, sMax, sAvg, sSd, sPercentiles)
+	return
 }

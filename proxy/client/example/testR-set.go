@@ -34,7 +34,8 @@ func main() {
 		}
 	}
 
-	log.Println("Average rSET time: ", cli.Average(setStats))
+	sMin, sMax, sAvg, sSd, sPercentiles := cli.GetStats(setStats)
+	log.Println("SET stats ", sMin, sMax, sAvg, sSd, sPercentiles)
 
 }
 
