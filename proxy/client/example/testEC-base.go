@@ -5,22 +5,20 @@ import (
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"math/rand"
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
-
+	// initial new ecRedis client
+	cli := client.NewClient(10, 2, 32, 3)
+	requestsNumber, size, addrList := cli.GetArgs(os.Args)
 
 	val := make([]byte, size)
 	rand.Read(val)
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
-	// initial new ecRedis client
-	cli := client.NewClient(10, 2, 32, 3)
 	var setStats []float64
 	var getStats []float64
 	cli.Dial(addrArr)

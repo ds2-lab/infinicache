@@ -10,7 +10,10 @@ import (
 )
 
 func main() {
-	_, size, addrList := getArgs(os.Args)
+	// initial new ecRedis client
+	cli := client.NewClient(10, 2, 32, 3)
+	_, size, addrList := cli.GetArgs(os.Args)
+
 	// initial object with random value
 	val := make([]byte, size)
 	rand.Read(val)
@@ -18,8 +21,7 @@ func main() {
 	// parse server address
 	addrArr := strings.Split(addrList, ",")
 
-	// initial new ecRedis client
-	cli := client.NewClient(10, 2, 32, 3)
+
 	cli.Dial(addrArr)
 
 	key := fmt.Sprintf("k1")
