@@ -4,6 +4,7 @@ import (
 	"github.com/montanaflynn/stats"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -196,6 +197,34 @@ func (c *Client) GetStats(xs[]float64) (float64,float64,float64,float64,[]float6
 	max, _ := stats.Max(xs)
 	sd, _ := stats.StandardDeviation(xs)
 	return min, max, mean, sd, percentiles
+}
+
+func (c *Client) GetArgs(args []string) (int,int,string){
+	var proxies string
+	proxiesOpt, err := strconv.Atoi(args[1])
+	if err!=nil{
+		log.Info("No arguments for test. number of proxies expected")
+		os.Exit(1)
+	}
+	if proxiesOpt == 2 {
+		proxies = "10.4.0.100:6378,10.4.14.71:6378"
+	}else if proxiesOpt == 1{
+		proxies = "10.4.0.100:6378"
+	}else{
+		log.Info("Unknown no of proxies on launch args")
+		os.Exit(1)
+	}
+	requestsNumber, err := strconv.Atoi(args[2])
+	if err!=nil{
+		log.Info("No arguments for test. requests number expected")
+		os.Exit(1)
+	}
+	size, err := strconv.Atoi(args[3])
+	if err!=nil{
+		log.Info("No arguments for test. size expected")
+		os.Exit(1)
+	}
+	return requestsNumber,size,proxies
 }
 
 func (c *Client) Average(xs[]float64)float64 {

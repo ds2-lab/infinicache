@@ -9,12 +9,14 @@ import (
 )
 
 func main() {
-	requestsNumber, size, addrList := getArgs(os.Args)
-	// parse server address
-	addrArr := strings.Split(addrList, ",")
+
 
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
+
+	requestsNumber, size, addrList := cli.GetArgs(os.Args)
+	// parse server address
+	addrArr := strings.Split(addrList, ",")
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
