@@ -349,9 +349,9 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	}
 }
 
-func replicate(groups [3]KVSetGroup, n int) []KVSetGroup {
-	var replicas = make([]KVSetGroup, n)
-	var rFs = []int{5,4,3}
+func (c *Client) replicate(groups [3]KVSetGroup) []KVSetGroup {
+	var replicas = make([]KVSetGroup, c.MKReplicationFactors[0])
+	var rFs = c.MKReplicationFactors
 	for i := 0; i < len(groups); i++ {
 		var group = groups[i]
 		for k := 0; k < len(group.KeyValuePairs); k++{
