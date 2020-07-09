@@ -29,7 +29,7 @@ func main() {
 
 		var s float64 = 0
 		if _, stats, ok := cli.EcSet(key, val); !ok {
-			log.Println("Failed to SET ", l, key)
+			log.Println("Failed to SET ", key)
 		}else{
 			log.Println("Successfull SET ", key)
 			s += stats
@@ -46,9 +46,9 @@ func main() {
 
 		var s float64 = 0
 		if _, _, stats, ok := cli.EcGet(key, size); !ok {
-			log.Println("Failed to GET ", l, key)
+			log.Println("Failed to GET ", key)
 		} else {
-			log.Println("Successfull GET ", l, key)
+			log.Println("Successfull GET ", key)
 			s += stats
 		}
 
