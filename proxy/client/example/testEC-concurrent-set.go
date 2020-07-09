@@ -15,12 +15,12 @@ func main() {
 	var wg sync.WaitGroup
 	for i:=0; i<3; i++{
 		wg.Add(1)
-		go test5(i, &wg, addrList, requestsNumber, size)
+		go test6(i, &wg, addrList, requestsNumber, size)
 	}
 	wg.Wait()
 }
 
-func test5(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
+func test6(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	defer wg.Done()
 
 	// parse server address
@@ -34,26 +34,26 @@ func test5(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	val := make([]byte, size)
 	rand.Read(val)
 	// ToDo: Replace with a channel
-	var getStats []float64
+	var setStats []float64
 
 	for k:=0; k<reqNumber; k++{
 		key := fmt.Sprintf("k%d", k)
 
 		var s float64 = 0
 		for l:=0; l<9; l++ {
-			if _, _, stats, ok := cli.EcGet(key, 160); !ok {
-				log.Println("Failed to GET ", key)
-			} else {
-				log.Println("Successfull GET ", key)
-				getStats = append(getStats, stats)
+			if _, stats, ok := cli.EcSet(key, val); !ok {
+				log.Println("Failed to SET ", key)
+			}else{
+				log.Println("Successfull SET ", key)
+				s += stats
 			}
 		}
 		if s!=0{
-			getStats = append(getStats, s)
+			setStats = append(setStats, s)
 		}
 	}
 
-	gMin, gMax, gAvg, gSd, gPercentiles := cli.GetStats(getStats)
+	gMin, gMax, gAvg, gSd, gPercentiles := cli.GetStats(setStats)
 	log.Println("SET stats ", gMin, gMax, gAvg, gSd, gPercentiles)
 	return
 }
