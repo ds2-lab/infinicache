@@ -37,7 +37,7 @@ func test6(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	var setStats []float64
 
 	for k:=0; k<reqNumber; k++{
-		key := fmt.Sprintf("k.%d",i, k)
+		key := fmt.Sprintf("k.%d", k)
 
 		var s float64 = 0
 		for l:=0; l<9; l++ {
