@@ -23,11 +23,7 @@
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testEC-concurrent-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testEC-concurrent-get.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/example/testEC-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/example/testEC-set.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/mkRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/.~lock.experiments.ods#" beforeDir="false" afterPath="$PROJECT_DIR$/docs/.~lock.experiments.ods#" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/experiments.ods" beforeDir="false" afterPath="$PROJECT_DIR$/docs/experiments.ods" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

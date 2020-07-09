@@ -67,7 +67,7 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 
 	var wg sync.WaitGroup
 	ret := newEcRet(c.MKReplicationFactors[0])
-	var replicas = replicate(data, c.MKReplicationFactors[0])
+	var replicas = c.replicate(data)
 
 	for i := 0; i < len(replicas); i++ {
 		// fmt.Println("shards", i, "is", shards[i])
