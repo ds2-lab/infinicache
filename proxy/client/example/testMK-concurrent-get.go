@@ -37,7 +37,7 @@ func test2(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	for k:=0; k<reqNumber; k++{
 		sD := cli.GenerateSetData(size)
 		d := cli.GenerateSingleRandomGet(sD)
-		key := fmt.Sprintf("HighLevelKey-%d", k)
+		key := fmt.Sprintf("%d.Hk.%d",i, k)
 
 		if res, stats, ok := cli.MkGet(key, d); !ok {
 			log.Println("Failed to mkGET ", i, " ", key)

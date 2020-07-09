@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -39,7 +39,7 @@ func test4(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 
 	for k:=0; k<reqNumber; k++{
 
-		key := "foo" + strconv.Itoa(k)
+		key := fmt.Sprintf("%d.k.%d",i, k)
 		if _, stats, ok := cli.RSet(key, val); !ok {
 			log.Println("Failed to set ", key)
 		}else{

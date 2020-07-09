@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
-	"math/rand"
+	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -40,7 +40,7 @@ func test3(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 
 	for k:=0; k<reqNumber; k++{
 
-		key := "foo" + strconv.Itoa(k)
+		key := fmt.Sprintf("%d.k.%d",i, k)
 		if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
 			log.Println("Failed to get ", key)
 			return

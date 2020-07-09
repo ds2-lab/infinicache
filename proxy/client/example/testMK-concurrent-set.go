@@ -39,7 +39,7 @@ func test(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	for k:=0; k<reqNumber; k++{
 		d := cli.GenerateSetData(size)
 		data = append(data, d)
-		key := fmt.Sprintf("HighLevelKey-%d", k)
+		key := fmt.Sprintf("%d.Hk.%d",i, k)
 		if _, stats, ok := cli.MkSet(key, d); !ok {
 			log.Println("Failed to mkSET", i, key)
 		}else{
