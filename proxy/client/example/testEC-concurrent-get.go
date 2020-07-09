@@ -41,7 +41,7 @@ func test5(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 
 		var s float64 = 0
 		for l:=0; l<9; l++ {
-			if _, _, stats, ok := cli.EcGet(key, 160); !ok {
+			if _, _, stats, ok := cli.EcGet(key, size); !ok {
 				log.Println("Failed to GET ", key)
 			} else {
 				log.Println("Successfull GET ", key)

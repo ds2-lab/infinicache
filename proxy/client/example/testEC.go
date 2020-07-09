@@ -13,6 +13,7 @@ func main() {
 	// initial new ecRedis client
 	cli := client.NewClient(10, 2, 32, 3)
 	requestsNumber, size, addrList := client.GetArgs(os.Args)
+	println(requestsNumber,size,addrList)
 
 	val := make([]byte, size)
 	rand.Read(val)
@@ -29,7 +30,7 @@ func main() {
 		var s float64 = 0
 		for l:=0; l<9; l++ {
 			if _, stats, ok := cli.EcSet(key, val); !ok {
-				log.Println("Failed to SET ", key)
+				log.Println("Failed to SET ", l, key)
 			}else{
 				log.Println("Successfull SET ", key)
 				s += stats
@@ -46,10 +47,10 @@ func main() {
 
 		var s float64 = 0
 		for l:=0; l<3; l++ {
-			if _, _, stats, ok := cli.EcGet(key, 1313); !ok {
-				log.Println("Failed to GET ", key)
+			if _, _, stats, ok := cli.EcGet(key, size); !ok {
+				log.Println("Failed to GET ", l, key)
 			} else {
-				log.Println("Successfull GET ", key)
+				log.Println("Successfull GET ", l, key)
 				s += stats
 			}
 		}
