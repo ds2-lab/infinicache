@@ -37,11 +37,11 @@ func test6(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	var setStats []float64
 
 	for k:=0; k<reqNumber; k++{
-		key := fmt.Sprintf("k.%d", k)
+		key := fmt.Sprintf("k.%d.%d", i, k)
 
 		var s float64 = 0
 		for l:=0; l<9; l++ {
-			key = fmt.Sprintf("k.%d.%d", k, l)
+			key := fmt.Sprintf("%s.%d", key, l)
 			if _, stats, ok := cli.EcSet(key, val); !ok {
 				log.Println("Failed to SET ", key)
 			}else{
