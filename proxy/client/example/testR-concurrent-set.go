@@ -15,7 +15,7 @@ func main() {
 	var wg sync.WaitGroup
 	for i:=0; i<3; i++{
 		wg.Add(1)
-		go test3(i, &wg, addrList, requestsNumber, size)
+		go test4(i, &wg, addrList, requestsNumber, size)
 	}
 	wg.Wait()
 }
