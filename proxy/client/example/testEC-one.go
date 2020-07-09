@@ -34,7 +34,6 @@ func main() {
 			log.Println("Successfull SET ", key)
 			s += stats
 		}
-
 		if s!=0{
 			setStats = append(setStats, s)
 		}
