@@ -40,7 +40,7 @@ func test5(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 		key := fmt.Sprintf("k.%d.%d", i, k)
 
 		var s float64 = 0
-		for l:=0; l<9; l++ {
+		for l:=0; l<3; l++ {
 			key := fmt.Sprintf("%s.%d", key, l)
 			if _, _, stats, ok := cli.EcGet(key, size); !ok {
 				log.Println("Failed to GET ", key)
