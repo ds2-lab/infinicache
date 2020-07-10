@@ -31,7 +31,7 @@ func main() {
 		log.Println("Successfull SET ", key, " ", stats)
 	}
 
-	if _, _, stats, ok := cli.EcGet(key, 160); !ok {
+	if _, _, stats, ok := cli.EcGet(key, size); !ok {
 		log.Println("Failed to GET ", key)
 	} else {
 		log.Println("Successfull GET ", key, " ", stats)
