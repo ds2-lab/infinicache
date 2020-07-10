@@ -21,13 +21,8 @@
   <component name="ChangeListManager">
     <list default="true" id="f19bc390-b7f8-4a26-9cf6-6d411afeef92" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/client/mkRedis.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/client/mkRedis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/log" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/log_proxy.clog" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/log_proxy.clog" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../proxy/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/proxy/server/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../proxy/tmp/Latency Times.md" beforeDir="false" afterPath="$PROJECT_DIR$/../proxy/tmp/Latency Times.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
