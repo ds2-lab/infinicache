@@ -21,13 +21,7 @@
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/../node/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/../node/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/lambda/collector/collector.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/lambda/collector/collector.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../node/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../node/node-knService.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/node-knService.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proxy/server/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/server/config.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
