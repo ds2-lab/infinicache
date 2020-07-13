@@ -106,7 +106,7 @@ func BenchmarkRSetSimple(b *testing.B) {
 	for _, size := range sizes {
 		val := make([]byte, size)
 		rand.Read(val)
-		b.Run(fmt.Sprintf("EcSet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("RSet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", i, size), val)
 			}
@@ -134,7 +134,7 @@ func BenchmarkRGetSimple(b *testing.B){
 
 	for _, size := range sizes {
 		setOps := allSets[size]
-		b.Run(fmt.Sprintf("EcGet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("RGet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
 				b.StopTimer()

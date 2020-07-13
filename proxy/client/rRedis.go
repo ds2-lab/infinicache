@@ -28,8 +28,8 @@ func (c *Client) RSet(key string, val []byte) (string, float64, bool) {
 	//fmt.Println("in SET, key is: ", key)
 	member := c.Ring.LocateKey([]byte(key))
 	host := member.String()
-	log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
-	log.Debug("SET located host: %s", host)
+	// log.Debug("ring LocateKey costs: %v", time.Since(stats.Begin))
+	//log.Debug("SET located host: %s", host)
 
 	var wg sync.WaitGroup
 	ret := newEcRet(c.ReplicationFactor)
@@ -49,7 +49,7 @@ func (c *Client) RSet(key string, val []byte) (string, float64, bool) {
 	nanolog.Log(LogClient, "set", stats.ReqId, stats.Begin.UnixNano(),
 		int64(stats.Duration), int64(stats.ReqLatency), int64(0), int64(0),
 		false, false)
-	log.Info("Set %s %d", key, int64(stats.Duration))
+	// log.Info("Set %s %d", key, int64(stats.Duration))
 
 	return stats.ReqId, stats.Duration.Seconds() * 1e3, true
 }
