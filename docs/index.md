@@ -84,7 +84,7 @@ InfiniCache is a first-of-its-kind in-memory object caching system that is compl
 
 ---
 ### Contact
-Please feel free to reach out us at  if you have any questions about *InfiniCache*. Pll 
+Please feel free to reach out us at  if you have any questions about *InfiniCache*.
 
 ### Contributing
 
