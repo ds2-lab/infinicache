@@ -8,6 +8,7 @@ import (
 
 func BenchmarkMerge(b *testing.B) {
 	cli := client.NewClient(10, 2, 32, 3)
+	cli.Dial([]string{"10.4.0.100"})
 	merges := []struct {
 		name string
 		fun  func(key string, val []byte, args ...interface{}) (string, float64, bool)
