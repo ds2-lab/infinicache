@@ -102,7 +102,7 @@ kubectl --namespace {namespace} run curl --image=radial/busyboxplus:curl -it
 
 * delete pods by regexp 
 ```
-kubectl get pods --no-headers=true | awk '/proxy/ {print}' | xargs kubectl delete pods
+kubectl get pods --no-headers=true | awk '/proxy/ {print $1}' | xargs kubectl delete pods
 ```
 
 
