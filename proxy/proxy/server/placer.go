@@ -214,6 +214,7 @@ func (p *Placer) Get(key string, chunk int) (*Meta, bool) {
 		return meta, ok
 	}
 
+	p.log.Debug("len %d dChunk %d", len(meta.placerMeta.confirmed), chunk)
 	if meta.placerMeta == nil || !meta.placerMeta.confirmed[chunk] {
 		return nil, false
 	}
