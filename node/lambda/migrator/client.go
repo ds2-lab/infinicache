@@ -1,17 +1,16 @@
 package migrator
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/neboduus/infinicache/node/common/logger"
 	"github.com/mason-leap-lab/redeo"
 	"github.com/mason-leap-lab/redeo/resp"
+	"github.com/neboduus/infinicache/node/common/logger"
 	"io"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -80,20 +79,12 @@ func (cli *Client) Connect(addr string) (err error) {
 }
 
 func (cli *Client) TriggerDestination(dest string, args interface{}) (err error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	client := lambda.New(sess, &aws.Config{Region: aws.String(AWSRegion)})
-	payload, _ := json.Marshal(args)
-	input := &lambda.InvokeInput{
-		FunctionName:   aws.String(dest),
-		Payload:        payload,
-		InvocationType: aws.String("Event"), /* async invoke*/
-	}
+	p := new(bytes.Buffer)
+	json.NewEncoder(p).Encode(args)
+	res, err := http.Post(dest, "application/json", p)
 
-	res, err := client.Invoke(input)
-	if err == nil && *res.StatusCode >= 300 {
-		err = errors.New(fmt.Sprintf("Unexpected http code on triggering destination of migration: %d", *res.StatusCode))
+	if err == nil && res.StatusCode >= 300 {
+		err = errors.New(fmt.Sprintf("Unexpected http code on triggering destination of migration: %d", res.StatusCode))
 	}
 	if err != nil {
 		cli.ready <- err
