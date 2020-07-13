@@ -30,11 +30,12 @@ func BenchmarkEcGetSimple(b *testing.B){
 	// we first set some data to be sure our GET ops are successfull
 	allSets := make(map[int][]string)
 	for _, size := range sizes {
-		dSet := cli.GenerateSetData(size)
+		val := make([]byte, size)
+		rand.Read(val)
 		var okSets []string
 		for i := 0; i <= 500; i++{
 			key := fmt.Sprintf("k-%d-%d", size, i)
-			_, _, err := cli.MkSet(key, dSet)
+			_, _, err := cli.EcSet(key, val)
 			if err != false {
 				okSets = append(okSets, key)
 			}
