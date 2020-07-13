@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"github.com/ScottMansfield/nanolog"
 	"github.com/fatih/set"
 	"github.com/google/uuid"
@@ -109,7 +108,7 @@ func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyVa
 	// Send request and wait
 	var wg sync.WaitGroup
 	locations := c.LocateLowLevelKeys(lowLevelKeys)
-	fmt.Println(locations)
+	//fmt.Println(locations)
 	ret := newEcRet(len(locations))
 	j := 0
 	for i, v := range locations {
