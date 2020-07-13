@@ -28,13 +28,16 @@ func BenchmarkMkGet(b *testing.B) {
 
 	// we first set some data to be sure our GET ops are successfull
 	allSets := make(map[int][][3]client.KVSetGroup)
+	var allKeys []string
 	for size := range sizes {
 		dSet := cli.GenerateSetData(size)
 		var okSets [][3]client.KVSetGroup
 		for i := 0; i <= 500; i++{
-			_, _, err := cli.MkSet(fmt.Sprintf("k-%d-%d", i, size), dSet)
+			key := fmt.Sprintf("k-%d", i)
+			_, _, err := cli.MkSet(key, dSet)
 			if err != false {
 				okSets = append(okSets, dSet)
+				allKeys = append(allKeys, key)
 			}
 		}
 		allSets[size] = okSets
@@ -45,8 +48,9 @@ func BenchmarkMkGet(b *testing.B) {
 		b.Run(fmt.Sprintf("/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
-				dGet := cli.GenerateSingleRandomGet(setOps[rand.Intn(len(setOps)-1)])
-				_,_,_ = cli.MkGet(fmt.Sprintf("k-%d-%d", i, size), dGet)
+				r := rand.Intn(len(setOps)-1)
+				dGet := cli.GenerateSingleRandomGet(setOps[r])
+				_,_,_ = cli.MkGet(allKeys[r], dGet)
 			}
 		})
 	}
