@@ -263,7 +263,7 @@ func Wait(session *lambdaLife.Session, lifetime *lambdaLife.Lifetime) {
 			log.Info("Initiate migration.")
 			initiator := func() error { return initMigrateHandler(session.Connection) }
 			for err := session.Migrator.Initiate(initiator); err != nil; {
-				log.Warn("Fail to initiaiate migration: %v", err)
+				log.Warn("Fail to initiate migration: %v", err)
 				if err == types.ErrProxyClosing {
 					return
 				}

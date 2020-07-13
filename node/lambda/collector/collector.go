@@ -1,30 +1,25 @@
 package collector
 
+// This package has been implemented to work with S3
+// ToDo: Integrate some other reliable store, maybe PostgreSQL, or Firebase
+
 import (
 	"bytes"
 	"fmt"
-	"os/exec"
-	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	awsSession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/neboduus/infinicache/node/common/logger"
+	"os/exec"
 	"strings"
 	"sync"
 
-	"github.com/neboduus/infinicache/node/lambda/types"
 	"github.com/neboduus/infinicache/node/lambda/lifetime"
+	"github.com/neboduus/infinicache/node/lambda/types"
 )
 
-const (
-	AWSRegion                      = "us-east-2"
-	S3BUCKET                       = "infinicache"
-)
 
 var (
 	Prefix         string
 	HostName       string
-	FunctionName   string
+	FunctionName   string = "- UNSET -"
 
 	dataGatherer                   = make(chan *types.DataEntry, 10)
 	dataDepository                 = make([]*types.DataEntry, 0, 100)
@@ -42,7 +37,6 @@ func init() {
 	HostName = strings.Split(string(host), " #")[0]
 	log.Debug("hostname is: %s", HostName)
 
-	FunctionName = lambdacontext.FunctionName
 }
 
 func Send(entry *types.DataEntry) {
@@ -78,34 +72,18 @@ func Save(l *lifetime.Lifetime) {
 	}
 
 	key := fmt.Sprintf("%s/%s/%d", Prefix, FunctionName, l.Id())
-	s3Put(S3BUCKET, key, data.String())
+	Put("someLocation", key, data.String())
 	dataDepository = dataDepository[:0]
 }
 
-func s3Put(bucket string, key string, f string) {
-	// The session the S3 Uploader will use
-	sess := awsSession.Must(awsSession.NewSessionWithOptions(awsSession.Options{
-		SharedConfigState: awsSession.SharedConfigEnable,
-		Config:            aws.Config{Region: aws.String(AWSRegion)},
-	}))
-
-	// Create an uploader with the session and default options
-	uploader := s3manager.NewUploader(sess)
-
-	// Upload input parameters
-	file := strings.NewReader(f)
-
-	upParams := &s3manager.UploadInput{
-		Bucket: &bucket,
-		Key:    &key,
-		Body:   file,
-	}
+func Put(bucket string, key string, f string) {
 	// Perform an upload.
-	result, err := uploader.Upload(upParams)
-	if err != nil {
-		log.Error("Failed to upload data: %v", err)
-		return
-	}
 
-	log.Info("Data uploaded to S3: %v", result.Location)
+	log.Info("Data should be uploaded to some reliable STORE (e.g. S3)")
 }
+
+func SetFunctionName(fName string){
+	FunctionName = fName
+}
+
+
