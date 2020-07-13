@@ -14,7 +14,7 @@ func BenchmarkMkSet(b *testing.B) {
 		data := cli.GenerateSetData(size)
 		b.Run(fmt.Sprintf("/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_,_,_ = cli.MkSet(fmt.Sprintf("k%d", i), data)
+				_,_,_ = cli.MkSet(fmt.Sprintf("k-%d-%d", i, size), data)
 			}
 		})
 	}
