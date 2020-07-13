@@ -8,7 +8,7 @@ import (
 )
 
 var(
-	sizes = []int{1,160,500,1600}
+	sizes = []int{1,160,650,1300}
 	proxies = []string{"10.4.0.100:6378"}
 )
 
