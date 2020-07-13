@@ -1,26 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"testing"
 )
 
 
-func BenchmarkMerge(b *testing.B) {
+func BenchmarkMkSet(b *testing.B) {
+	sizes := []int{1,160,500,1600}
 	cli := client.NewClient(10, 2, 32, 3)
-	cli.Dial([]string{"10.4.0.100"})
-	merges := []struct {
-		name string
-		fun  func(key string, val []byte, args ...interface{}) (string, float64, bool)
-	}{
-		{"MK_SET", cli.EcSet},
-	}
-	data := cli.GenerateSetData(160)
-	for _, merge := range merges {
-		b.Run(merge.name, func(b *testing.B) {
+	cli.Dial([]string{"10.4.0.100:6378"})
+	for size := range sizes {
+		data := cli.GenerateSetData(size)
+		b.Run(fmt.Sprintf("%s/%d", "MK_SET", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_,_,_ = cli.MkSet("test_benchmark", data)
+				_,_,_ = cli.MkSet("testK", data)
 			}
 		})
 	}
+
 }
