@@ -57,6 +57,55 @@ func BenchmarkEcGetSimple(b *testing.B){
 	}
 }
 
+func BenchmarkEcSetMultiple(b *testing.B) {
+	cli := initClient()
+	for _, size := range sizes {
+		val := make([]byte, size)
+		rand.Read(val)
+		b.Run(fmt.Sprintf("EcSet/%d B", size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for j := 0; j < 9; j++ {
+					_, _, _ = cli.EcSet(fmt.Sprintf("k-%d-%d-%d", i, size, j), val)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkEcGetMultiple(b *testing.B){
+	cli := initClient()
+	// we first set some data to be sure our GET ops are successfull
+	allSets := make(map[int][]string)
+	for _, size := range sizes {
+		val := make([]byte, size)
+		rand.Read(val)
+		var okSets []string
+		for i := 0; i <= 500; i++{
+			key := fmt.Sprintf("k-%d-%d", size, i)
+			_, _, err := cli.EcSet(key, val)
+			if err != false {
+				okSets = append(okSets, key)
+			}
+		}
+		allSets[size] = okSets
+	}
+
+	for _, size := range sizes {
+		setOps := allSets[size]
+		b.Run(fmt.Sprintf("EcGet/%d B", size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				// we randomly choose some data to GET from the previous set ops
+				b.StopTimer()
+				r := rand.Intn(len(setOps)-1)
+				b.StartTimer()
+				for j:=0; j<3; j++{
+					_,_,_,_ = cli.EcGet(setOps[r], size)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkMkSet(b *testing.B) {
 	cli := initClient()
 	for _, size := range sizes {
@@ -101,7 +150,7 @@ func BenchmarkMkGet(b *testing.B) {
 	}
 }
 
-func BenchmarkRSetSimple(b *testing.B) {
+func BenchmarkRSet(b *testing.B) {
 	cli := initClient()
 	for _, size := range sizes {
 		val := make([]byte, size)
@@ -114,7 +163,7 @@ func BenchmarkRSetSimple(b *testing.B) {
 	}
 }
 
-func BenchmarkRGetSimple(b *testing.B){
+func BenchmarkRGet(b *testing.B){
 	cli := initClient()
 	// we first set some data to be sure our GET ops are successfull
 	allSets := make(map[int][]string)
