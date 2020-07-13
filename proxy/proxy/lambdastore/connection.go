@@ -300,7 +300,7 @@ func (conn *Connection) getHandler(start time.Time) {
 	// if err != nil {
 	// 	conn.log.Warn("Failed to read value of response: %v", err)
 	// 	// Abandon errant data
-	// 	res = nil
+	// 	res.raw = nil
 	// }
 	// Skip on abandon
 	if abandon {

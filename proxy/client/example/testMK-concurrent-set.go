@@ -53,13 +53,13 @@ func test(i int, wg *sync.WaitGroup, addrList string, reqNumber int, size int){
 	//for k:=0; k<len(getData); k++{
 	//	d := getData[k]
 	//	key := fmt.Sprintf("HighLevelKey-%d", k)
-	//	if res, stats, ok := cli.MkGet(key, d); !ok {
+	//	if res.raw, stats, ok := cli.MkGet(key, d); !ok {
 	//		log.Println("Failed to mkGET ", i, " ", key)
 	//	}else{
 	//		getStats = append(getStats, stats)
 	//		var v string = ""
-	//		for c:=0; c<len(res);c++ {
-	//			kvp := res[c]
+	//		for c:=0; c<len(res.raw);c++ {
+	//			kvp := res.raw[c]
 	//			v = fmt.Sprintf("%s %s", v, kvp.Key)
 	//		}
 	//		log.Println("Successfull mkGET ",i, " ", v, stats, " ms")
