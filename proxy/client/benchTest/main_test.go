@@ -17,7 +17,7 @@ func BenchmarkEcSetSimple(b *testing.B) {
 	for _, size := range sizes {
 		val := make([]byte, size)
 		rand.Read(val)
-		b.Run(fmt.Sprintf("EcSet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("EcSimpleSet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", i, size), val)
 			}
@@ -45,7 +45,7 @@ func BenchmarkEcGetSimple(b *testing.B){
 
 	for _, size := range sizes {
 		setOps := allSets[size]
-		b.Run(fmt.Sprintf("EcGet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("EcSimpleGet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
 				b.StopTimer()
@@ -62,7 +62,7 @@ func BenchmarkEcSetMultiple(b *testing.B) {
 	for _, size := range sizes {
 		val := make([]byte, size)
 		rand.Read(val)
-		b.Run(fmt.Sprintf("EcSet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("EcMultipleSet/9 x %d B = %d B", size, size*9), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				for j := 0; j < 9; j++ {
 					_, _, _ = cli.EcSet(fmt.Sprintf("k-%d-%d-%d", i, size, j), val)
@@ -92,7 +92,7 @@ func BenchmarkEcGetMultiple(b *testing.B){
 
 	for _, size := range sizes {
 		setOps := allSets[size]
-		b.Run(fmt.Sprintf("EcGet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("EcMultipleGet/3*%d B = %d B", size, 3*size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
 				b.StopTimer()
