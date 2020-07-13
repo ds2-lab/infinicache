@@ -13,7 +13,7 @@ func BenchmarkMkSet(b *testing.B) {
 	cli.Dial([]string{"10.4.0.100:6378"})
 	for _, size := range sizes {
 		data := cli.GenerateSetData(size)
-		b.Run(fmt.Sprintf("/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("MkSet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_,_,_ = cli.MkSet(fmt.Sprintf("k-%d-%d", i, size), data)
 			}
@@ -45,7 +45,7 @@ func BenchmarkMkGet(b *testing.B) {
 
 	for _, size := range sizes {
 		setOps := allSets[size]
-		b.Run(fmt.Sprintf("/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("MkGet/%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
 				r := rand.Intn(len(setOps)-1)
@@ -54,5 +54,5 @@ func BenchmarkMkGet(b *testing.B) {
 			}
 		})
 	}
-
 }
+
