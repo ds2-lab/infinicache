@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	replica = flag.Bool("replica", true, "Enable lambda replica deployment")
-	debug   = flag.Bool("debug", true, "Enable debug and print debug logs")
+	replica = flag.Bool("replica", false, "Enable lambda replica deployment")
+	debug   = flag.Bool("debug", false, "Enable debug and print debug logs")
 	prefix  = flag.String("prefix", "log", "log file prefix")
 	log     = &logger.ColorLogger{
 		Level: logger.LOG_LEVEL_WARN,
