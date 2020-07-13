@@ -120,16 +120,16 @@ func (p *Placer) GetOrInsert(key string, newMeta *Meta) (*Meta, bool, MetaPostPr
 		meta.Deleted = false
 	}
 
+	// Initialize placerMeta if not.
+	if meta.placerMeta == nil {
+		meta.placerMeta = newPlacerMeta(len(meta.Placement))
+	}
+
 	// Usually this should always be false for SET operation, flag RESET if true.
 	if meta.placerMeta != nil && meta.placerMeta.confirmed[chunk] {
 		meta.Reset = true
 		// No size update is required, reserved on setting.
 		return meta, got, nil
-	}
-
-	// Initialize placerMeta if not.
-	if meta.placerMeta == nil {
-		meta.placerMeta = newPlacerMeta(len(meta.Placement))
 	}
 
 	// Check availability
