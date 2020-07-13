@@ -84,7 +84,7 @@ InfiniCache is a first-of-its-kind in-memory object caching system that is compl
 
 ---
 ### Contact
-Please feel free to reach out us if you have any questions about *InfiniCache*.
+Please feel free to reach out us at  if you have any questions about *InfiniCache*. Pll 
 
 ### Contributing
 
@@ -100,3 +100,23 @@ Please feel free to hack on InfiniCache! We're happy to accept contributions.
 {% endfor %}
 </ul>
  -->
+
+### Acknowledgment
+
+This work is sponsored in part by NSF, and AWS Cloud Research Grants.
+
+<h5>
+<img src="image/Logo_NSF.png"
+  width="100"
+  height="95"
+  style="float:left;">
+<img src="image/Logo_AWS.svg"
+  width="200"
+  height="95"
+  style="float:left;">
+  <img src="image/Logo_GMU.jpg"
+  width="130"
+  height="95"
+  style="float:left;">
+</h5>
+
