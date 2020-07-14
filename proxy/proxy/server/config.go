@@ -10,7 +10,7 @@ const LambdaMaxDeployments = 40
 const NumLambdaClusters = 40
 // fixed size array with lambdas addresses
 var LambdaAddresses = [...]string {
-
+/*
 	"http://infinicache-node-0.default.svc.cluster.local",
 	"http://infinicache-node-1.default.svc.cluster.local",
 	"http://infinicache-node-2.default.svc.cluster.local",
@@ -52,8 +52,7 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-38.default.svc.cluster.local",
 	"http://infinicache-node-39.default.svc.cluster.local",
 
-
-	/*
+*/
 	"http://infinicache-node-40.default.svc.cluster.local",
 	"http://infinicache-node-41.default.svc.cluster.local",
 	"http://infinicache-node-42.default.svc.cluster.local",
@@ -94,7 +93,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-77.default.svc.cluster.local",
 	"http://infinicache-node-78.default.svc.cluster.local",
 	"http://infinicache-node-79.default.svc.cluster.local",
-*/
 
 }
 const LambdaStoreName = "LambdaStore" // replica version (no use)
