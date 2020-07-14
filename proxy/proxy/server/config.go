@@ -10,7 +10,7 @@ const LambdaMaxDeployments = 30
 const NumLambdaClusters = 30
 // fixed size array with lambdas addresses
 var LambdaAddresses = [...]string {
-/*
+
 	"http://infinicache-node-0.default.svc.cluster.local",
 	"http://infinicache-node-1.default.svc.cluster.local",
 	"http://infinicache-node-2.default.svc.cluster.local",
@@ -41,8 +41,7 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-27.default.svc.cluster.local",
 	"http://infinicache-node-28.default.svc.cluster.local",
 	"http://infinicache-node-29.default.svc.cluster.local",
-
-*/
+	/*
 	"http://infinicache-node-30.default.svc.cluster.local",
 	"http://infinicache-node-31.default.svc.cluster.local",
 	"http://infinicache-node-32.default.svc.cluster.local",
@@ -73,15 +72,15 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-57.default.svc.cluster.local",
 	"http://infinicache-node-58.default.svc.cluster.local",
 	"http://infinicache-node-59.default.svc.cluster.local",
-
+*/
 }
 const LambdaStoreName = "LambdaStore" // replica version (no use)
 const LambdaPrefix = "CacheNode"
 const InstanceWarmTimout = 1 * time.Minute
 const InstanceCapacity = 1536 * 1000000 // MB
 const InstanceOverhead = 100 * 1000000  // MB
-//const ServerPublicIp = "10.4.0.100" // Leave it empty if using VPC.
-const ServerPublicIp = "10.4.14.71"
+const ServerPublicIp = "10.4.0.100" // Leave it empty if using VPC.
+//const ServerPublicIp = "10.4.14.71"
 
 func init() {
 	lambdastore.WarmTimout = InstanceWarmTimout
