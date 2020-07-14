@@ -41,7 +41,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-9.default.svc.cluster.local",
 	"http://infinicache-node-10.default.svc.cluster.local",
 	"http://infinicache-node-11.default.svc.cluster.local",
-
 	"http://infinicache-node-12.default.svc.cluster.local",
 	"http://infinicache-node-13.default.svc.cluster.local",
 	"http://infinicache-node-14.default.svc.cluster.local",
@@ -50,7 +49,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-17.default.svc.cluster.local",
 	"http://infinicache-node-18.default.svc.cluster.local",
 	"http://infinicache-node-19.default.svc.cluster.local",
-	/*
 	"http://infinicache-node-20.default.svc.cluster.local",
 	"http://infinicache-node-21.default.svc.cluster.local",
 	"http://infinicache-node-22.default.svc.cluster.local",
@@ -61,7 +59,7 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-27.default.svc.cluster.local",
 	"http://infinicache-node-28.default.svc.cluster.local",
 	"http://infinicache-node-29.default.svc.cluster.local",
-
+	/*
 	"http://infinicache-node-30.default.svc.cluster.local",
 	"http://infinicache-node-31.default.svc.cluster.local",
 	"http://infinicache-node-32.default.svc.cluster.local",
