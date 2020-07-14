@@ -33,6 +33,8 @@ BenchmarkRGet/RGet/160_B-4                                          1000        
 BenchmarkRGet/RGet/650_B-4                                          1000           1151789 ns/op
 BenchmarkRGet/RGet/1300_B-4                                         1000           1405786 ns/op
 
+20 nodes
+
 BenchmarkEcSetSimple/EcSimpleSet/1_B-4               300           4182546 ns/op
 BenchmarkEcSetSimple/EcSimpleSet/160_B-4             500           4899493 ns/op
 BenchmarkEcSetSimple/EcSimpleSet/650_B-4             300           4606711 ns/op
@@ -65,3 +67,6 @@ BenchmarkRGet/RGet/1_B-4                                            1000        
 BenchmarkRGet/RGet/160_B-4                                          1000           1972741 ns/op
 BenchmarkRGet/RGet/650_B-4                                          1000           1958229 ns/op
 BenchmarkRGet/RGet/1300_B-4                                         1000           2062349 ns/op
+
+30 nodes
+
