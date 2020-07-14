@@ -205,13 +205,15 @@ func BenchmarkParallelRSet(b *testing.B){
 	for _, size := range sizes {
 		val := make([]byte, size)
 		rand.Read(val)
-		b.RunParallel(func(pb *testing.PB) {
-			b.StopTimer()
-			cli := initClient()
-			b.StartTimer()
-			for pb.Next(){
-				_,_,_ = cli.EcSet(fmt.Sprintf("k-%d", size), val)
-			}
+		b.Run(fmt.Sprintf("%d B", size), func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB){
+				b.StopTimer()
+				cli := initClient()
+				b.StartTimer()
+				for pb.Next() {
+					_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", i, size), val)
+				}
+			})
 		})
 	}
 }
