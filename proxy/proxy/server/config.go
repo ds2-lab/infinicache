@@ -6,8 +6,8 @@ import (
 	"github.com/neboduus/infinicache/proxy/proxy/lambdastore"
 )
 
-const LambdaMaxDeployments = 50
-const NumLambdaClusters = 50
+const LambdaMaxDeployments = 60
+const NumLambdaClusters = 60
 // fixed size array with lambdas addresses
 var LambdaAddresses = [...]string {
 
@@ -61,7 +61,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-47.default.svc.cluster.local",
 	"http://infinicache-node-48.default.svc.cluster.local",
 	"http://infinicache-node-49.default.svc.cluster.local",
-	/*
 	"http://infinicache-node-50.default.svc.cluster.local",
 	"http://infinicache-node-51.default.svc.cluster.local",
 	"http://infinicache-node-52.default.svc.cluster.local",
@@ -72,7 +71,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-57.default.svc.cluster.local",
 	"http://infinicache-node-58.default.svc.cluster.local",
 	"http://infinicache-node-59.default.svc.cluster.local",
-*/
 }
 const LambdaStoreName = "LambdaStore" // replica version (no use)
 const LambdaPrefix = "CacheNode"
