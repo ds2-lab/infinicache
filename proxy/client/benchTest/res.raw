@@ -70,6 +70,22 @@ RGet/1300_B-4                                         1000           2062349 ns/
 
 30 nodes
 
+EcSimpleSet/1_B-4               500           2351149 ns/op
+EcSimpleSet/160_B-4            1000           2659287 ns/op
+EcSimpleSet/650_B-4             500           2408021 ns/op
+EcSimpleSet/1300_B-4            500           2743730 ns/op
+EcSimpleGet/1_B-4              1000           2628491 ns/op
+EcSimpleGet/160_B-4             500           3040617 ns/op
+EcSimpleGet/650_B-4             500           2964018 ns/op
+EcSimpleGet/1300_B-4            500           2495467 ns/op
+EcMultipleSet/9_x_1_B_=_9_B-4                  50          22741077 ns/op
+EcMultipleSet/9_x_160_B_=_1440_B-4             50          28819512 ns/op
+EcMultipleSet/9_x_650_B_=_5850_B-4            100          25819862 ns/op
+EcMultipleSet/9_x_1300_B_=_11700_B-4           50          30936588 ns/op
+EcMultipleGet/3*1_B_=_3_B-4                   200           7106477 ns/op
+EcMultipleGet/3*160_B_=_480_B-4               200           9551781 ns/op
+EcMultipleGet/3*650_B_=_1950_B-4              200           7313236 ns/op
+EcMultipleGet/3*1300_B_=_3900_B-4             200           7125435 ns/op
 MkSet/9_x_1_B_=_9-4                   500           2827968 ns/op
 MkSet/9_x_160_B_=_1440-4              500           3888249 ns/op
 MkSet/9_x_650_B_=_5850-4              300           3682075 ns/op
@@ -78,3 +94,11 @@ MkGet/3_x_1_B_=_3_B_-4                500           2530560 ns/op
 MkGet/3_x_160_B_=_480_B_-4            500           2863960 ns/op
 MkGet/3_x_650_B_=_1950_B_-4           500           2381079 ns/op
 MkGet/3_x_1300_B_=_3900_B_-4          500           3254866 ns/op
+RSet/1_B-4                  500           2363602 ns/op
+RSet/160_B-4               1000           2848689 ns/op
+RSet/650_B-4                500           2445204 ns/op
+RSet/1300_B-4              1000           2662377 ns/op
+RGet/1_B-4                 2000           1289093 ns/op
+RGet/160_B-4               2000           1201933 ns/op
+RGet/650_B-4               1000           1245814 ns/op
+RGet/1300_B-4              1000           1229342 ns/op
