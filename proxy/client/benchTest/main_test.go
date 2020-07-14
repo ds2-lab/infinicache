@@ -107,11 +107,13 @@ func BenchmarkEcGetMultiple(b *testing.B){
 }
 
 func BenchmarkMkSet(b *testing.B) {
+	b.StopTimer()
 	cli := initClient()
 	for _, size := range sizes {
 		data := cli.GenerateSetData(size)
 		b.Run(fmt.Sprintf("9 x %d B = %d", size, 9*size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
+				b.StartTimer()
 				_,_,_ = cli.MkSet(fmt.Sprintf("k-%d-%d", i, size), data)
 			}
 		})
@@ -119,6 +121,7 @@ func BenchmarkMkSet(b *testing.B) {
 }
 
 func BenchmarkMkGet(b *testing.B) {
+	b.StopTimer()
 	cli := initClient()
 	// we first set some data to be sure our GET ops are successfull
 	allSets := make(map[int][][3]client.KVSetGroup)
@@ -141,9 +144,11 @@ func BenchmarkMkGet(b *testing.B) {
 		setOps := allSets[size]
 		b.Run(fmt.Sprintf("3 x %d B = %d B ", size, 3*size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
+				b.StopTimer()
 				// we randomly choose some data to GET from the previous set ops
 				r := rand.Intn(len(setOps)-1)
 				dGet := cli.GenerateSingleRandomGet(setOps[r])
+				b.StartTimer()
 				_,_,_ = cli.MkGet(allKeys[r], dGet)
 			}
 		})
@@ -155,7 +160,7 @@ func BenchmarkRSet(b *testing.B) {
 		cli := initClient()
 		val := make([]byte, size)
 		rand.Read(val)
-		b.Run(fmt.Sprintf("RSet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", i, size), val)
 			}
@@ -185,7 +190,7 @@ func BenchmarkRGet(b *testing.B){
 	for _, size := range sizes {
 		cli := initClient()
 		setOps := allSets[size]
-		b.Run(fmt.Sprintf("RGet/%d B", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d B", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// we randomly choose some data to GET from the previous set ops
 				r := rand.Intn(len(setOps)-1)
