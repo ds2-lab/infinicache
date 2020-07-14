@@ -211,7 +211,7 @@ func BenchmarkParallelRSet(b *testing.B){
 				cli := initClient()
 				b.StartTimer()
 				for pb.Next() {
-					_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", i, size), val)
+					_,_,_ = cli.EcSet(fmt.Sprintf("%s-k-%d", b.Name(), size), val)
 				}
 			})
 		})
