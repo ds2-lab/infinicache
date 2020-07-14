@@ -202,20 +202,20 @@ func BenchmarkRGet(b *testing.B){
 }
 
 func BenchmarkParallelRSet(b *testing.B){
-	for _, size := range sizes {
-		val := make([]byte, size)
-		rand.Read(val)
-		b.Run(fmt.Sprintf("%d B", size), func(b *testing.B) {
-			b.RunParallel(func(pb *testing.PB){
-				b.StopTimer()
-				cli := initClient()
-				b.StartTimer()
-				for pb.Next() {
-					_,_,_ = cli.EcSet(fmt.Sprintf("%s-k-%d", b.Name(), size), val)
-				}
-			})
-		})
-	}
+	val := make([]byte, 1300)
+	rand.Read(val)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB){
+		b.StopTimer()
+		cli := initClient()
+		b.StartTimer()
+		i := 0
+		for pb.Next() {
+			_,_,_ = cli.EcSet(fmt.Sprintf("%s-k-%d", b.Name(), i), val)
+			i++
+		}
+	})
+
 }
 
 func initClient() *client.Client {
