@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -202,19 +203,28 @@ func BenchmarkRGet(b *testing.B){
 }
 
 func BenchmarkParallelRSet(b *testing.B){
+
 	val := make([]byte, 1300)
 	rand.Read(val)
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB){
-		b.StopTimer()
-		cli := initClient()
-		b.StartTimer()
-		i := 0
-		for pb.Next() {
-			_,_,_ = cli.EcSet(fmt.Sprintf("%s-k-%d", b.Name(), i), val)
-			i++
-		}
-	})
+
+	var wg sync.WaitGroup
+	for i:=0; i<3; i++ {
+		j := i
+		wg.Add(1)
+		go func(){
+			defer wg.Done()
+			b.Run(fmt.Sprintf("cli %d - 1300 B", j), func(b *testing.B) {
+				b.StopTimer()
+				cli := initClient()
+				b.StartTimer()
+				for k := 0; k < b.N; k++ {
+					_,_,_ = cli.EcSet(fmt.Sprintf("k-%d-%d", k, 1300), val)
+				}
+			})
+		}()
+		wg.Wait()
+	}
+
 
 }
 
