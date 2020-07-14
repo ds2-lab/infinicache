@@ -6,11 +6,11 @@ import (
 	"github.com/neboduus/infinicache/proxy/proxy/lambdastore"
 )
 
-const LambdaMaxDeployments = 50
-const NumLambdaClusters = 50
+const LambdaMaxDeployments = 40
+const NumLambdaClusters = 40
 // fixed size array with lambdas addresses
 var LambdaAddresses = [...]string {
-	/*
+
 	"http://infinicache-node-0.default.svc.cluster.local",
 	"http://infinicache-node-1.default.svc.cluster.local",
 	"http://infinicache-node-2.default.svc.cluster.local",
@@ -51,6 +51,9 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-37.default.svc.cluster.local",
 	"http://infinicache-node-38.default.svc.cluster.local",
 	"http://infinicache-node-39.default.svc.cluster.local",
+
+
+	/*
 	"http://infinicache-node-40.default.svc.cluster.local",
 	"http://infinicache-node-41.default.svc.cluster.local",
 	"http://infinicache-node-42.default.svc.cluster.local",
@@ -61,7 +64,6 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-47.default.svc.cluster.local",
 	"http://infinicache-node-48.default.svc.cluster.local",
 	"http://infinicache-node-49.default.svc.cluster.local",
-*/
 	"http://infinicache-node-50.default.svc.cluster.local",
 	"http://infinicache-node-51.default.svc.cluster.local",
 	"http://infinicache-node-52.default.svc.cluster.local",
@@ -82,7 +84,7 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-67.default.svc.cluster.local",
 	"http://infinicache-node-68.default.svc.cluster.local",
 	"http://infinicache-node-69.default.svc.cluster.local",
-	"http://infinicache-node-60.default.svc.cluster.local",
+	"http://infinicache-node-70.default.svc.cluster.local",
 	"http://infinicache-node-71.default.svc.cluster.local",
 	"http://infinicache-node-72.default.svc.cluster.local",
 	"http://infinicache-node-73.default.svc.cluster.local",
@@ -92,26 +94,8 @@ var LambdaAddresses = [...]string {
 	"http://infinicache-node-77.default.svc.cluster.local",
 	"http://infinicache-node-78.default.svc.cluster.local",
 	"http://infinicache-node-79.default.svc.cluster.local",
-	"http://infinicache-node-80.default.svc.cluster.local",
-	"http://infinicache-node-81.default.svc.cluster.local",
-	"http://infinicache-node-82.default.svc.cluster.local",
-	"http://infinicache-node-83.default.svc.cluster.local",
-	"http://infinicache-node-84.default.svc.cluster.local",
-	"http://infinicache-node-85.default.svc.cluster.local",
-	"http://infinicache-node-86.default.svc.cluster.local",
-	"http://infinicache-node-87.default.svc.cluster.local",
-	"http://infinicache-node-88.default.svc.cluster.local",
-	"http://infinicache-node-89.default.svc.cluster.local",
-	"http://infinicache-node-80.default.svc.cluster.local",
-	"http://infinicache-node-91.default.svc.cluster.local",
-	"http://infinicache-node-92.default.svc.cluster.local",
-	"http://infinicache-node-93.default.svc.cluster.local",
-	"http://infinicache-node-94.default.svc.cluster.local",
-	"http://infinicache-node-95.default.svc.cluster.local",
-	"http://infinicache-node-96.default.svc.cluster.local",
-	"http://infinicache-node-97.default.svc.cluster.local",
-	"http://infinicache-node-98.default.svc.cluster.local",
-	"http://infinicache-node-99.default.svc.cluster.local",
+*/
+
 }
 const LambdaStoreName = "LambdaStore" // replica version (no use)
 const LambdaPrefix = "CacheNode"
