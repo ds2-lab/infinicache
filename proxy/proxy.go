@@ -20,10 +20,10 @@ import (
 
 var (
 	replica = flag.Bool("replica", false, "Enable lambda replica deployment")
-	debug   = flag.Bool("debug", true, "Enable debug and print debug logs")
+	debug   = flag.Bool("debug", false, "Enable debug and print debug logs")
 	prefix  = flag.String("prefix", "log", "log file prefix")
 	log     = &logger.ColorLogger{
-		Level: logger.LOG_LEVEL_WARN,
+		Level: logger.LOG_LEVEL_NONE,
 	}
 	lambdaLis net.Listener
 	filePath  = "/project/src/infinicache.pid"
