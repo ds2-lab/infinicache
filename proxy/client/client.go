@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/montanaflynn/stats"
 	"math/rand"
 	"net"
@@ -285,7 +284,7 @@ func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
 
 	for i:=0; i<len(data); i++{
 		d := data[i]
-		var getGroups = c.GenerateSingleRandomGet(d)
+		var getGroups [3]KVGetGroup = c.GenerateSingleRandomGet(d)
 		output = append(output, getGroups)
 
 	}
@@ -300,13 +299,7 @@ func (c *Client) GenerateSingleRandomGet(d [3]KVSetGroup) [3]KVGetGroup{
 			g := d[j]
 			var getG KVGetGroup
 			var query []string
-			if g.KeyValuePairs != nil {
-				fmt.Println(len(g.KeyValuePairs))
-				query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
-			}else{
-				query = nil
-			}
-
+			query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
 			getG.Keys = query
 			getGroups[j] = getG
 		}

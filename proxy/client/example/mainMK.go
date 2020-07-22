@@ -16,7 +16,6 @@ func main() {
 
 	addrArr := strings.Split(addrList, ",")
 	data := cli.GenerateSetData(size)
-	data[rand.Intn(len(data))].KeyValuePairs = []client.KeyValuePair{}
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
@@ -27,6 +26,8 @@ func main() {
 		fmt.Println("successfull SET")
 	}
 
-	fmt.Println(cli.MkGet("foo", cli.GenerateSingleRandomGet(data)))
+	getData := cli.GenerateSingleRandomGet(data)
+	getData[rand.Intn(len(getData))].Keys = nil
+	fmt.Println(cli.MkGet("foo", getData))
 	return
 }
