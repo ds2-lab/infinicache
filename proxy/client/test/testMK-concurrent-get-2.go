@@ -70,7 +70,7 @@ func testMkConcurrent2(i int, cli *client.Client, wg *sync.WaitGroup,
 	counter--
 	mu.Unlock()
 
-	for k:=0; k<requestsNumber; k++{
+	for k:=0; k<requestsNumber/nClients; k++{
 		random := rand.Intn(len(data))
 		d := cli.GenerateSingleRandomGet(data[random])
 
