@@ -88,5 +88,6 @@ func testMkConcurrent2(i int, cli *client.Client, wg *sync.WaitGroup,
 		log.Printf("timeElapsed: %v\n", duration.Seconds())
 		log.Printf("GB/s: %v\n", 0.1/float32(duration.Seconds()))
 	}
+	mu.Unlock()
 	return
 }
