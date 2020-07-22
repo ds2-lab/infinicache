@@ -21,7 +21,30 @@
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/benchTest/main_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/benchTest/main_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/benchTest/res.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/benchTest/res.raw" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-concurrent-get-one.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-concurrent-get-one.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-concurrent-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-concurrent-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-concurrent-set-one.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-concurrent-set-one.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-concurrent-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-concurrent-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-one.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-one.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testEC.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testMK-concurrent-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testMK-concurrent-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testMK-concurrent-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testMK-concurrent-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testMK-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testMK-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testMK-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testMK-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testMK.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testMK.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testR-concurrent-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testR-concurrent-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testR-concurrent-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testR-concurrent-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testR-get.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testR-get.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testR-set.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testR-set.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/example/testR.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testR.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proxy/lambdastore/connection.go" beforeDir="false" afterPath="$PROJECT_DIR$/proxy/lambdastore/connection.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/setup/config" beforeDir="false" afterPath="$PROJECT_DIR$/setup/config" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,24 +80,24 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/client/test" />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="settings.editor.selected.configurable" value="editing.templates" />
   </component>
   <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/client/example" />
-      <recent name="$PROJECT_DIR$/tmp" />
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/client" />
-      <recent name="$PROJECT_DIR$/docs" />
-    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/client/test" />
       <recent name="$PROJECT_DIR$/tmp" />
       <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$/docs" />
       <recent name="$PROJECT_DIR$/deploy" />
-      <recent name="$PROJECT_DIR$/fluentd" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/client/test" />
+      <recent name="$PROJECT_DIR$/client/example" />
+      <recent name="$PROJECT_DIR$/tmp" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/client" />
     </key>
   </component>
   <component name="RunManager">
@@ -172,10 +195,10 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="100" y="100" width="1166" height="541" key="com.intellij.history.integration.ui.views.DirectoryHistoryDialog/0.0.1366.741@0.0.1366.741" timestamp="1593018989583" />
-    <state x="249" y="145" width="863" height="522" key="find.popup" timestamp="1594675461641">
+    <state x="249" y="145" width="863" height="522" key="find.popup" timestamp="1595402964594">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="249" y="145" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1594675461641" />
+    <state x="249" y="145" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1595402964594" />
     <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
     <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1594732755640">
       <screen x="0" y="0" width="1366" height="741" />

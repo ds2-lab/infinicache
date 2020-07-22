@@ -186,6 +186,17 @@ func (c *Client) GenerateSetData(size int) [3]KVSetGroup{
 	return data
 }
 
+func (c *Client) RemoveBytes(data [3]KVSetGroup) [3]KVSetGroup{
+	for i:=0;i<3;i++{
+		g := data[i]
+		for j:=0;j<len(g.KeyValuePairs);j++{
+			pair := g.KeyValuePairs[j]
+			pair.Value = nil
+		}
+	}
+	return data
+}
+
 func (c *Client) GetStats(xs[]float64) (float64,float64,float64,float64,[]float64){
 	mean, _ := stats.Mean(xs)
 	percentile75, _ := stats.Percentile(xs, 75)
@@ -225,6 +236,39 @@ func GetArgs(args []string) (int,int,string){
 		os.Exit(1)
 	}
 	return requestsNumber,size,proxies
+}
+
+func GetArgsConcurrent(args []string) (int,int,int,string){
+	var proxies string
+	proxiesOpt, err := strconv.Atoi(args[1])
+	if err!=nil{
+		log.Info("No arguments for test. number of proxies expected")
+		os.Exit(1)
+	}
+	if proxiesOpt == 2 {
+		proxies = "10.4.0.100:6378,10.4.14.71:6378"
+	}else if proxiesOpt == 1{
+		proxies = "10.4.0.100:6378"
+	}else{
+		log.Info("Unknown no of proxies on launch args")
+		os.Exit(1)
+	}
+	requestsNumber, err := strconv.Atoi(args[2])
+	if err!=nil{
+		log.Info("No arguments for test. requests number expected")
+		os.Exit(1)
+	}
+	size, err := strconv.Atoi(args[3])
+	if err!=nil{
+		log.Info("No arguments for test. size expected")
+		os.Exit(1)
+	}
+	clients, err := strconv.Atoi(args[4])
+	if err!=nil{
+		log.Info("No arguments for clients number. client number expected expected")
+		os.Exit(1)
+	}
+	return requestsNumber,size,clients,proxies
 }
 
 func (c *Client) Average(xs[]float64)float64 {
