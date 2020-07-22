@@ -75,9 +75,9 @@ func testMkConcurrent2(i int, cli *client.Client, wg *sync.WaitGroup,
 		d := cli.GenerateSingleRandomGet(data[random])
 
 		if _, _, ok := cli.MkGet(hKeys[random], d); !ok {
-			log.Println("Failed to mkGET ", i, " ", hKeys[random])
+			log.Println("Failed to mkGET client ", i, " - ", hKeys[random])
 		}else{
-
+			log.Println("Successfull mkGET client", i, " - ", hKeys[random])
 		}
 	}
 
