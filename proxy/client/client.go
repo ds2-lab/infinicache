@@ -284,7 +284,7 @@ func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
 
 	for i:=0; i<len(data); i++{
 		d := data[i]
-		var getGroups [3]KVGetGroup = c.GenerateSingleRandomGet(d)
+		var getGroups = c.GenerateSingleRandomGet(d)
 		output = append(output, getGroups)
 
 	}
@@ -298,8 +298,13 @@ func (c *Client) GenerateSingleRandomGet(d [3]KVSetGroup) [3]KVGetGroup{
 		for j:=0; j<len(d); j++{
 			g := d[j]
 			var getG KVGetGroup
-			query := []string{}
-			query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
+			var query []string
+			if g.KeyValuePairs != nil {
+				query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
+			}else{
+				query = nil
+			}
+
 			getG.Keys = query
 			getGroups[j] = getG
 		}

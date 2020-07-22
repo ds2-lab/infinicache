@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 )
@@ -15,6 +16,7 @@ func main() {
 
 	addrArr := strings.Split(addrList, ",")
 	data := cli.GenerateSetData(size)
+	data[rand.Intn(len(data))].KeyValuePairs = []client.KeyValuePair{}
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
