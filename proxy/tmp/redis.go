@@ -276,6 +276,26 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 
 }
 
+func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, error) {
+	conn := c.pool.Get()
+	defer conn.Close()
+	var ret redis.AsyncRet
+	var err error
+	for pair := range pairs{
+		ret, err = conn.AsyncDo("GET", pair.k)
+		if err != nil {
+			log.Println("Err: ", err)
+		}
+	}
+	v, err := ret.Get()
+	b, err := redis.Bytes(v, err)
+	if err != nil {
+		log.Println("Err: ", err)
+	}
+	return b, err
+
+}
+
 func generateInput(i int, n int) chan struct {k string; v []byte} {
 	size := 160
 	v := make([]byte, size)
@@ -315,8 +335,26 @@ func main() {
 	if err==nil{
 		log.Println("mean:", m)
 	}else{
-		log.Println("Mean Err: ", err)
+		log.Println("SET Mean Err: ", err)
 	}
 
+	var c []float64
+	for i:=0;i<10000;i++{
+		input := generateInput(i,9)
+		t := time.Now()
+		_, err := rdc.MkGet(input)
+		d := time.Since(t)
+		if err != nil {
+			log.Println("Err: ", err)
+		}else{
+			c = append(c, d.Seconds()*1e3)
+		}
+	}
 
+	m, err = stats.Mean(s)
+	if err==nil{
+		log.Println("mean:", m)
+	}else{
+		log.Println("Get Mean Err: ", err)
+	}
 }
