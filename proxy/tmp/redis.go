@@ -315,7 +315,7 @@ func main() {
 
 	m, err := stats.Mean(s)
 	if err!=nil{
-		log.Println("mean:", )
+		log.Println("mean:", m)
 	}else{
 		log.Println("Mean Err: ", err)
 	}
