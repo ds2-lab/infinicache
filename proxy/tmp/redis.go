@@ -256,24 +256,28 @@ func (c *RedisClient) LPush(key string, val string) (int64, error) {
 func main() {
 	log.SetPrefix("[RedisGo-Async|example] ")
 	// get client
-	rdc := GetRedisClient("127.0.0.1:6379")
+	rdc := GetRedisClient("10.4.5.92:6379")
 	key := "hello-redisgo-async"
 	val := "hello world"
 	_, err := rdc.Set(key, val)
 	if err != nil {
 		log.Println(err)
+	}else{
+		log.Printf("set %s value \"%s\" success\n", key, val)
 	}
-	log.Printf("set %s value \"%s\" success\n", key, val)
 
 	ret, err := rdc.Get(key)
 	if err != nil {
 		log.Println(err)
+	}else{
+		log.Printf("get %s result \"%s\"\n", key, ret)
 	}
-	log.Printf("get %s result \"%s\"\n", key, ret)
 
 	_, err = rdc.Del(key)
 	if err != nil {
 		log.Println(err)
+	}else{
+		log.Printf("del key %s success\n", key)
+
 	}
-	log.Printf("del key %s success\n", key)
 }
