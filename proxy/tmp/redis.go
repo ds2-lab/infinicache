@@ -296,8 +296,7 @@ func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, err
 
 }
 
-func generateInput(i int, n int) chan struct {k string; v []byte} {
-	size := 160
+func generateInput(i int, n int, size int) chan struct {k string; v []byte} {
 	v := make([]byte, size)
 	rand.Read(v)
 	pairs := make(chan struct {k string; v []byte}, 9)
@@ -315,12 +314,12 @@ func main() {
 	log.SetPrefix("[RedisGo-Async|example] ")
 	// get client
 	rdc := GetRedisClient("10.4.5.92:6379")
-
-	rdc.MkSet(generateInput(0,9))
+	size := 1300
+	rdc.MkSet(generateInput(0,9, size))
 
 	var s []float64
 	for i:=0;i<10000;i++{
-		input := generateInput(i,9)
+		input := generateInput(i,9, size)
 		t := time.Now()
 		_, err := rdc.MkSet(input)
 		d := time.Since(t)
@@ -340,7 +339,7 @@ func main() {
 
 	var c []float64
 	for i:=0;i<10000;i++{
-		input := generateInput(i,9)
+		input := generateInput(i,3, size)
 		t := time.Now()
 		_, err := rdc.MkGet(input)
 		d := time.Since(t)
