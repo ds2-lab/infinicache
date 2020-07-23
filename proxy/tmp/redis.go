@@ -321,6 +321,7 @@ func main() {
 	size := 1300
 	p := generateInput(0,9, size)
 	rdc.MkSet(p)
+	p = generateInput(0,9, size)
 	rdc.MkGet(p)
 
 	var s []float64
