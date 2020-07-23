@@ -309,10 +309,11 @@ func main() {
 	size := 160
 	v := make([]byte, size)
 	rand.Read(v)
-	pairs := make(chan struct {k string; v []byte})
+	pairs := make(chan struct {k string; v []byte}, 3)
 	pairs <- struct {k string; v []byte}{"k1", v}
 	pairs <- struct {k string; v []byte}{"k2", v}
 	pairs <- struct {k string; v []byte}{"k3", v}
+	close(pairs)
 	rdc.MK_SET(pairs)
 
 }
