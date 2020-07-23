@@ -255,7 +255,7 @@ func (c *RedisClient) LPush(key string, val string) (int64, error) {
 	}
 }
 
-func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, error) {
+func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, error) {
 	conn := c.pool.Get()
 	defer conn.Close()
 	var ret redis.AsyncRet
@@ -276,6 +276,24 @@ func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, er
 	}
 	return b, err
 
+}
+
+func generateInput() chan struct {k string; v []byte} {
+	size := 160
+	v := make([]byte, size)
+	rand.Read(v)
+	pairs := make(chan struct {k string; v []byte}, 9)
+	pairs <- struct {k string; v []byte}{"k0", v}
+	pairs <- struct {k string; v []byte}{"k1", v}
+	pairs <- struct {k string; v []byte}{"k2", v}
+	pairs <- struct {k string; v []byte}{"k3", v}
+	pairs <- struct {k string; v []byte}{"k4", v}
+	pairs <- struct {k string; v []byte}{"k5", v}
+	pairs <- struct {k string; v []byte}{"k6", v}
+	pairs <- struct {k string; v []byte}{"k7", v}
+	pairs <- struct {k string; v []byte}{"k8", v}
+	close(pairs)
+	return pairs
 }
 
 
@@ -307,26 +325,12 @@ func main() {
 
 	}
 
-	size := 160
-	v := make([]byte, size)
-	rand.Read(v)
-	pairs := make(chan struct {k string; v []byte}, 9)
-	pairs <- struct {k string; v []byte}{"k0", v}
-	pairs <- struct {k string; v []byte}{"k1", v}
-	pairs <- struct {k string; v []byte}{"k2", v}
-	pairs <- struct {k string; v []byte}{"k3", v}
-	pairs <- struct {k string; v []byte}{"k4", v}
-	pairs <- struct {k string; v []byte}{"k5", v}
-	pairs <- struct {k string; v []byte}{"k6", v}
-	pairs <- struct {k string; v []byte}{"k7", v}
-	pairs <- struct {k string; v []byte}{"k8", v}
-	close(pairs)
-	rdc.MK_SET(pairs)
+	rdc.MkSet(generateInput())
 
 	var s []float64
 	for i:=0;i<1000;i++{
 		t := time.Now()
-		rdc.MK_SET(pairs)
+		rdc.MkSet(generateInput())
 		d := time.Since(t)
 		s = append(s, d.Seconds()*1e3)
 	}
