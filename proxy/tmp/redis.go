@@ -17,7 +17,6 @@ package main
 
 import (
 	"github.com/gistao/RedisGo-Async/redis"
-	"github.com/montanaflynn/stats"
 	"log"
 	"math/rand"
 	"sync"
@@ -255,7 +254,7 @@ func (c *RedisClient) LPush(key string, val string) (int64, error) {
 	}
 }
 
-func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, error) {
+func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, error) {
 	conn := c.pool.Get()
 	defer conn.Close()
 	var ret redis.AsyncRet
@@ -314,24 +313,8 @@ func main() {
 	pairs <- struct {k string; v []byte}{"k1", v}
 	pairs <- struct {k string; v []byte}{"k2", v}
 	pairs <- struct {k string; v []byte}{"k3", v}
-	pairs <- struct {k string; v []byte}{"k4", v}
-	pairs <- struct {k string; v []byte}{"k5", v}
-	pairs <- struct {k string; v []byte}{"k6", v}
-
 	close(pairs)
-	_, err = rdc.MkSet(pairs)
-	if err != nil{
-		log.Println("Err: ", err)
-	}
+	rdc.MK_SET(pairs)
 
-	var statistics []float64
-	for i:=0;i<1000;i++ {
-		log.Println(i)
-		start := time.Now()
-		rdc.MkSet(pairs)
-		t := time.Since(start)
-		statistics = append(statistics, t.Seconds()*1e3)
-	}
 
-	log.Println(stats.Mean(statistics))
 }
