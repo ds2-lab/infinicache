@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/gistao/RedisGo-Async/redis"
+	"github.com/montanaflynn/stats"
 	"log"
 	"math/rand"
 	"sync"
@@ -309,16 +310,28 @@ func main() {
 	size := 160
 	v := make([]byte, size)
 	rand.Read(v)
-	pairs := make(chan struct {k string; v []byte}, 3)
+	pairs := make(chan struct {k string; v []byte}, 9)
+	pairs <- struct {k string; v []byte}{"k0", v}
 	pairs <- struct {k string; v []byte}{"k1", v}
 	pairs <- struct {k string; v []byte}{"k2", v}
 	pairs <- struct {k string; v []byte}{"k3", v}
 	pairs <- struct {k string; v []byte}{"k4", v}
 	pairs <- struct {k string; v []byte}{"k5", v}
 	pairs <- struct {k string; v []byte}{"k6", v}
+	pairs <- struct {k string; v []byte}{"k7", v}
+	pairs <- struct {k string; v []byte}{"k8", v}
 	close(pairs)
 	rdc.MK_SET(pairs)
 
+	var s []float64
+	for i:=0;i<1000;i++{
+		t := time.Now()
+		rdc.MK_SET(pairs)
+		d := time.Since(t)
+		s = append(s, d.Seconds()*1e3)
+	}
+
+	log.Println(stats.Mean(s))
 
 
 }
