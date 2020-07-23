@@ -18,7 +18,6 @@ package main
 import (
 	"fmt"
 	"github.com/gistao/RedisGo-Async/redis"
-	"github.com/montanaflynn/stats"
 	"log"
 	"math/rand"
 	"sync"
@@ -324,7 +323,7 @@ func main() {
 	p = generateInput(0,9, size)
 	rdc.MkGet(p)
 
-	var s []float64
+	/*var s []float64
 	for i:=0;i<10000;i++{
 		input := generateInput(i,9, size)
 		t := time.Now()
@@ -366,5 +365,5 @@ func main() {
 	}else{
 		log.Println("Get Mean Err: ", err)
 		return
-	}
+	}*/
 }
