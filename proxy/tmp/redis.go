@@ -18,6 +18,7 @@ package main
 import (
 	"github.com/gistao/RedisGo-Async/redis"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -253,6 +254,29 @@ func (c *RedisClient) LPush(key string, val string) (int64, error) {
 	}
 }
 
+func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, error) {
+	conn := c.pool.Get()
+	defer conn.Close()
+	var ret redis.AsyncRet
+	var err error
+	for pair := range pairs{
+		ret, err = conn.AsyncDo("SET", pair.k, pair.v)
+		if err != nil {
+			log.Println("Err: ", err)
+		}
+	}
+	v, err := ret.Get()
+	b, err := redis.Bytes(v, err)
+	if err != nil {
+		log.Println("Err: ", err)
+	}else{
+		log.Println("success: ", v)
+	}
+	return b, err
+
+}
+
+
 func main() {
 	log.SetPrefix("[RedisGo-Async|example] ")
 	// get client
@@ -280,4 +304,14 @@ func main() {
 		log.Printf("del key %s success\n", key)
 
 	}
+
+	size := 160
+	v := make([]byte, size)
+	rand.Read(v)
+	pairs := make(chan struct {k string; v []byte})
+	pairs <- struct {k string; v []byte}{"k1", v}
+	pairs <- struct {k string; v []byte}{"k2", v}
+	pairs <- struct {k string; v []byte}{"k3", v}
+	rdc.MK_SET(pairs)
+
 }
