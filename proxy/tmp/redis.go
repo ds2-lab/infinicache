@@ -293,6 +293,8 @@ func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, err
 	b, err := redis.Bytes(v, err)
 	if err != nil {
 		log.Println("MK_GET redis.Bytes Err: ", err)
+	}else{
+		log.Println("MK_GET OK")
 	}
 	return b, err
 
