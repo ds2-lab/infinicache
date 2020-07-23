@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/gistao/RedisGo-Async/redis"
+	"github.com/montanaflynn/stats"
 	"log"
 	"math/rand"
 	"sync"
@@ -320,13 +321,13 @@ func main() {
 	close(pairs)
 	rdc.MkSet(pairs)
 
-	var stats []float64
+	var statistics []float64
 	for i:=0;i<1000;i++ {
 		start := time.Now()
 		rdc.MkSet(pairs)
 		t := time.Since(start)
-		stats = append(stats, t.Seconds()*1e3)
+		statistics = append(statistics, t.Seconds()*1e3)
 	}
 
-
+	log.Println(stats.Mean(statistics))
 }
