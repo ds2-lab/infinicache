@@ -305,7 +305,7 @@ func generateInput(i int, n int, size int) chan struct {k string; v []byte} {
 	rand.Read(v)
 	pairs := make(chan struct {k string; v []byte}, n)
 	for j:=0;j<n;j++{
-		k := fmt.Sprintf("k-%d-%d", n, i)
+		k := fmt.Sprintf("k-%d-%d", i, j)
 		pair := struct {k string; v []byte}{k, v}
 		pairs <- pair
 	}
