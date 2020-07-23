@@ -271,8 +271,6 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 	b, err := redis.Bytes(v, err)
 	if err != nil {
 		log.Println("Err: ", err)
-	}else{
-		log.Println("success: ", v)
 	}
 	return b, err
 
@@ -301,36 +299,16 @@ func main() {
 	log.SetPrefix("[RedisGo-Async|example] ")
 	// get client
 	rdc := GetRedisClient("10.4.5.92:6379")
-	key := "hello-redisgo-async"
-	val := "hello world"
-	_, err := rdc.Set(key, val)
-	if err != nil {
-		log.Println(err)
-	}else{
-		log.Printf("set %s value \"%s\" success\n", key, val)
-	}
-
-	ret, err := rdc.Get(key)
-	if err != nil {
-		log.Println(err)
-	}else{
-		log.Printf("get %s result \"%s\"\n", key, ret)
-	}
-
-	_, err = rdc.Del(key)
-	if err != nil {
-		log.Println(err)
-	}else{
-		log.Printf("del key %s success\n", key)
-
-	}
 
 	rdc.MkSet(generateInput())
 
 	var s []float64
 	for i:=0;i<1000;i++{
 		t := time.Now()
-		rdc.MkSet(generateInput())
+		_, err := rdc.MkSet(generateInput())
+		if err != nil {
+			log.Println("Err: ", err)
+		}
 		d := time.Since(t)
 		s = append(s, d.Seconds()*1e3)
 	}
