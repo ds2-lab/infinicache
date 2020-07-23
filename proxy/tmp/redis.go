@@ -261,7 +261,6 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 	var ret redis.AsyncRet
 	var err error
 	for pair := range pairs{
-		log.Println(pairs)
 		ret, err = conn.AsyncDo("SET", pair.k, pair.v)
 		if err != nil {
 			log.Println("Err: ", err)
@@ -303,7 +302,7 @@ func main() {
 	rdc.MkSet(generateInput())
 
 	var s []float64
-	for i:=0;i<1000;i++{
+	for i:=0;i<10000;i++{
 		t := time.Now()
 		_, err := rdc.MkSet(generateInput())
 		if err != nil {
