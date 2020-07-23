@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gistao/RedisGo-Async/redis"
 	"github.com/montanaflynn/stats"
 	"log"
@@ -275,20 +276,16 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 
 }
 
-func generateInput() chan struct {k string; v []byte} {
+func generateInput(i int, n int) chan struct {k string; v []byte} {
 	size := 160
 	v := make([]byte, size)
 	rand.Read(v)
 	pairs := make(chan struct {k string; v []byte}, 9)
-	pairs <- struct {k string; v []byte}{"k0", v}
-	pairs <- struct {k string; v []byte}{"k1", v}
-	pairs <- struct {k string; v []byte}{"k2", v}
-	pairs <- struct {k string; v []byte}{"k3", v}
-	pairs <- struct {k string; v []byte}{"k4", v}
-	pairs <- struct {k string; v []byte}{"k5", v}
-	pairs <- struct {k string; v []byte}{"k6", v}
-	pairs <- struct {k string; v []byte}{"k7", v}
-	pairs <- struct {k string; v []byte}{"k8", v}
+	for j:=0;j<n;j++{
+		k := fmt.Sprintf("k-%d-%d", n, i)
+		pair := struct {k string; v []byte}{k, v}
+		pairs <- pair
+	}
 	close(pairs)
 	return pairs
 }
@@ -299,17 +296,18 @@ func main() {
 	// get client
 	rdc := GetRedisClient("10.4.5.92:6379")
 
-	rdc.MkSet(generateInput())
+	rdc.MkSet(generateInput(0,9))
 
 	var s []float64
 	for i:=0;i<10000;i++{
+		input := generateInput(i,9)
 		t := time.Now()
-		_, err := rdc.MkSet(generateInput())
+		_, err := rdc.MkSet(input)
+		d := time.Since(t)
 		if err != nil {
 			log.Println("Err: ", err)
+			s = append(s, d.Seconds()*1e3)
 		}
-		d := time.Since(t)
-		s = append(s, d.Seconds()*1e3)
 	}
 
 	m, err := stats.Mean(s)
