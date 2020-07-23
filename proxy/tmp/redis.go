@@ -319,7 +319,10 @@ func main() {
 	pairs <- struct {k string; v []byte}{"k6", v}
 
 	close(pairs)
-	rdc.MkSet(pairs)
+	_, err = rdc.MkSet(pairs)
+	if err != nil{
+		log.Println("Err: ", err)
+	}
 
 	var statistics []float64
 	for i:=0;i<1000;i++ {
