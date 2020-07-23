@@ -313,8 +313,12 @@ func main() {
 	pairs <- struct {k string; v []byte}{"k1", v}
 	pairs <- struct {k string; v []byte}{"k2", v}
 	pairs <- struct {k string; v []byte}{"k3", v}
+	pairs <- struct {k string; v []byte}{"k4", v}
+	pairs <- struct {k string; v []byte}{"k5", v}
+	pairs <- struct {k string; v []byte}{"k6", v}
 	close(pairs)
 	rdc.MK_SET(pairs)
+
 
 
 }
