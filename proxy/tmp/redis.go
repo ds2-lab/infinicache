@@ -264,13 +264,13 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 	for pair := range pairs{
 		ret, err = conn.AsyncDo("SET", pair.k, pair.v)
 		if err != nil {
-			log.Println("Err: ", err)
+			log.Println("MK_SET conn.AsyncDo Err: ", err)
 		}
 	}
 	v, err := ret.Get()
 	b, err := redis.Bytes(v, err)
 	if err != nil {
-		log.Println("Err: ", err)
+		log.Println("MK_SET redis.Bytes Err: ", err)
 	}
 	return b, err
 
@@ -284,13 +284,13 @@ func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, err
 	for pair := range pairs{
 		ret, err = conn.AsyncDo("GET", pair.k)
 		if err != nil {
-			log.Println("Err: ", err)
+			log.Println("MK_GET conn.AsyncDo Err: ", err)
 		}
 	}
 	v, err := ret.Get()
 	b, err := redis.Bytes(v, err)
 	if err != nil {
-		log.Println("Err: ", err)
+		log.Println("MK_GET redis.Bytes Err: ", err)
 	}
 	return b, err
 
@@ -325,6 +325,7 @@ func main() {
 		d := time.Since(t)
 		if err != nil {
 			log.Println("Err: ", err)
+			return
 		}else{
 			s = append(s, d.Seconds()*1e3)
 		}
@@ -335,6 +336,7 @@ func main() {
 		log.Println("mean:", m)
 	}else{
 		log.Println("SET Mean Err: ", err)
+		return
 	}
 
 	var c []float64
@@ -345,6 +347,7 @@ func main() {
 		d := time.Since(t)
 		if err != nil {
 			log.Println("Err: ", err)
+			return
 		}else{
 			c = append(c, d.Seconds()*1e3)
 		}
@@ -355,5 +358,6 @@ func main() {
 		log.Println("mean:", m)
 	}else{
 		log.Println("Get Mean Err: ", err)
+		return
 	}
 }
