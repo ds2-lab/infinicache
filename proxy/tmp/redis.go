@@ -313,7 +313,12 @@ func main() {
 		s = append(s, d.Seconds()*1e3)
 	}
 
-	log.Println(stats.Mean(s))
+	m, err := stats.Mean(s)
+	if err!=nil{
+		log.Println("mean:", )
+	}else{
+		log.Println("Mean Err: ", err)
+	}
 
 
 }
