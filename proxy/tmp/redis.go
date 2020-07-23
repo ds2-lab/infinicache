@@ -299,7 +299,7 @@ func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, err
 func generateInput(i int, n int, size int) chan struct {k string; v []byte} {
 	v := make([]byte, size)
 	rand.Read(v)
-	pairs := make(chan struct {k string; v []byte}, 9)
+	pairs := make(chan struct {k string; v []byte}, n)
 	for j:=0;j<n;j++{
 		k := fmt.Sprintf("k-%d-%d", n, i)
 		pair := struct {k string; v []byte}{k, v}
