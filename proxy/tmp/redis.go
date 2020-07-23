@@ -265,6 +265,8 @@ func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, err
 		ret, err = conn.AsyncDo("SET", pair.k, pair.v)
 		if err != nil {
 			log.Println("MK_SET conn.AsyncDo Err: ", err)
+		}else{
+			log.Println("MK_SET ", pair.k)
 		}
 	}
 	v, err := ret.Get()
@@ -315,7 +317,9 @@ func main() {
 	// get client
 	rdc := GetRedisClient("10.4.5.92:6379")
 	size := 1300
-	rdc.MkSet(generateInput(0,9, size))
+	p := generateInput(0,9, size)
+	rdc.MkSet(p)
+	rdc.MkGet(p)
 
 	var s []float64
 	for i:=0;i<10000;i++{
