@@ -323,6 +323,7 @@ func main() {
 
 	var statistics []float64
 	for i:=0;i<1000;i++ {
+		log.Println(i)
 		start := time.Now()
 		rdc.MkSet(pairs)
 		t := time.Since(start)
