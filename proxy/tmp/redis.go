@@ -260,6 +260,7 @@ func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, er
 	var ret redis.AsyncRet
 	var err error
 	for pair := range pairs{
+		log.Println(pairs)
 		ret, err = conn.AsyncDo("SET", pair.k, pair.v)
 		if err != nil {
 			log.Println("Err: ", err)
