@@ -286,7 +286,7 @@ func (c *RedisClient) MkGet(pairs chan struct {k string; v []byte}) ([]byte, err
 	for pair := range pairs{
 		ret, err = conn.AsyncDo("GET", pair.k)
 		if err != nil {
-			log.Println("MK_GET conn.AsyncDo Err: ", err)
+			log.Println("MK_GET conn.AsyncDo Key: ", pair.k, " Err: ", err)
 		}
 	}
 	v, err := ret.Get()
