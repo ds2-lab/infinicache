@@ -306,6 +306,7 @@ func main() {
 		d := time.Since(t)
 		if err != nil {
 			log.Println("Err: ", err)
+		}else{
 			s = append(s, d.Seconds()*1e3)
 		}
 	}
