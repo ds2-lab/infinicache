@@ -254,7 +254,7 @@ func (c *RedisClient) LPush(key string, val string) (int64, error) {
 	}
 }
 
-func (c *RedisClient) MK_SET(pairs chan struct {k string; v []byte}) ([]byte, error) {
+func (c *RedisClient) MkSet(pairs chan struct {k string; v []byte}) ([]byte, error) {
 	conn := c.pool.Get()
 	defer conn.Close()
 	var ret redis.AsyncRet
@@ -313,7 +313,20 @@ func main() {
 	pairs <- struct {k string; v []byte}{"k1", v}
 	pairs <- struct {k string; v []byte}{"k2", v}
 	pairs <- struct {k string; v []byte}{"k3", v}
+	pairs <- struct {k string; v []byte}{"k4", v}
+	pairs <- struct {k string; v []byte}{"k5", v}
+	pairs <- struct {k string; v []byte}{"k6", v}
+
 	close(pairs)
-	rdc.MK_SET(pairs)
+	rdc.MkSet(pairs)
+
+	var stats []float64
+	for i:=0;i<1000;i++ {
+		start := time.Now()
+		rdc.MkSet(pairs)
+		t := time.Since(start)
+		stats = append(stats, t.Seconds()*1e3)
+	}
+
 
 }
