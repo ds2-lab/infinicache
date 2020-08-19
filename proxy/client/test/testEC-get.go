@@ -26,18 +26,14 @@ func main() {
 	for k:=0; k<=requestsNumber; k++{
 		key := fmt.Sprintf("k.%d", k)
 
-		var s float64 = 0
-		for l:=0; l<3; l++ {
-			if _, _, stats, ok := cli.EcGet(key, 1313); !ok {
-				log.Println("Failed to GET ", key)
-			} else {
-				log.Println("Successfull GET ", key)
-				s += stats
-			}
+		if _, _, stats, ok := cli.EcGet(key, 1313); !ok {
+			log.Println("Failed to GET ", key)
+		} else {
+			log.Println("Successfull GET ", key)
+			getStats = append(getStats, stats)
 		}
-		if s != 0{
-			getStats = append(getStats, s)
-		}
+
+
 
 	}
 

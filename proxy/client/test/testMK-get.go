@@ -23,11 +23,11 @@ func main() {
 	var getStats []float64
 
 	for k:=0; k<requestsNumber; k++{
-		d_in := cli.GenerateSetData2(size,3)
-		d_out := cli.GenerateSingleRandomGet(d_in)
+		dIn := cli.GenerateSetData2(size,3)
+		dOut := cli.GenerateSingleRandomGet(dIn)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
-		if res, stats, ok := cli.MkGet(key, d_out); !ok {
-			log.Println("Failed to mkGET %v", d_out)
+		if res, stats, ok := cli.MkGet(key, dOut); !ok {
+			log.Printf("Failed to mkGET %v\n", dOut)
 		}else{
 			getStats = append(getStats, stats)
 			var v string = ""
