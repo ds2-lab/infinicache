@@ -193,7 +193,7 @@ func (c *Client) GenerateSetData2(size int, groups int) []KVSetGroup{
 	val := make([]byte, size)
 	rand.Read(val)
 
-	for x:=0 ; x <= groups; x++ {
+	for x:=0 ; x < groups; x++ {
 		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: val}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
 		data = append(data, g)
