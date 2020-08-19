@@ -196,7 +196,7 @@ func (c *Client) GenerateSetData2(size int, groups int) []KVSetGroup{
 	for x:=0 ; x <= groups; x++ {
 		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: val}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
-		data[x] = g
+		data = append(data, g)
 		var newG KVSetGroup
 		g = newG
 		c.J++
