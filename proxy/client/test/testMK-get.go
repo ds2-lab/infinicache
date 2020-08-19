@@ -23,7 +23,7 @@ func main() {
 	var getStats []float64
 
 	for k:=0; k<requestsNumber; k++{
-		d_in := cli.GenerateSetData2(size,3,1)
+		d_in := cli.GenerateSetData2(size,3)
 		d_out := cli.GenerateSingleRandomGet(d_in)
 		key := fmt.Sprintf("HighLevelKey-%d", k)
 		if res, stats, ok := cli.MkGet(key, d_out); !ok {
