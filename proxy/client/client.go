@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/montanaflynn/stats"
 	"math/rand"
 	"net"
@@ -192,18 +193,19 @@ func (c *Client) GenerateSetData2(size int, groups int, keys int) [3]KVSetGroup{
 	val := make([]byte, size)
 	rand.Read(val)
 	c.J = c.I
-	c.I = c.I +groups
+	c.I = c.I +9
 	counter := 0
 	for ; c.J <= c.I; c.J++ {
 		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: val}
 		g.KeyValuePairs = append(g.KeyValuePairs, pair)
-		if c.J%keys == 0 && c.J != 0 {
+		if c.J%3 == 0 && c.J != 0 {
 			data[counter] = g
 			var newG KVSetGroup
 			g = newG
 			counter ++
 		}
 	}
+	fmt.Println(data)
 	return data
 }
 
