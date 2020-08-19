@@ -24,20 +24,12 @@ func main() {
 
 	for k:=0; k<=requestsNumber; k++{
 		key := fmt.Sprintf("k.%d", k)
-
-		var s float64 = 0
-		for l:=0; l<9; l++ {
-			if _, stats, ok := cli.EcSet(key, val); !ok {
-				log.Println("Failed to SET ", key)
-			}else{
-				log.Println("Successfull SET ", key)
-				s += stats
-			}
+		if _, stats, ok := cli.EcSet(key, val); !ok {
+			log.Println("Failed to SET ", key)
+		}else{
+			log.Println("Successfull SET ", key)
+			setStats = append(setStats, stats)
 		}
-		if s!=0{
-			setStats = append(setStats, s)
-		}
-
 	}
 
 	sMin, sMax, sAvg, sSd, sPercentiles := cli.GetStats(setStats)
