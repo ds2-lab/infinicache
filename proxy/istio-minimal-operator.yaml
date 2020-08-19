@@ -1,11 +1,3 @@
-#!/bin/bash
-
-set -v
-
-DIR="$(dirname "$0")"
-. "${DIR}/config"
-
-cat << EOF > ./istio-minimal-operator.yaml
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 spec:
@@ -43,29 +35,3 @@ spec:
               name: http2
             - port: 443
               name: https
-EOF
-
-istioctl manifest apply -f istio-minimal-operator.yaml
-
-kubectl label namespace knative-serving istio-injection=enabled
-
-cat <<EOF | kubectl apply -f -
-apiVersion: "security.istio.io/v1beta1"
-kind: "PeerAuthentication"
-metadata:
-  name: "default"
-  namespace: "knative-serving"
-spec:
-  mtls:
-    mode: PERMISSIVE
-EOF
-
-kubectl apply --filename "https://github.com/knative/net-istio/releases/download/v${KNATIVE_VERSION}/release.yaml"
-
-kubectl apply --filename https://github.com/knative/serving/releases/download/v0.16.0/serving-default-domain.yaml
-
-# Check all serving pods have STATUS 'Running'
-# kubectl get pods -n knative-serving
-
-# Check all Istio pods have STATUS 'Running'
-# kubectl get pods -n istio-system
