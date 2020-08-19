@@ -1,5 +1,6 @@
 package client
 
+import "C"
 import (
 	"github.com/montanaflynn/stats"
 	"math/rand"
@@ -191,6 +192,7 @@ func (c *Client) GenerateSetData2(size int, groups int) [3]KVSetGroup{
 	var g KVSetGroup
 	val := make([]byte, size)
 	rand.Read(val)
+	c.I = 0
 	c.J = c.I
 	c.I = c.I + groups
 	counter := 0
