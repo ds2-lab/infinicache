@@ -19,7 +19,7 @@ func main() {
 
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
-	var data [][3]client.KVSetGroup
+	var data [][]client.KVSetGroup
 
 	var setStats []float64
 

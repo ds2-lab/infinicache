@@ -26,7 +26,7 @@ type KVGetGroup struct {
 	Keys []string
 }
 
-func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interface{}) (string, float64, bool) {
+func (c *Client) MkSet(highLevelKey string, data []KVSetGroup, args ...interface{}) (string, float64, bool) {
 	// Debuging options
 	var dryrun int
 	var placements []int
@@ -97,7 +97,7 @@ func (c *Client) MkSet(highLevelKey string, data [3]KVSetGroup, args ...interfac
 	return stats.ReqId, stats.Duration.Seconds() * 1e3, true
 }
 
-func (c *Client) MkGet(highLevelKey string, lowLevelKeys [3]KVGetGroup) ([]KeyValuePair, float64, bool) {
+func (c *Client) MkGet(highLevelKey string, lowLevelKeys []KVGetGroup) ([]KeyValuePair, float64, bool) {
 	stats := &c.Data
 	stats.Begin = time.Now()
 	stats.ReqId = uuid.New().String()
@@ -348,7 +348,7 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 	}
 }
 
-func (c *Client) replicate(groups [3]KVSetGroup) []KVSetGroup {
+func (c *Client) replicate(groups []KVSetGroup) []KVSetGroup {
 	var replicas = make([]KVSetGroup, c.MKReplicationFactors[0])
 	var rFs = c.MKReplicationFactors
 	for i := 0; i < len(groups); i++ {
@@ -362,10 +362,24 @@ func (c *Client) replicate(groups [3]KVSetGroup) []KVSetGroup {
 	return replicas
 }
 
-func (c *Client) LocateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface {
-	var replicas [3]int
-	var m map[int]set.Interface
+func minMax(array []int) (int, int) {
+	var max int = array[0]
+	var min int = array[0]
+	for _, value := range array {
+		if max < value {
+			max = value
+		}
+		if min > value {
+			min = value
+		}
+	}
+	return min, max
+}
 
+func (c *Client) LocateLowLevelKeys(groups []KVGetGroup) map[int]set.Interface {
+	replicas := make([]int, len(groups))
+
+	var m map[int]set.Interface
 	for i:=0; i<len(groups); i++{
 		g := groups[i]
 		if g.Keys != nil {
@@ -374,6 +388,7 @@ func (c *Client) LocateLowLevelKeys(groups [3]KVGetGroup) map[int]set.Interface 
 			replicas[i] = -1
 		}
 	}
+
 	m = make(map[int]set.Interface)
 	for i:=0; i<len(replicas); i++ {
 		if replicas[i] >= 0 {

@@ -49,7 +49,7 @@ type Client struct {
 	ParityShards int
 	Shards       int
 	ReplicationFactor int
-	MKReplicationFactors [3]int
+	MKReplicationFactors []int
 	J int
 	I int
 }
@@ -66,7 +66,7 @@ func NewClient(dataShards int, parityShards int, ecMaxGoroutine int, replication
 		ParityShards: parityShards,
 		Shards:       dataShards + parityShards,
 		ReplicationFactor: replicationFactor,
-		MKReplicationFactors: [3]int{5,4,3},
+		MKReplicationFactors: []int{5,4,3},
 		J: 1,
 		I: 1,
 	}
@@ -187,8 +187,8 @@ func (c *Client) GenerateSetData(size int) [3]KVSetGroup{
 	return data
 }
 
-func (c *Client) GenerateSetData2(size int, groups int) [3]KVSetGroup{
-	var data [3]KVSetGroup
+func (c *Client) GenerateSetData2(size int, groups int) []KVSetGroup{
+	var data []KVSetGroup
 	var g KVSetGroup
 	val := make([]byte, size)
 	rand.Read(val)
@@ -297,21 +297,21 @@ func (c *Client) Average(xs[]float64)float64 {
 	return total/float64(len(xs))
 }
 
-func (c *Client) GenerateRandomGet(data [][3]KVSetGroup) [][3]KVGetGroup{
-	var output [][3]KVGetGroup
+func (c *Client) GenerateRandomGet(data [][]KVSetGroup) [][]KVGetGroup{
+	var output [][]KVGetGroup
 
 	for i:=0; i<len(data); i++{
 		d := data[i]
-		var getGroups [3]KVGetGroup = c.GenerateSingleRandomGet(d)
+		var getGroups []KVGetGroup = c.GenerateSingleRandomGet(d)
 		output = append(output, getGroups)
 
 	}
 	return output
 }
 
-func (c *Client) GenerateSingleRandomGet(d [3]KVSetGroup) [3]KVGetGroup{
+func (c *Client) GenerateSingleRandomGet(d []KVSetGroup) []KVGetGroup{
 
-		var getGroups [3]KVGetGroup
+		var getGroups []KVGetGroup
 
 		for j:=0; j<len(d); j++{
 			g := d[j]
@@ -319,7 +319,7 @@ func (c *Client) GenerateSingleRandomGet(d [3]KVSetGroup) [3]KVGetGroup{
 			var query []string
 			query = append(query, g.KeyValuePairs[rand.Intn(len(g.KeyValuePairs))].Key)
 			getG.Keys = query
-			getGroups[j] = getG
+			getGroups= append(getGroups, getG)
 		}
 
 		return getGroups
