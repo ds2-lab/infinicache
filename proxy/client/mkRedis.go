@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"github.com/ScottMansfield/nanolog"
 	"github.com/fatih/set"
 	"github.com/google/uuid"
@@ -349,8 +350,11 @@ func (c *Client) mkRecover(addr string, key string, reqId string, shards [][]byt
 }
 
 func (c *Client) replicate(groups []KVSetGroup) []KVSetGroup {
-	var replicas = make([]KVSetGroup, c.MKReplicationFactors[0])
+	_, maxRF := minMax(c.MKReplicationFactors)
+	var replicas = make([]KVSetGroup, maxRF)
 	var rFs = c.MKReplicationFactors
+
+	fmt.Print(groups)
 	for i := 0; i < len(groups); i++ {
 		var group = groups[i]
 		for k := 0; k < len(group.KeyValuePairs); k++{
