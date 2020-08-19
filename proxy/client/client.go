@@ -186,6 +186,27 @@ func (c *Client) GenerateSetData(size int) [3]KVSetGroup{
 	return data
 }
 
+func (c *Client) GenerateSetData2(size int, groups int, keys int) [3]KVSetGroup{
+	var data [3]KVSetGroup
+	var g KVSetGroup
+	val := make([]byte, size)
+	rand.Read(val)
+	c.J = c.I
+	c.I = c.I +groups
+	counter := 0
+	for ; c.J <= c.I; c.J++ {
+		pair := KeyValuePair{Key: "k"+strconv.Itoa(c.J), Value: val}
+		g.KeyValuePairs = append(g.KeyValuePairs, pair)
+		if c.J%keys == 0 && c.J != 0 {
+			data[counter] = g
+			var newG KVSetGroup
+			g = newG
+			counter ++
+		}
+	}
+	return data
+}
+
 func (c *Client) RemoveBytes(data [3]KVSetGroup) [3]KVSetGroup{
 	for i:=0;i<3;i++{
 		g := data[i]
