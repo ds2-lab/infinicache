@@ -24,7 +24,7 @@ func main() {
 
 
 	for k:=0; k<=requestsNumber; k++{
-		key := fmt.Sprintf("k%d", k)
+		key := fmt.Sprintf("k.%d", k)
 
 		var s float64 = 0
 		for l:=0; l<3; l++ {
