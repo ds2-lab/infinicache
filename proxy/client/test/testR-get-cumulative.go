@@ -34,7 +34,8 @@ func main() {
 		key := fmt.Sprintf("k.%d", k)
 
 		var s float64 = 0
-		for l:=0; l<9; l++ {
+		for l:=0; l<3; l++ {
+			key := fmt.Sprintf("%s.%d", key, l)
 			if _, reader, stats, ok := cli.RGet(key, len(val)); !ok {
 				log.Println("Failed to get ", key)
 				return
@@ -43,7 +44,7 @@ func main() {
 				buf.ReadFrom(reader)
 				reader.Close()
 				//s := buf.String()
-				log.Println("Successfull rGET", key)
+				log.Println("Successful rGET", key)
 				s += stats
 			}
 		}

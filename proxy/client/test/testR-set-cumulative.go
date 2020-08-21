@@ -28,11 +28,12 @@ func main() {
 		key := fmt.Sprintf("k.%d", k)
 
 		var s float64 = 0
-		for l:=0; l<9; l++ {
+		for l:=0; l<3; l++ {
+			key := fmt.Sprintf("%s.%d", key, l)
 			if _, stats, ok := cli.RSet(key, val); !ok {
 				log.Println("Failed to SET ", key)
 			}else{
-				log.Println("Successfull SET ", key)
+				log.Println("Successful SET ", key)
 				s += stats
 			}
 		}
