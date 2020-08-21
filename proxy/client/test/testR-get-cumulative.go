@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"github.com/neboduus/infinicache/proxy/client"
 	"log"
-	"os"
-	"strconv"
-	"strings"
 	"math/rand"
+	"os"
+	"strings"
 )
 
 func main() {
@@ -25,10 +24,6 @@ func main() {
 	// start dial and PUT/GET
 	cli.Dial(addrArr)
 	var getStats []float64
-	requestsNumber, err := strconv.Atoi(os.Args[1])
-	if err!=nil{
-		log.Fatal("No arguments for test. requests number expected")
-	}
 
 	for k:=0; k<=requestsNumber; k++{
 		key := fmt.Sprintf("k.%d", k)
