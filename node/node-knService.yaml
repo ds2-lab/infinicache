@@ -1,7 +1,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: infinicache-node-11
+  name: infinicache-node-19
   namespace: default
 spec:
   template:
