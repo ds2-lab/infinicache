@@ -20,9 +20,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="88efc9fe-49c5-4245-b13a-678463069a7a" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/../node/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../node/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/test/testEC-get-cumulative.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-get-cumulative.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/test/testEC-set-cumulative.go" beforeDir="false" afterPath="$PROJECT_DIR$/client/test/testEC-set-cumulative.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +57,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/client/test" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="settings.editor.selected.configurable" value="editing.templates" />
   </component>
@@ -127,12 +126,10 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="424" y="183" width="554" height="373" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1366.741@0.0.1366.741" timestamp="1594732432469" />
-    <state x="424" y="198" width="534" height="358" key="#com.intellij.fileTypes.FileTypeChooser/0.22.1366.713@0.22.1366.713" timestamp="1587480214058" />
-    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl" timestamp="1592493759389">
+    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl" timestamp="1598613372045">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
-    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl/0.0.1366.741@0.0.1366.741" timestamp="1592493759389" />
-    <state x="518" y="192" width="318" height="370" key="FileChooserDialogImpl/0.22.1366.713@0.22.1366.713" timestamp="1587733236854" />
+    <state x="518" y="177" width="325" height="385" key="FileChooserDialogImpl/0.0.1366.741@0.0.1366.741" timestamp="1598613372045" />
     <state width="1320" height="218" key="GridCell.Tab.0.bottom" timestamp="1593163682438">
       <screen x="0" y="0" width="1366" height="741" />
     </state>
@@ -177,7 +174,6 @@
       <screen x="0" y="0" width="1366" height="741" />
     </state>
     <state x="249" y="145" width="863" height="522" key="find.popup/0.0.1366.741@0.0.1366.741" timestamp="1595505903393" />
-    <state x="394" y="159" width="863" height="468" key="find.popup/0.22.1366.713@0.22.1366.713" timestamp="1587584684192" />
     <state x="346" y="61" width="672" height="678" key="search.everywhere.popup" timestamp="1594732755640">
       <screen x="0" y="0" width="1366" height="741" />
     </state>

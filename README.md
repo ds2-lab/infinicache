@@ -1,4 +1,4 @@
-## Infinicache Lazy Migration from AWS to K8s
+## Infinicache - Knative Version + Multi Key Replication (MK)
 
 This branch contains a fork of [Infinicache](https://github.com/mason-leap-lab/infinicache) 
 which was modified in such a way that we are able to create 2 different containers (1 for the 
