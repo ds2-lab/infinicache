@@ -2,7 +2,7 @@
 
 **InfiniCache** is the first-of-its-kind, cost-effective, and high-performance, in-memory object cache that is built atop ephemeral cloud functions. InfiniCache is 31x - 96x cheaper than traditional cloud cache services.
 
-Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
+Our USENIX FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache](https://www.usenix.org/conference/fast20/presentation/wang-ao)
 
 
 ### Press:
@@ -164,6 +164,23 @@ Our FAST'20 Paper: [InfiniCache: Exploiting Ephemeral Serverless Functions to Bu
 Client library [ecRedis](https://github.com/mason-leap-lab/infinicache/tree/master/client)  
 Redis protocol [redeo](https://github.com/mason-leap-lab/redeo)  
 Benchmarking tool [redbench](https://github.com/wangaoone/redbench)  
+
+## To cite InfiniCache
+
+```
+@inproceedings {246184,
+author = {Ao Wang and Jingyuan Zhang and Xiaolong Ma and Ali Anwar and Lukas Rupprecht and Dimitrios Skourtis and Vasily Tarasov and Feng Yan and Yue Cheng},
+title = {InfiniCache: Exploiting Ephemeral Serverless Functions to Build a Cost-Effective Memory Cache},
+booktitle = {18th {USENIX} Conference on File and Storage Technologies ({FAST} 20)},
+year = {2020},
+isbn = {978-1-939133-12-0},
+address = {Santa Clara, CA},
+pages = {267--281},
+url = {https://www.usenix.org/conference/fast20/presentation/wang-ao},
+publisher = {{USENIX} Association},
+month = feb,
+}
+```
 
 
 ## Contributing
