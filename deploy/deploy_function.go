@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"math"
-	"sync"
-	"time"
 )
 
 const (
@@ -129,6 +130,7 @@ func updateCode(name string, svc *lambda.Lambda, wg *sync.WaitGroup) {
 }
 
 func createFunction(name string, svc *lambda.Lambda) {
+	fmt.Println("create:", name)
 	var vpcConfig *lambda.VpcConfig
 	if *vpc {
 		vpcConfig = &lambda.VpcConfig{SubnetIds: subnet, SecurityGroupIds: securityGroup}
@@ -176,7 +178,8 @@ func createFunction(name string, svc *lambda.Lambda) {
 		return
 	}
 
-	fmt.Println(result)
+	fmt.Println(name, '\n', result)
+	//wg.Done()
 }
 
 //func upload(sess *session.Session) {
@@ -204,7 +207,7 @@ func main() {
 	flag.Parse()
 	// get group count
 	group := int64(math.Ceil(float64(*to-*from) / float64(*batch)))
-	fmt.Println("group", group)
+	//fmt.Println("group", group)
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -219,7 +222,7 @@ func main() {
 			fmt.Println(j)
 			var wg sync.WaitGroup
 			//for i := j*(*batch) + *from; i < (j+1)*(*batch); i++ {
-			for i := int64(0); i < *batch; i++ {
+			for i := int64(0); i < *batch && j*(*batch)+*from+i < *to; i++ {
 				wg.Add(1)
 				go updateCode(fmt.Sprintf("%s%d", *prefix, j*(*batch)+*from+i), svc, &wg)
 			}
@@ -231,7 +234,7 @@ func main() {
 		for j := int64(0); j < group; j++ {
 			fmt.Println(j)
 			var wg sync.WaitGroup
-			for i := int64(0); i < *batch; i++ {
+			for i := int64(0); i < *batch && j*(*batch)+*from+i < *to; i++ {
 				wg.Add(1)
 				go updateConfig(fmt.Sprintf("%s%d", *prefix, j*(*batch)+*from+i), svc, &wg)
 			}
