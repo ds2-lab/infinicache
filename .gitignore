@@ -2,3 +2,5 @@ proxy/proxy
 lambda/lambda
 lambda.zip
 *.xml
+evaluation
+.vscode
