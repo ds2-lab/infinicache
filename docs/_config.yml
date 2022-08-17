@@ -16,7 +16,7 @@
 title: InfiniCache
 description: InfiniCache Project Site
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "https://mason-leap-lab.github.io/infinicache" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://ds2-lab.github.io/infinicache" # the base hostname & protocol for your site, e.g. http://example.com
 
 permalink: pretty
 exclude: ["node_modules/", "*.gemspec", "*.gem", "Gemfile", "Gemfile.lock", "package.json", "package-lock.json",  "script/", "LICENSE.txt", "lib/", "bin/", "README.md", "Rakefile"]
