@@ -6,7 +6,6 @@ require (
 	github.com/ScottMansfield/nanolog v0.2.0
 	github.com/aws/aws-lambda-go v1.13.3
 	github.com/aws/aws-sdk-go v1.28.10
-	github.com/bsm/redeo v2.2.0+incompatible // indirect
 	github.com/buraksezer/consistent v0.0.0-20191006190839-693edf70fd72
 	github.com/cespare/xxhash v1.1.0
 	github.com/cornelk/hashmap v1.0.1
@@ -21,7 +20,6 @@ require (
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20200106165036-28deee3eabd7
-	golang.org/x/net v0.0.0-20181129055619-fae4c4e3ad76 // indirect
-	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
+	golang.org/x/net v0.7.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
